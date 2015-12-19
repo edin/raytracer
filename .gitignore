@@ -1,1 +1,11 @@
 bin
+*.json
+*.bmp
+*.exe
+*.vspx
+vb/obj
+*.obj
+.vs
+*.png
+vb/VBRayTracer.vbproj.user
+*.suo

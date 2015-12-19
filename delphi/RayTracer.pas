@@ -127,9 +127,7 @@ RayTracerEngine = class
     function getReflectionColor(thing: Thing; pos: Vector; normal:
       Vector; rd: Vector; scene: Scene; depth: integer):Color;
     function getNaturalColor(thing: Thing; pos: Vector; norm: Vector; rd: Vector; scene: Scene):Color;
-
     procedure render(scene:Scene;img:Graphics.TBitmap);
-
 end;
 
 
@@ -222,7 +220,6 @@ begin
     Result.x := a.x - b.x;
     Result.y := a.y - b.y;
     Result.z := a.z - b.z;
-
 end;
 
 class operator Vector.Add(a, b: Vector): Vector;
@@ -254,7 +251,6 @@ begin
     Result := 255
   else
     Result := Byte(Floor(v));
-
 end;
 
 constructor Color.Create(r, g, b: Double );
@@ -604,7 +600,6 @@ begin
       start[pos+1] := c.g;
       start[pos+2] := c.r;
     end;
-    Writeln('Y = ' + IntToStr(y));
   end;
 
   testRay.Free;

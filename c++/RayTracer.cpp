@@ -6,10 +6,10 @@
 
 
 #ifdef _MSC_VER
-	#ifndef INFINITY
-		#define INFINITY (DBL_MAX+DBL_MAX)
-		#define NAN (INFINITY-INFINITY)
-	#endif
+    #ifndef INFINITY
+        #define INFINITY (DBL_MAX+DBL_MAX)
+        #define NAN (INFINITY-INFINITY)
+    #endif
 #endif
 
 struct RGB_COLOR
@@ -22,41 +22,61 @@ struct RGB_COLOR
 class Vector 
 {
 public:
-	double x;
-	double y;
-	double z;
+    double x;
+    double y;
+    double z;
+    
+    Vector() 
+    {
+        x = 0;
+        y = 0;
+        z = 0;
+    }
+    
+    Vector(double x, double y, double z)
+    {
+        this->x = x;
+        this->y = y;
+        this->z = z;
+    }
+    static Vector times(double k, const Vector &v)          
+    { 
+        return Vector(k * v.x, k * v.y, k * v.z); 
+    }
 
-	Vector() {
-		x = 0;
-		y = 0;
-		z = 0;
-	}
-
-	Vector(double x, double y, double z)
-	{
-		this->x = x;
-		this->y = y;
-		this->z = z;
-	}
-
-	static Vector times(double k, const Vector &v)         { return Vector(k * v.x, k * v.y, k * v.z); }
-	static Vector minus(const Vector &v1, const Vector &v2) { return Vector(v1.x - v2.x, v1.y - v2.y, v1.z - v2.z); }
-	static Vector plus(const Vector &v1, const Vector &v2)  { return Vector(v1.x + v2.x, v1.y + v2.y, v1.z + v2.z); }
-	static double dot(const Vector &v1, const Vector &v2)   { return v1.x * v2.x + v1.y * v2.y + v1.z * v2.z; }
-
-	static double mag(const Vector &v)  { return sqrt(v.x * v.x + v.y * v.y + v.z * v.z); }
-
-	static Vector norm(const Vector &v) 
-	{
-		double mag = Vector::mag(v);
-		double div = (mag == 0) ? INFINITY : 1.0 / mag;
-		return Vector::times(div, v);
-	}
-	static Vector cross(const Vector &v1,const Vector &v2) {
-		return Vector(v1.y * v2.z - v1.z * v2.y,
-			v1.z * v2.x - v1.x * v2.z,
-			v1.x * v2.y - v1.y * v2.x);
-	} 
+    static Vector minus(const Vector &v1, const Vector &v2) 
+    { 
+        return Vector(v1.x - v2.x, v1.y - v2.y, v1.z - v2.z); 
+    }
+    
+    static Vector plus(const Vector &v1, const Vector &v2)
+    { 
+        return Vector(v1.x + v2.x, v1.y + v2.y, v1.z + v2.z); 
+    }
+    
+    static double dot(const Vector &v1, const Vector &v2) 
+    { 
+        return v1.x * v2.x + v1.y * v2.y + v1.z * v2.z; 
+    }
+    
+    static double mag(const Vector &v) 
+    { 
+        return sqrt(v.x * v.x + v.y * v.y + v.z * v.z); 
+    }
+    
+    static Vector norm(const Vector &v) 
+    {
+        double mag = Vector::mag(v);
+        double div = (mag == 0) ? INFINITY : 1.0 / mag;
+        return Vector::times(div, v);
+    }
+    
+    static Vector cross(const Vector &v1,const Vector &v2) 
+    {
+        return Vector(v1.y * v2.z - v1.z * v2.y,
+                        v1.z * v2.x - v1.x * v2.z,
+                        v1.x * v2.y - v1.y * v2.x);
+    } 
 };
 
 
@@ -73,20 +93,34 @@ public:
 	static Color background;
 	static Color defaultColor;
 
-	Color(){
+	Color()
+    {
 		r = 0;
 		g = 0;
 		b = 0;
 	}
 
-	Color(double r, double g, double b) {
+	Color(double r, double g, double b) 
+    {
 		this->r = r;
 		this->g = g;
 		this->b = b;
 	}
-	static Color scale(double k,  const Color &v)  { return Color(k * v.r, k * v.g, k * v.b); }
-	static Color plus(const Color  &v1, const Color &v2)  { return Color(v1.r + v2.r, v1.g + v2.g, v1.b + v2.b); }
-	static Color times(const Color &v1, const Color &v2)  { return Color(v1.r * v2.r, v1.g * v2.g, v1.b * v2.b); }
+	
+    static Color scale(double k,  const Color &v)  
+    { 
+        return Color(k * v.r, k * v.g, k * v.b); 
+    }
+	
+    static Color plus(const Color  &v1, const Color &v2)
+    { 
+        return Color(v1.r + v2.r, v1.g + v2.g, v1.b + v2.b); 
+    }
+    
+	static Color times(const Color &v1, const Color &v2)  
+    { 
+        return Color(v1.r * v2.r, v1.g * v2.g, v1.b * v2.b); 
+    }
 
 	static 	RGB_COLOR toDrawingColor(const Color &c) 
 	{
@@ -123,7 +157,8 @@ public:
 
 	Camera(){}
 
-	Camera (Vector pos, Vector lookAt) {
+	Camera (Vector pos, Vector lookAt) 
+    {
 		this->pos = pos;
 		Vector down    = Vector(0.0, -1.0, 0.0);
 		Vector forward = Vector::minus(lookAt, pos);
@@ -134,12 +169,14 @@ public:
 };
 
 
-class Ray {
+class Ray 
+{
 public :
 	Vector start;
 	Vector dir;
 
 	Ray(){}
+    
 	Ray(Vector start, Vector dir)
 	{
 		this->start = start;
@@ -149,7 +186,8 @@ public :
 
 class Thing;
 
-class Intersection {
+class Intersection 
+{
 public:
 	Thing* thing;
 	Ray ray;
@@ -164,7 +202,8 @@ public:
 };
 
 
-class Surface {
+class Surface 
+{
 public:
 	virtual Color  diffuse(Vector pos)  { return Color::black; };
 	virtual Color  specular(Vector pos) { return Color::black; };
@@ -173,7 +212,8 @@ public:
 };
 
 
-class Thing {
+class Thing 
+{
 public:
 	virtual Intersection *intersect(Ray ray) = 0;
 	virtual Vector normal(Vector pos) = 0;
@@ -181,7 +221,8 @@ public:
 };
 
 
-class Light {
+class Light 
+{
 public:
 	Vector pos;
 	Color color;
@@ -194,14 +235,16 @@ public:
 };
 
 
-class Scene {
+class Scene 
+{
 public:
 	virtual std::vector<Thing*>* things() = 0;
 	virtual std::vector<Light*>* lights() = 0;
 	virtual Camera camera() = 0;
 };
 
-class Sphere : Thing {
+class Sphere : Thing 
+{
 public :
 	double radius2;
 	Vector center;
@@ -330,15 +373,15 @@ public:
 	}
 };
 
-class Surfaces {
+class Surfaces 
+{
 public:
 	static ShinySurface* shiny;
 	static CheckerboardSurface* checkerboard;
 };
 
-ShinySurface* Surfaces::shiny = new ShinySurface();
-CheckerboardSurface* Surfaces::checkerboard =  new CheckerboardSurface();
-
+ShinySurface* Surfaces::shiny               = new ShinySurface();
+CheckerboardSurface* Surfaces::checkerboard = new CheckerboardSurface();
 
 class DefaultScene: Scene
 {
@@ -346,7 +389,6 @@ private:
 	std::vector<Thing*>* _things;
 	std::vector<Light*>* _lights;
 	Camera _camera;
-
 public:
 	DefaultScene()
 	{
@@ -390,8 +432,8 @@ class RayTracerEngine
 private:
 	static const int maxDepth = 5;
 
-
-	 Intersection* intersections(Ray ray, Scene* scene) {
+	 Intersection* intersections(Ray ray, Scene* scene) 
+     {
 		double closest = INFINITY;
 		Intersection *closestInter = nullptr;
 		std::vector<Thing*> *items = scene->things();
@@ -405,7 +447,6 @@ private:
 		}
 		return closestInter;
 	}
-
 
 	double testRay(Ray ray, Scene* scene) 
 	{
@@ -446,13 +487,11 @@ private:
 		return Color::plus(naturalColor, reflectedColor);
 	}
 
-
 	Color getReflectionColor(Thing* thing, Vector pos, Vector normal, Vector rd, Scene* scene, int depth)
 	{
 		Ray ray(pos, rd); 
 		return Color::scale(thing->surface()->reflect(pos), this->traceRay(ray, scene, depth + 1));
 	}
-
 
 	Color getNaturalColor(Thing* thing, Vector pos, Vector norm, Vector rd, Scene* scene)
 	{
@@ -499,29 +538,28 @@ private:
 
 public:
 	
-	void render(Scene* scene, byte* bitmapData, int stride, int w, int h)
-	{
-		Ray ray;
-		ray.start     = scene->camera().pos;	
-		Camera camera = scene->camera();
-		
-		for (int y = 0; y < h; ++y) 
-		{
-			int pos = y * stride;
-			for (int x = 0; x < w; ++x) 
-			{
-				ray.dir   = this->getPoint(x, y, camera, h, w);
-				Color color = this->traceRay(ray, scene, 0);
-				RGB_COLOR rgbColor = Color::toDrawingColor(color);
-				bitmapData[pos]     = rgbColor.b;
-				bitmapData[pos + 1] = rgbColor.g;
-				bitmapData[pos + 2] = rgbColor.r;
-				bitmapData[pos + 3] = 255;
-				pos += 4;
-			}	
-		}
-	}
-	
+    void render(Scene* scene, byte* bitmapData, int stride, int w, int h)
+    {
+        Ray ray;
+        ray.start     = scene->camera().pos;	
+        Camera camera = scene->camera();
+        
+        for (int y = 0; y < h; ++y) 
+        {
+            int pos = y * stride;
+            for (int x = 0; x < w; ++x) 
+            {
+                ray.dir   = this->getPoint(x, y, camera, h, w);
+                Color color = this->traceRay(ray, scene, 0);
+                RGB_COLOR rgbColor = Color::toDrawingColor(color);
+                bitmapData[pos]     = rgbColor.b;
+                bitmapData[pos + 1] = rgbColor.g;
+                bitmapData[pos + 2] = rgbColor.r;
+                bitmapData[pos + 3] = 255;
+                pos += 4;
+            }
+        }
+    }
 };
 
 void SaveRGBBitmap(byte* pBitmapBits, LONG lWidth, LONG lHeight, LONG wBitsPerPixel, LPCSTR lpszFileName )
@@ -536,21 +574,21 @@ void SaveRGBBitmap(byte* pBitmapBits, LONG lWidth, LONG lHeight, LONG wBitsPerPi
     bmpInfoHeader.biWidth = lWidth;
     bmpInfoHeader.biPlanes = 1;
     bmpInfoHeader.biSizeImage = lWidth* lHeight * (wBitsPerPixel/8);
-
+    
     BITMAPFILEHEADER bfh = {0};
     bfh.bfType = 'B' + ('M' << 8);
     bfh.bfOffBits = sizeof(BITMAPINFOHEADER) + sizeof(BITMAPFILEHEADER);
     bfh.bfSize    = bfh.bfOffBits + bmpInfoHeader.biSizeImage;
-	
-	FILE * hFile;
-  	hFile = fopen(lpszFileName,"wb");
-
+    
+    FILE * hFile;
+    hFile = fopen(lpszFileName,"wb");
+    
     if(!hFile) {
         return;
     }
-
-	fwrite (&bfh , sizeof(char), sizeof(bfh), hFile);
-	fwrite (&bmpInfoHeader , sizeof(char), sizeof(bmpInfoHeader), hFile);
+    
+    fwrite (&bfh , sizeof(char), sizeof(bfh), hFile);
+    fwrite (&bmpInfoHeader , sizeof(char), sizeof(bmpInfoHeader), hFile);
     fwrite(pBitmapBits, sizeof(char), bmpInfoHeader.biSizeImage, hFile );
     fclose(hFile);
 }
@@ -579,6 +617,6 @@ int main()
 	
 	delete rayTracer;
 	delete scene;	
-	delete [] bmp;
+	delete [] bitmapData;
 	return 0;
 };

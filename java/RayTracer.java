@@ -28,8 +28,8 @@ public class RayTracer
     }    
 }
 
-class Vector {
-    
+class Vector 
+{
     public double x;
     public double y;
     public double z;
@@ -59,8 +59,8 @@ class Vector {
     }
 }
 
-class Color {
-    
+class Color 
+{
     public double r;
     public double g;
     public double b;
@@ -99,7 +99,8 @@ class Color {
     }
 }
 
-class Camera {
+class Camera 
+{
     public Vector forward;
     public Vector right;
     public Vector up;
@@ -114,7 +115,8 @@ class Camera {
     }
 }
 
-class Ray {
+class Ray 
+{
     public Vector start;
     public Vector dir;
     
@@ -127,7 +129,8 @@ class Ray {
 }
 
 
-class Intersection {
+class Intersection 
+{
     public Thing thing;
     public Ray ray;
     public double dist;
@@ -141,7 +144,8 @@ class Intersection {
 }
 
 
-interface Surface {
+interface Surface 
+{
     public Color diffuse (Vector pos);
     public Color  specular(Vector pos);
     public double reflect(Vector pos);
@@ -149,14 +153,16 @@ interface Surface {
 }
 
 
-interface Thing {
+interface Thing 
+{
     public Intersection intersect(Ray ray);
     public Vector normal(Vector pos);
     public Surface surface();
 }
 
 
-class Light {
+class Light 
+{
     Vector pos;
     Color color;
     public Light(Vector pos, Color color)
@@ -167,13 +173,15 @@ class Light {
 }
 
 
-interface Scene {
+interface Scene 
+{
     public List<Thing> things();
     public List<Light> lights();
     Camera camera();
 }
 
-class Sphere implements Thing {
+class Sphere implements Thing 
+{
     public double radius2;
     public Vector center;
     public Surface surface;
@@ -205,7 +213,8 @@ class Sphere implements Thing {
     }
 
     @Override
-    public Surface surface() {
+    public Surface surface() 
+    {
         return this.surface;
     }
 }
@@ -448,7 +457,6 @@ class RayTracerEngine
                 int c = Color.toDrawingColor(color);
                 img.setRGB(x, y, c);
             }
-            System.out.println("Y = "+y);
         }
     }
     

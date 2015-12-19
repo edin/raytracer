@@ -45,6 +45,7 @@ class Vector
     public static function mag(Vector $v)  {
         return sqrt( $v->x * $v->x + $v->y * $v->y + $v->z * $v->z);
     }
+    
     public static function norm(Vector $v) {
         $mag = Vector::mag($v);
         $div = ($mag == 0) ? INFINITY : 1.0 / $mag;
@@ -60,7 +61,6 @@ class Vector
 
 class Color 
 {
-    
     public $r;
     public $g;
     public $b;
@@ -455,16 +455,14 @@ class RayTracerEngine
 					$camPos,
 					self::getPoint($x, $y, $camera, $h, $w)
 				);	
-				
+
                 $color = $this->traceRay($ray, $scene, 0);
-				
 
                 $c = Color::toDrawingColor($color);               
                 $imgColor = imagecolorallocate($img, $c[0], $c[1], $c[2]);
                 imagesetpixel($img, $x, $y, $imgColor);
                 imagecolordeallocate($img, $imgColor);
             }
-            echo "Y = $y\n";
         }
     }
     
@@ -477,7 +475,7 @@ class RayTracerEngine
 		$b = Vector::times($recenterY, $camera->up);
 		$c = Vector::plus($a,$b);
 		
-        return Vector::norm( Vector::plus($camera->forward, $c) );        
+        return Vector::norm(Vector::plus($camera->forward, $c) );        
     }
 }
 

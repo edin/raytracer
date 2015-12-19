@@ -281,7 +281,6 @@ class RayTracer:
                 color = self.traceRay(Ray(scene.camera().pos, self.getPoint(x, y, scene.camera(),screenWidth, screenHeight )) , scene, 0)
                 c = Color.toDrawingColor(color)
                 image.putpixel((x,y), c )
-            print ("Y = %d" % y)
 
 
 class DefaultScene(Scene):
