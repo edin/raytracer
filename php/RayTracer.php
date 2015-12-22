@@ -458,7 +458,7 @@ class RayTracerEngine
 
                 $color = $this->traceRay($ray, $scene, 0);
 
-                $c = Color::toDrawingColor($color);               
+                $c = Color::toDrawingColor($color);     
                 $imgColor = imagecolorallocate($img, $c[0], $c[1], $c[2]);
                 imagesetpixel($img, $x, $y, $imgColor);
                 imagecolordeallocate($img, $imgColor);

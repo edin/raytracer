@@ -9,3 +9,4 @@ vb/obj
 *.png
 vb/VBRayTracer.vbproj.user
 *.suo
+obj

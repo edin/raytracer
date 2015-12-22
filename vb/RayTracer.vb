@@ -352,11 +352,11 @@ Class RayTracerEngine
         Dim reflectDir = d - (2 * Vector.dot(normal, d) * normal)
 
         Dim naturalColor = Color.background + Me.getNaturalColor(isect.thing, pos, normal, reflectDir, scene)
-        Return naturalColor
 
-        'Dim reflectedColor = If(depth >= Me.maxDepth, Color.grey, Me.getReflectionColor(isect.thing, pos, normal, reflectDir, scene, depth))
 
-        'Return naturalColor + reflectedColor
+        Dim reflectedColor = If(depth >= Me.maxDepth, Color.grey, Me.getReflectionColor(isect.thing, pos, normal, reflectDir, scene, depth))
+
+        Return naturalColor + reflectedColor
     End Function
 
     Private Function getReflectionColor(thing As Thing, pos As Vector, normal As Vector, rd As Vector, scene As Scene, depth As Integer) As Color

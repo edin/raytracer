@@ -551,7 +551,7 @@ begin
     if (inter <> nil) and (inter.dist < closest) then
     begin
       if closestInter <> nil then closestInter.Free;
-      
+
       closestInter := inter;
       closest := inter.dist;
     end;
@@ -591,10 +591,10 @@ begin
     begin
       testRay.start := scene.xcamera.pos;
       testRay.dir := getPoint(x, y, scene.xcamera);
-      
+
       destColor := self.traceRay(testRay, scene, 0);
       c := destColor.ToDrawingColor;
-      
+
       pos := y*stride + x*4;
       start[pos]   := c.b;
       start[pos+1] := c.g;
