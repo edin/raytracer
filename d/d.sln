@@ -1,0 +1,43 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio 2013
+VisualStudioVersion = 12.0.31101.0
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{002A2DE9-8BB6-484D-9802-7E4AD4084715}") = "d", "d.visualdproj", "{F9161B49-6B06-4554-8099-6FB08A832128}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug DMD|Win32 = Debug DMD|Win32
+		Debug DMD|x64 = Debug DMD|x64
+		Debug GDC|Win32 = Debug GDC|Win32
+		Debug GDC|x64 = Debug GDC|x64
+		Release DMD|Win32 = Release DMD|Win32
+		Release DMD|x64 = Release DMD|x64
+		Release GDC|Win32 = Release GDC|Win32
+		Release GDC|x64 = Release GDC|x64
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{F9161B49-6B06-4554-8099-6FB08A832128}.Debug DMD|Win32.ActiveCfg = Debug DMD|Win32
+		{F9161B49-6B06-4554-8099-6FB08A832128}.Debug DMD|Win32.Build.0 = Debug DMD|Win32
+		{F9161B49-6B06-4554-8099-6FB08A832128}.Debug DMD|x64.ActiveCfg = Debug DMD|x64
+		{F9161B49-6B06-4554-8099-6FB08A832128}.Debug DMD|x64.Build.0 = Debug DMD|x64
+		{F9161B49-6B06-4554-8099-6FB08A832128}.Debug GDC|Win32.ActiveCfg = Debug GDC|Win32
+		{F9161B49-6B06-4554-8099-6FB08A832128}.Debug GDC|Win32.Build.0 = Debug GDC|Win32
+		{F9161B49-6B06-4554-8099-6FB08A832128}.Debug GDC|x64.ActiveCfg = Debug GDC|x64
+		{F9161B49-6B06-4554-8099-6FB08A832128}.Debug GDC|x64.Build.0 = Debug GDC|x64
+		{F9161B49-6B06-4554-8099-6FB08A832128}.Release DMD|Win32.ActiveCfg = Release DMD|Win32
+		{F9161B49-6B06-4554-8099-6FB08A832128}.Release DMD|Win32.Build.0 = Release DMD|Win32
+		{F9161B49-6B06-4554-8099-6FB08A832128}.Release DMD|x64.ActiveCfg = Release DMD|x64
+		{F9161B49-6B06-4554-8099-6FB08A832128}.Release DMD|x64.Build.0 = Release DMD|x64
+		{F9161B49-6B06-4554-8099-6FB08A832128}.Release GDC|Win32.ActiveCfg = Release GDC|Win32
+		{F9161B49-6B06-4554-8099-6FB08A832128}.Release GDC|Win32.Build.0 = Release GDC|Win32
+		{F9161B49-6B06-4554-8099-6FB08A832128}.Release GDC|x64.ActiveCfg = Release GDC|x64
+		{F9161B49-6B06-4554-8099-6FB08A832128}.Release GDC|x64.Build.0 = Release GDC|x64
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(Performance) = preSolution
+		HasPerformanceSessions = true
+	EndGlobalSection
+EndGlobal
