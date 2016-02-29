@@ -305,6 +305,7 @@ class CheckerboardSurface : Surface
     {
         roughness = 150.0;
     }
+    
     public Color diffuse(Vector pos)
     {
         if ((Math.Floor(pos.z) + Math.Floor(pos.x)) % 2 != 0) {
@@ -463,6 +464,7 @@ class RayTracerEngine
     {
         int w = bmp.Width;
         int h = bmp.Height;
+        
         GetPointDelegate getPoint = (int x, int y, Camera camera) =>
         {
             var recenterX = (x - (w / 2.0)) / 2.0 / w;

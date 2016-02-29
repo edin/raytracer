@@ -10,3 +10,6 @@ vb/obj
 vb/VBRayTracer.vbproj.user
 *.suo
 obj
+*.pdb
+*/Debug/*
+*/Release/*
