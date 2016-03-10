@@ -11,5 +11,5 @@ vb/VBRayTracer.vbproj.user
 *.suo
 obj
 *.pdb
-*/Debug/*
-*/Release/*
+**/Debug/*
+**/Release/*
