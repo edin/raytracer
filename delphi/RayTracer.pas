@@ -2,252 +2,243 @@ unit RayTracer;
 
 interface
 
-uses Classes, Graphics, Math, Generics.Collections,Windows, SysUtils;
+uses Classes, Vcl.Graphics, Math, Generics.Collections, Windows, SysUtils;
 
 type
-Surface = class;
-Light = class;
+  Surface = class;
+  Light = class;
 
-Vector = record
-    x,y,z:Double ;
+  Vector = record
+    x, y, z: Double;
     class operator Add(const a, b: Vector): Vector;
     class operator Subtract(const a, b: Vector): Vector;
-    class operator Multiply( k:Double ; const b: Vector): Vector;
+    class operator Multiply(k: Double; const b: Vector): Vector;
 
-    constructor Create(x,y,z:Double );
+    constructor Create(x, y, z: Double);
 
-    function dot(const v:Vector):Double;
-    function norm():Vector;
-    function cross(const v:Vector):Vector;
-    function mag():Double ;
-end;
+    function dot(const v: Vector): Double;
+    function norm(): Vector;
+    function cross(const v: Vector): Vector;
+    function mag(): Double;
+  end;
 
-RGBColor = record
-  a, b, g, r: Byte
-end;
+  RGBColor = record
+    b, g, r, a: Byte end;
 
-Color = record
-  r,g,b:Double;
+    Color = record r, g, b: Double;
 
-  class var  white: Color;
-  class var  grey: Color;
-  class var  black: Color;
-  class var  background: Color;
-  class var  defaultColor: Color;
+    class var white: Color;
+    class var grey: Color;
+    class var black: Color;
+    class var background: Color;
+    class var defaultColor: Color;
 
-  constructor Create(r,g,b:Double );
+    constructor Create(r, g, b: Double);
 
-  class operator Add(const a, b: Color): Color;
-  class operator Multiply(k:Double; const b: Color): Color;
-  class operator Multiply(const a, b: Color): Color;
+    class operator Add(const a, b: Color): Color;
+    class operator Multiply(k: Double; const b: Color): Color;
+    class operator Multiply(const a, b: Color): Color;
 
-  class function Clamp(v:Double):Byte; static;
-  function ToDrawingColor:RGBColor;
-end;
+    class function Clamp(v: Double): Byte; static;
+    function ToDrawingColor: RGBColor;
+  end;
 
-Camera = class(TObject)
-public
-  forwardDir: Vector;
-  right: Vector;
-  up: Vector;
-  pos: Vector;
-  constructor Create(pos:Vector; lookAt:Vector);
-end;
-
-Thing = class;
-Ray = class;
-
-Intersection = record
-  thing: Thing;
-  ray:  Ray;
-  dist: Double;
-  constructor Create(thing:Thing; ray:Ray; dist:Double);
-  class function Invalid : Intersection; static;
- 
-  function IsValid : boolean; 
- end;
-
-Thing = class(TObject)
+  Camera = class(TObject)
   public
-  function intersect(ray: Ray) : Intersection; virtual; abstract;
-  function normal (pos: Vector): Vector; virtual; abstract;
-  function surface:Surface;virtual;  abstract;
-end;
+    forwardDir: Vector;
+    right: Vector;
+    up: Vector;
+    pos: Vector;
+    constructor Create(pos: Vector; lookAt: Vector);
+  end;
 
-Ray = class(TObject)
-   start:Vector;
-   dir:Vector;
-   public
-   constructor Create();overload;
-   constructor Create(start,dir:Vector);overload;
-   function ToString:String;override;
-end;
+  Thing = class;
 
-Surface = class abstract
-public
-  function diffuse(const pos:Vector):Color; virtual;  abstract;
-  function specular(const pos:Vector):Color; virtual;  abstract;
-  function reflect(const pos:Vector):Double ; virtual;  abstract;
-  function roughness:Double ;virtual;abstract;
-end;
+  Ray = record
+    start: Vector;
+    dir: Vector;
+  public
+    constructor Create(const start, dir: Vector);
+  end;
 
-ShinySurface = class(Surface)
+  Intersection = record
+    Thing: Thing;
+    Ray: Ray;
+    dist: Double;
+    constructor Create(Thing: Thing; const Ray: Ray; dist: Double);
+    class function Invalid: Intersection; static;
+
+    function IsValid: boolean;
+  end;
+
+  Thing = class(TObject)
+  public
+    function intersect(const Ray: Ray): Intersection; virtual; abstract;
+    function normal(const pos: Vector): Vector; virtual; abstract;
+    function Surface: Surface; virtual; abstract;
+  end;
+
+  Surface = class abstract
+  public
+    function diffuse(const pos: Vector): Color; virtual; abstract;
+    function specular(const pos: Vector): Color; virtual; abstract;
+    function reflect(const pos: Vector): Double; virtual; abstract;
+    function roughness: Double; virtual; abstract;
+  end;
+
+  ShinySurface = class(Surface)
   public
     function diffuse(const pos: Vector): Color; override;
     function specular(const pos: Vector): Color; override;
-    function reflect(const pos: Vector): Double ; override;
-    function roughness: Double ; override;
-end;
+    function reflect(const pos: Vector): Double; override;
+    function roughness: Double; override;
+  end;
 
-CheckerboardSurface = class(Surface)
+  CheckerboardSurface = class(Surface)
   public
     function diffuse(const pos: Vector): Color; override;
     function specular(const pos: Vector): Color; override;
-    function reflect(const pos: Vector): Double ; override;
-    function roughness: Double ; override;
-end;
+    function reflect(const pos: Vector): Double; override;
+    function roughness: Double; override;
+  end;
 
-Scene = class(TObject)
+  Scene = class(TObject)
   public
-    things:TList<Thing>;
-    lights:TList<Light>;
-    xcamera:Camera;
+    things: array of Thing;
+    lights: array of Light;
+    xcamera: Camera;
     constructor Create;
-end;
+  end;
 
-RayTracerEngine = class
+  RayTracerEngine = class
   private
-    maxDepth:Integer;
+    maxDepth: Integer;
+    Scene: Scene;
 
   public
     constructor Create;
 
-    function intersections(ray: Ray; scene: Scene):Intersection;
-    function testRay(ray: Ray; scene: Scene):Double ;
-    function traceRay(ray: Ray; scene: Scene; depth: integer): Color;
-    function shade(isect: Intersection; scene: Scene; depth: integer):Color;
+    function intersections(const Ray: Ray): Intersection;
+    function testRay(const Ray: Ray): Double;
+    function traceRay(const Ray: Ray; depth: Integer): Color;
+    function shade(isect: Intersection; depth: Integer): Color;
 
-    function getReflectionColor(thing: Thing; const pos, normal, rd: Vector; scene: Scene; depth: integer):Color;
-    function getNaturalColor(thing: Thing; const pos, norm, rd: Vector; scene: Scene):Color;
-    procedure render(scene:Scene;img:Graphics.TBitmap);
-end;
+    function getReflectionColor(Thing: Thing; const pos, normal, rd: Vector;
+      depth: Integer): Color;
+    function getNaturalColor(Thing: Thing; const pos, norm, rd: Vector): Color;
+    procedure render(Scene: Scene; img: Vcl.Graphics.TBitmap);
+  end;
 
-
-Light = class
-public
-  pos:Vector;
-  color:Color;
-  constructor Create(pos:Vector; color:Color);
-end;
-
-Sphere = class(Thing)
-  private
-    radius2:Double ;
-    center:Vector;
-    _surface:Surface;
+  Light = class
   public
-    function intersect(ray: Ray): Intersection; override;
-    function normal(pos: Vector): Vector; override;
-    function surface: Surface; override;
+    pos: Vector;
+    Color: Color;
+    constructor Create(pos: Vector; Color: Color);
+  end;
 
-    constructor Create(center:Vector; radius:Double ; surface:Surface);
-end;
-
-Plane = class(Thing)
+  Sphere = class(Thing)
   private
-    norm:Vector;
-    offset:Double ;
-    _surface:Surface;
+    radius2: Double;
+    center: Vector;
+    _surface: Surface;
   public
-    function intersect(ray: Ray): Intersection; override;
-    function normal(pos: Vector): Vector; override;
-    function surface: Surface; override;
+    function intersect(const Ray: Ray): Intersection; override;
+    function normal(const pos: Vector): Vector; override;
+    function Surface: Surface; override;
+    constructor Create(center: Vector; radius: Double; Surface: Surface);
+  end;
 
-    constructor Create(norm:Vector; offset:Double ; surface:Surface);
-end;
-
+  Plane = class(Thing)
+  private
+    norm: Vector;
+    offset: Double;
+    _surface: Surface;
+  public
+    function intersect(const Ray: Ray): Intersection; override;
+    function normal(const pos: Vector): Vector; override;
+    function Surface: Surface; override;
+    constructor Create(norm: Vector; offset: Double; Surface: Surface);
+  end;
 
 implementation
 
 { Vector }
-constructor Vector.Create(x,y,z:Double );
+constructor Vector.Create(x, y, z: Double);
 begin
-   self.x := x;
-   self.y := y;
-   self.z := z;
+  self.x := x;
+  self.y := y;
+  self.z := z;
 end;
 
 function Vector.cross(const v: Vector): Vector;
 begin
-    Result.x := y * v.z - z * v.y;
-    Result.y := z * v.x - x * v.z;
-    Result.z := x * v.y - y * v.x;
+  Result.x := y * v.z - z * v.y;
+  Result.y := z * v.x - x * v.z;
+  Result.z := x * v.y - y * v.x;
 end;
 
-function Vector.dot(const v: Vector): Double ;
+function Vector.dot(const v: Vector): Double;
 begin
-    Result := x * v.x +
-              y * v.y +
-              z * v.z;
+  Result := (x * v.x) + (y * v.y) + (z * v.z);
 end;
 
-function Vector.mag: Double ;
+function Vector.mag: Double;
 begin
-    Result := Sqrt(x * x + y * y + z * z);
+  Result := Sqrt(x * x + y * y + z * z);
 end;
 
-class operator Vector.Multiply(k: Double ;const b: Vector): Vector;
+class operator Vector.Multiply(k: Double; const b: Vector): Vector;
 begin
-    Result.x := k * b.x;
-    Result.y := k * b.y;
-    Result.z := k * b.z;
+  Result.x := k * b.x;
+  Result.y := k * b.y;
+  Result.z := k * b.z;
 end;
 
 function Vector.norm: Vector;
 var
-    divBy, m:Double ;
+  divBy, m: Double;
 begin
-    m := self.mag();
+  m := self.mag();
 
-    if (m = 0) then
-      divBy := MaxDouble
-    else
-      divBy := 1.0 / m;
+  if (m = 0) then
+    divBy := MaxDouble
+  else
+    divBy := 1.0 / m;
 
-    Result := divBy * self;
+  Result := divBy * self;
 end;
 
 class operator Vector.Subtract(const a, b: Vector): Vector;
 begin
-    Result.x := a.x - b.x;
-    Result.y := a.y - b.y;
-    Result.z := a.z - b.z;
+  Result.x := a.x - b.x;
+  Result.y := a.y - b.y;
+  Result.z := a.z - b.z;
 end;
 
 class operator Vector.Add(const a, b: Vector): Vector;
 begin
-    Result.x := a.x + b.x;
-    Result.y := a.y + b.y;
-    Result.z := a.z + b.z;
+  Result.x := a.x + b.x;
+  Result.y := a.y + b.y;
+  Result.z := a.z + b.z;
 end;
 
 { Color }
 
 class operator Color.Add(const a, b: Color): Color;
 begin
-    Result.r := a.r + b.r;
-    Result.g := a.g + b.g;
-    Result.b := a.b + b.b;
+  Result.r := a.r + b.r;
+  Result.g := a.g + b.g;
+  Result.b := a.b + b.b;
 end;
 
-class operator Color.Multiply(k: Double ; const b: Color): Color;
+class operator Color.Multiply(k: Double; const b: Color): Color;
 begin
-  Result.r := k*b.r;
-  Result.g := k*b.g;
-  Result.b := k*b.b;
+  Result.r := k * b.r;
+  Result.g := k * b.g;
+  Result.b := k * b.b;
 end;
 
-class function Color.Clamp(v: Double ): Byte;
+class function Color.Clamp(v: Double): Byte;
 begin
   if v > 255 then
     Result := 255
@@ -255,7 +246,7 @@ begin
     Result := Byte(Floor(v));
 end;
 
-constructor Color.Create(r, g, b: Double );
+constructor Color.Create(r, g, b: Double);
 begin
   self.r := r;
   self.g := g;
@@ -271,90 +262,79 @@ end;
 
 function Color.ToDrawingColor: RGBColor;
 begin
-  Result.r :=  Color.Clamp(self.r * 255.0);
-  Result.g :=  Color.Clamp(self.g * 255.0);
-  Result.b :=  Color.Clamp(self.b * 255.0);
-  Result.a :=  255;
+  Result.r := Color.Clamp(self.r * 255.0);
+  Result.g := Color.Clamp(self.g * 255.0);
+  Result.b := Color.Clamp(self.b * 255.0);
+  Result.a := 255;
 end;
 
 { Camera }
 
 constructor Camera.Create(pos, lookAt: Vector);
 var
-  down:Vector;
+  down: Vector;
 begin
 
   down := Vector.Create(0.0, -1.0, 0.0);
 
-  self.pos        := pos;
+  self.pos := pos;
   self.forwardDir := (lookAt - self.pos).norm;
-  self.right      := 1.5 *  self.forwardDir.cross(down).norm();
-  self.up         := 1.5 *  self.forwardDir.cross(self.right).norm() ;
+  self.right := 1.5 * self.forwardDir.cross(down).norm();
+  self.up := 1.5 * self.forwardDir.cross(self.right).norm();
 end;
 
 { Ray }
 
-constructor Ray.Create(start, dir: Vector);
+constructor Ray.Create(const start, dir: Vector);
 begin
   self.start := start;
-  self.dir   := dir;
-end;
-
-constructor Ray.Create;
-begin
-end;
-
-function Ray.ToString: String;
-begin
-  Result := Format ('[%.4f,%.4f,%.4f]', [dir.x, dir.y, dir.z]);
+  self.dir := dir;
 end;
 
 { Intersection }
 
-constructor Intersection.Create(thing: Thing; ray: Ray; dist: Double );
+constructor Intersection.Create(Thing: Thing; const Ray: Ray; dist: Double);
 begin
-  self.thing := thing;
-  self.ray := ray;
+  self.Thing := Thing;
+  self.Ray := Ray;
   self.dist := dist;
 end;
 
-class function Intersection.Invalid : Intersection; 
+class function Intersection.Invalid: Intersection;
 begin
-  result.thing := nil;
-  result.ray := nil;
-  result.dist := 0;
+  Result.Thing := nil;
+  Result.dist := 0;
 end;
 
-function Intersection.IsValid : boolean;
+function Intersection.IsValid: boolean;
 begin
-  result := Assigned(self.thing);
-end; 
-
+  Result := Assigned(self.Thing);
+end;
 
 { Light }
-constructor Light.Create(pos: Vector; color: Color);
+constructor Light.Create(pos: Vector; Color: Color);
 begin
   self.pos := pos;
-  self.color := color;
+  self.Color := Color;
 end;
 
 { Sphere }
-constructor Sphere.Create(center: Vector; radius: Double ; surface: Surface);
+constructor Sphere.Create(center: Vector; radius: Double; Surface: Surface);
 begin
   self.radius2 := radius * radius;
   self.center := center;
-  self._surface := surface;
+  self._surface := Surface;
 end;
 
-function Sphere.intersect(ray: Ray): Intersection;
+function Sphere.intersect(const Ray: Ray): Intersection;
 var
-  eo:Vector;
-  v,dist,disc:Double ;
+  eo: Vector;
+  v, dist, disc: Double;
 begin
 
-  eo    := self.center - ray.start;
-  v     := eo.dot(ray.dir);
-  dist  := 0;
+  eo := self.center - Ray.start;
+  v := eo.dot(Ray.dir);
+  dist := 0;
 
   if (v >= 0) then
   begin
@@ -369,17 +349,17 @@ begin
     Result := Intersection.Invalid()
   else
   begin
-    Result := Intersection.Create(self, ray, dist);
+    Result := Intersection.Create(self, Ray, dist);
   end;
 
 end;
 
-function Sphere.normal(pos: Vector): Vector;
+function Sphere.normal(const pos: Vector): Vector;
 begin
   Result := (pos - self.center).norm;
 end;
 
-function Sphere.surface: Surface;
+function Sphere.Surface: Surface;
 begin
   Result := self._surface;
 end;
@@ -391,12 +371,12 @@ begin
   Result := Color.white;
 end;
 
-function ShinySurface.reflect(const pos: Vector): Double ;
+function ShinySurface.reflect(const pos: Vector): Double;
 begin
   Result := 0.7;
 end;
 
-function ShinySurface.roughness: Double ;
+function ShinySurface.roughness: Double;
 begin
   Result := 250;
 end;
@@ -409,21 +389,21 @@ end;
 { CheckerboardSurface }
 function CheckerboardSurface.diffuse(const pos: Vector): Color;
 begin
-  if ((floor(pos.z) + floor(pos.x)) mod 2) <> 0 then
+  if ((Floor(pos.z) + Floor(pos.x)) mod 2) <> 0 then
     Result := Color.white
   else
     Result := Color.black;
 end;
 
-function CheckerboardSurface.reflect(const pos: Vector): Double ;
+function CheckerboardSurface.reflect(const pos: Vector): Double;
 begin
-  if ((floor(pos.z) + floor(pos.x)) mod 2) <> 0 then
+  if ((Floor(pos.z) + Floor(pos.x)) mod 2) <> 0 then
     Result := 0.1
   else
     Result := 0.7;
 end;
 
-function CheckerboardSurface.roughness: Double ;
+function CheckerboardSurface.roughness: Double;
 begin
   Result := 150.0;
 end;
@@ -435,235 +415,226 @@ end;
 
 { Plane }
 
-constructor Plane.Create(norm: Vector; offset: Double ; surface: Surface);
+constructor Plane.Create(norm: Vector; offset: Double; Surface: Surface);
 begin
   self.norm := norm;
   self.offset := offset;
-  self._surface := surface;
+  self._surface := Surface;
 end;
 
-function Plane.intersect(ray: Ray): Intersection;
+function Plane.intersect(const Ray: Ray): Intersection;
 var
-  dist, denom : Double ;
+  dist, denom: Double;
 begin
-  denom := self.norm.dot(ray.dir);
+  denom := self.norm.dot(Ray.dir);
   if (denom > 0) then
   begin
     Result := Intersection.Invalid();
-  end else
+  end
+  else
   begin
-    dist := (norm.dot(ray.start) + offset) / (-denom);
-    Result := Intersection.Create(self, ray, dist);
+    dist := (norm.dot(Ray.start) + offset) / (-denom);
+    Result := Intersection.Create(self, Ray, dist);
   end;
 
 end;
 
-function Plane.normal(pos: Vector): Vector;
+function Plane.normal(const pos: Vector): Vector;
 begin
   Result := self.norm;
 end;
 
-function Plane.surface: Surface;
+function Plane.Surface: Surface;
 begin
-  result := _surface;
+  Result := _surface;
 end;
 
 { RayTracerEngine }
 
 constructor RayTracerEngine.Create;
 begin
-  Self.maxDepth := 5;
+  self.maxDepth := 5;
 end;
 
-function RayTracerEngine.getNaturalColor(thing: Thing; const pos, norm, rd: Vector;
-  scene: Scene): Color;
-  
+function RayTracerEngine.getNaturalColor(Thing: Thing;
+  const pos, norm, rd: Vector): Color;
 var
-  resultColor:Color;
-  item: Light;
   diffuseColor, specularColor: Color;
+  ldis, livec: Vector;
+  testRay: Ray;
+  neatIsect: Double;
+  inShadow: boolean;
+  illum, specular: Double;
+  lcolor, scolor: Color;
+  item: Light;
+  roughness: Double;
+begin
 
-  function addLight(light:Light): Color;
-  var
-    ldis, livec :Vector;
-    testRay:Ray;
-    neatIsect: Double ;
-    isInShadow:Boolean;
-    illum,specular:Double ;
-    lcolor,scolor:Color;
+  Result := Color.defaultColor;
+  diffuseColor := Thing.Surface.diffuse(pos);
+  specularColor := Thing.Surface.specular(pos);
+  roughness := Thing.Surface.roughness;
+  testRay.start := pos;
 
+  for item in Scene.lights do
   begin
-      ldis      := light.pos - pos;
-      livec     := ldis.norm;
+    ldis := item.pos - pos;
+    livec := ldis.norm;
 
-      testRay   := Ray.Create(pos,livec);
-      neatIsect := self.testRay(testRay, scene);
-      testRay.Free;
+    testRay.dir := livec;
+    neatIsect := self.testRay(testRay);
 
-      if (IsNan(neatIsect)) then
-        isInShadow := false
-      else
-        isInShadow := (neatIsect <= ldis.mag);
+    inShadow := ((not IsNan(neatIsect)) and (neatIsect <= ldis.mag));
 
-      if isInShadow then exit();
+    if not inShadow then
+    begin
       illum := livec.dot(norm);
 
       if illum > 0 then
-        lcolor :=  illum * light.color
+        lcolor := illum * item.Color
       else
         lcolor := Color.defaultColor;
 
       specular := livec.dot(rd.norm);
 
       if specular > 0 then
-        scolor := Math.Power(specular,thing.surface.roughness) * light.color
+        scolor := Math.Power(specular, roughness) * item.Color
       else
         scolor := Color.defaultColor;
 
-      resultColor :=  resultColor + ((diffuseColor  * lcolor) +
-                                     (specularColor * scolor));
+      Result := Result + ((diffuseColor * lcolor) + (specularColor * scolor));
+    end;
   end;
-
-begin
-
-  resultColor := Color.defaultColor;
-  diffuseColor := thing.surface.diffuse(pos);
-  specularColor := thing.surface.specular(pos);
-
-  for item in scene.lights do 
-  begin
-    addLight(item);
-  end;
-  Result := resultColor;
 
 end;
 
-function RayTracerEngine.getReflectionColor(thing: Thing; const pos, normal,
-  rd: Vector; scene: Scene; depth: integer): Color;
+function RayTracerEngine.getReflectionColor(Thing: Thing;
+  const pos, normal, rd: Vector; depth: Integer): Color;
 var
-  r:Ray;
+  r: Ray;
 begin
-
   r := Ray.Create(pos, rd);
-  Result :=  thing.surface.reflect(pos) * self.traceRay(r, scene, depth+1);
-  r.Free;
-
+  Result := Thing.Surface.reflect(pos) * self.traceRay(r, depth + 1);
 end;
 
-function RayTracerEngine.intersections(ray: Ray; scene: Scene): Intersection;
+function RayTracerEngine.intersections(const Ray: Ray): Intersection;
 var
-  closest:Double ;
-  inter,closestInter: Intersection;
-  i,n:Integer;
-  item:Thing;
+  closest: Double;
+  inter, closestInter: Intersection;
+  i: Integer;
 begin
   closest := MaxInt;
   closestInter := Intersection.Invalid();
-  
-  n := scene.things.Count - 1; 
-  
-  for i := 0 to n do
+
+  for i := 0 to High(Scene.things) do
   begin
-    inter :=  scene.things[i].intersect(ray);
+    inter := Scene.things[i].intersect(Ray);
     if (inter.IsValid()) and (inter.dist < closest) then
     begin
-         closestInter := inter;
-         closest := inter.dist;
+      closestInter := inter;
+      closest := inter.dist;
     end;
   end;
-  result := closestInter;
+  Result := closestInter;
 end;
 
-procedure RayTracerEngine.render(scene: Scene; img: Graphics.TBitmap);
-  var
-    x,y,w,h : Integer;
-    destColor  : Color;
-    testRay    : Ray;
-    c       : RGBColor;
-    stride, pos  : Integer;
-    start   : PBYTE;
+procedure RayTracerEngine.render(Scene: Scene; img: Vcl.Graphics.TBitmap);
+var
+  x, y, w, h: Integer;
+  destColor: Color;
+  testRay: Ray;
+  c: RGBColor;
+  stride, pos: Integer;
+  start: PBYTE;
 
-  function getPoint(x,y:Integer; camera:Camera):Vector;
+  function getPoint(x, y: Integer; Camera: Camera): Vector;
   var
-    recenterX, recenterY:Double ;
+    recenterX, recenterY: Double;
   begin
-      recenterX := (x - (w / 2.0)) / 2.0 / w;
-      recenterY :=  - (y - (h / 2.0)) / 2.0 / h;
-      Result :=(camera.forwardDir + ((recenterX * camera.right) + (recenterY * camera.up ))).norm();
+    recenterX := (x - (w / 2.0)) / 2.0 / w;
+    recenterY := -(y - (h / 2.0)) / 2.0 / h;
+    Result := (Camera.forwardDir + ((recenterX * Camera.right) +
+      (recenterY * Camera.up))).norm();
   end;
+
 begin
 
+  self.Scene := Scene;
   w := img.Width - 1;
   h := img.Height - 1;
 
-  start  := img.ScanLine[0];
-  stride := integer(img.ScanLine[1]) - integer(img.ScanLine[0]);
-  testRay   := Ray.Create();
+  start := img.ScanLine[0];
+  stride := Integer(img.ScanLine[1]) - Integer(img.ScanLine[0]);
 
   for y := 0 to h do
   begin
+    pos := y * stride;
     for x := 0 to w do
     begin
-      testRay.start := scene.xcamera.pos;
-      testRay.dir := getPoint(x, y, scene.xcamera);
+      testRay.start := Scene.xcamera.pos;
+      testRay.dir := getPoint(x, y, Scene.xcamera);
 
-      destColor := self.traceRay(testRay, scene, 0);
+      destColor := self.traceRay(testRay, 0);
+
       c := destColor.ToDrawingColor;
-
-      pos := y*stride + x*4;
-      start[pos]   := c.b;
-      start[pos+1] := c.g;
-      start[pos+2] := c.r;
+      start[pos] := c.b;
+      start[pos + 1] := c.g;
+      start[pos + 2] := c.r;
+      start[pos + 3] := 255;
+      pos := pos + 4;
     end;
   end;
-
-  testRay.Free;
 end;
 
-function RayTracerEngine.shade(isect: Intersection; scene: Scene; depth: integer): Color;
+function RayTracerEngine.shade(isect: Intersection; depth: Integer): Color;
 var
-  d:Vector;
-  pos, normal,reflectDir:Vector;
-  naturalColor,reflectedColor:Color;
+  d: Vector;
+  pos, normal, reflectDir: Vector;
+  naturalColor, reflectedColor: Color;
 
 begin
-  d   := isect.ray.dir;
-  pos := (isect.dist * d) + isect.ray.start;
-  normal := isect.thing.normal(pos);
+  d := isect.Ray.dir;
+  pos := (isect.dist * d) + isect.Ray.start;
+  normal := isect.Thing.normal(pos);
   reflectDir := d - (2.0 * normal.dot(d) * normal);
 
-  naturalColor := Color.background + self.getNaturalColor(isect.thing, pos, normal, reflectDir, scene);
+  naturalColor := Color.background + self.getNaturalColor(isect.Thing, pos,
+    normal, reflectDir);
 
- if depth >= self.maxDepth then
+  if depth >= self.maxDepth then
     reflectedColor := Color.grey
- else
-    reflectedColor := self.getReflectionColor(isect.thing, pos, normal, reflectDir, scene, depth);
+  else
+    reflectedColor := self.getReflectionColor(isect.Thing, pos, normal,
+      reflectDir, depth);
 
- Result := naturalColor + reflectedColor;
+  Result := naturalColor + reflectedColor;
 end;
 
-
-function RayTracerEngine.testRay(ray: Ray; scene: Scene): Double ;
+function RayTracerEngine.testRay(const Ray: Ray): Double;
 var
   isect: Intersection;
 begin
-  isect := self.intersections(ray, scene);
+  isect := self.intersections(Ray);
   if isect.IsValid() then
   begin
-    exit(isect.dist);
+    Result := isect.dist;
+  end
+  else
+  begin
+    Result := NaN;
   end;
-  Result := NaN;
 end;
 
-function RayTracerEngine.traceRay(ray: Ray; scene: Scene; depth: integer): Color;
+function RayTracerEngine.traceRay(const Ray: Ray; depth: Integer): Color;
 var
-  isect:Intersection;
+  isect: Intersection;
 begin
-  isect := self.intersections(ray, scene);
+  isect := self.intersections(Ray);
   if (isect.IsValid()) then
   begin
-    Result := self.shade(isect, scene, depth);
-  end else
+    Result := self.shade(isect, depth);
+  end
+  else
   begin
     Result := Color.background;
   end;
@@ -673,33 +644,40 @@ end;
 
 constructor Scene.Create;
 var
-  shiny:ShinySurface;
-  checkerboard:CheckerboardSurface;
+  shiny: ShinySurface;
+  checkerboard: CheckerboardSurface;
 begin
 
-  things := TList<Thing>.Create();
-  lights := TList<Light>.Create();
+  SetLength(things, 3);
+  SetLength(lights, 4);
 
   shiny := ShinySurface.Create;
   checkerboard := CheckerboardSurface.Create;
 
-  things.Add( Plane.Create (Vector.Create(0.0, 1.0, 0.0), 0.0, checkerboard));
-  things.Add( Sphere.Create(Vector.Create(0.0, 1.0, -0.25), 1.0, shiny));
-  things.Add( Sphere.Create(Vector.Create(-1.0, 0.5, 1.5), 0.5, shiny));
+  things[0] := (Plane.Create(Vector.Create(0.0, 1.0, 0.0), 0.0, checkerboard));
+  things[1] := (Sphere.Create(Vector.Create(0.0, 1.0, -0.25), 1.0, shiny));
+  things[2] := (Sphere.Create(Vector.Create(-1.0, 0.5, 1.5), 0.5, shiny));
 
-  lights.Add(Light.Create(Vector.Create(-2.0, 2.5, 0.0), Color.Create(0.49, 0.07, 0.07)));
-  lights.Add(Light.Create(Vector.Create(1.5, 2.5, 1.5),  Color.Create(0.07, 0.07, 0.49)));
-  lights.Add(Light.Create(Vector.Create(1.5, 2.5, -1.5), Color.Create(0.07, 0.49, 0.071)));
-  lights.Add(Light.Create(Vector.Create(0.0, 3.5, 0.0),  Color.Create(0.21, 0.21, 0.35)));
+  lights[0] := (Light.Create(Vector.Create(-2.0, 2.5, 0.0), Color.Create(0.49,
+    0.07, 0.07)));
+  lights[1] := (Light.Create(Vector.Create(1.5, 2.5, 1.5), Color.Create(0.07,
+    0.07, 0.49)));
+  lights[2] := (Light.Create(Vector.Create(1.5, 2.5, -1.5), Color.Create(0.07,
+    0.49, 0.071)));
+  lights[3] := (Light.Create(Vector.Create(0.0, 3.5, 0.0), Color.Create(0.21,
+    0.21, 0.35)));
 
-  self.xcamera := Camera.Create(Vector.Create(3.0, 2.0, 4.0), Vector.Create(-1.0, 0.5, 0.0));
+  self.xcamera := Camera.Create(Vector.Create(3.0, 2.0, 4.0),
+    Vector.Create(-1.0, 0.5, 0.0));
 end;
 
 initialization
-  Color.white := Color.Create(1,1,1);
-  Color.grey  := Color.Create(0.5,0.5,0.5);
-  Color.black := Color.Create(0,0,0);
 
-  Color.defaultColor := Color.black;
-  Color.background   := Color.black;
+Color.white := Color.Create(1, 1, 1);
+Color.grey := Color.Create(0.5, 0.5, 0.5);
+Color.black := Color.Create(0, 0, 0);
+
+Color.defaultColor := Color.black;
+Color.background := Color.black;
+
 end.

@@ -94,50 +94,19 @@ class Ray:
         self.start = start
         self.dir = dir
 
-class Thing:pass
-
 class Intersection:
-    def __init__(self,thing: Thing, ray: Ray, dist: float):
+    def __init__(self,thing, ray: Ray, dist: float):
         self.thing = thing
         self.ray =  ray
         self.dist = dist
-
-
-class  Surface:
-    def diffuse (self,pos: Vector):
-        pass
-    def specular(self,pos: Vector):
-        pass
-    def reflect (self,pos: Vector):
-        pass
-    def roughness(self):
-        pass
-
-class Thing:
-    def intersect(self, ray: Ray):
-        pass
-    def normal(self, pos: Vector):
-        pass
-    def surface(self):
-        pass
 
 class Light:
     def __init__(self,pos: Vector, color: Color):
         self.pos = pos
         self.color = color
 
-
-class Scene:
-    def things(self):
-        pass
-    def lights(self):
-        pass
-    def camera(self):
-        pass
-
-
-class Sphere(Thing):
-    def __init__(self,center: Vector,radius:float, surface:Surface):
+class Sphere:
+    def __init__(self,center: Vector,radius:float, surface):
         self.radius2 = radius*radius
         self._surface = surface
         self.center  = center
@@ -160,8 +129,8 @@ class Sphere(Thing):
             return None
         return Intersection(self, ray, dist)
 
-class Plane(Thing):
-    def __init__(self,norm: Vector, offset:float, surface:Surface):
+class Plane:
+    def __init__(self,norm: Vector, offset:float, surface):
         self._norm    = norm
         self._surface = surface
         self.offset   = offset
@@ -179,7 +148,7 @@ class Plane(Thing):
     def surface(self):
         return self._surface
 
-class ShinySurface(Surface):
+class ShinySurface:
     def diffuse(self,pos: Vector):
         return Color_white
     def specular(self,pos: Vector):
@@ -189,8 +158,7 @@ class ShinySurface(Surface):
     def roughness(self):
         return 250
 
-
-class CheckerboardSurface(Surface):
+class CheckerboardSurface:
     def diffuse(self,pos: Vector):
         if (math.floor(pos.z) + math.floor(pos.x)) % 2 != 0:
             return Color_white;
@@ -206,14 +174,14 @@ class CheckerboardSurface(Surface):
     def roughness(self):
         return 250
 
-Surface_shiny = ShinySurface()
+Surface_shiny        = ShinySurface()
 Surface_checkerboard = CheckerboardSurface()
 
 
 class RayTracer:
     maxDepth = 5
 
-    def intersections(self, ray: Ray, scene: Scene):
+    def intersections(self, ray: Ray, scene):
         closest = FAR_AWAY
         closestInter = None
         for item in scene.things():
@@ -223,19 +191,19 @@ class RayTracer:
                 closest = inter.dist
         return closestInter
 
-    def testRay(self, ray: Ray, scene: Scene):
+    def testRay(self, ray: Ray, scene):
         isect = self.intersections(ray, scene)
         if isect != None:
             return isect.dist
         return None
 
-    def traceRay(self, ray: Ray, scene: Scene, depth: int):
+    def traceRay(self, ray: Ray, scene, depth: int):
         isect = self.intersections(ray, scene)
         if (isect == None):
             return Color_background
         return self.shade(isect, scene, depth)
 
-    def shade(self,isect: Intersection, scene: Scene, depth: int):
+    def shade(self,isect: Intersection, scene, depth: int):
         d = isect.ray.dir
         pos = Vector.plus(Vector.times(isect.dist, d), isect.ray.start)
         normal = isect.thing.normal(pos)
@@ -245,10 +213,10 @@ class RayTracer:
         reflectedColor = Color_grey if (depth >= self.maxDepth) else self.getReflectionColor(isect.thing, pos, normal, reflectDir, scene, depth)
         return Color.plus(naturalColor, reflectedColor)
 
-    def getReflectionColor(self, thing: Thing, pos: Vector, normal: Vector, rd: Vector, scene: Scene, depth: int):
+    def getReflectionColor(self, thing, pos: Vector, normal: Vector, rd: Vector, scene, depth: int):
         return Color.scale(thing.surface().reflect(pos), self.traceRay(Ray(pos, rd), scene, depth + 1))
 
-    def getNaturalColor(self, thing: Thing, pos: Vector, norm: Vector, rd: Vector, scene: Scene):
+    def getNaturalColor(self, thing, pos: Vector, norm: Vector, rd: Vector, scene):
         color = Color_defaultColor
         for light in scene.lights():
             color = self.addLight(color, light,pos, norm,scene,thing,rd)
@@ -283,7 +251,7 @@ class RayTracer:
                 image.putpixel((x,y), c )
 
 
-class DefaultScene(Scene):
+class DefaultScene:
 
     def __init__(self):
         self._things = [
@@ -309,19 +277,21 @@ class DefaultScene(Scene):
         return self._camera
 
 
-width  = 500
-height = 500
+def run():
+    width  = 500
+    height = 500
+    
+    image =  Image.new("RGB", (width, height), "white")
+    
+    t1 = time.time()
+    rayTracer = RayTracer()
+    scene     = DefaultScene()
+    rayTracer.render(scene, image, width, height)
+    t2 = time.time()
+    t = t2 -t1
+    
+    image.save("py-ray-tracer.png","png")
+    print ("Completed in %d sec" % t)
 
-image =  Image.new("RGB", (width, height), "white")
-
-
-t1 = time.time()
-rayTracer = RayTracer()
-scene     = DefaultScene()
-rayTracer.render(scene, image, width, height)
-t2 = time.time()
-
-t = t2 -t1
-image.save("py-ray-tracer.png","png")
-
-print ("Completed in %d sec" % t)
+    
+run()

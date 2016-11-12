@@ -64,46 +64,46 @@ class Vector
     public $y;
     public $z;
     
-    public function __construct($x, $y, $z)
+    public function __construct(float $x, float $y, float $z)
     {
         $this->x = $x;
         $this->y = $y;
         $this->z = $z;
     }
 
-    public static function times($k,Vector $v)
+    public function times(float $k) : Vector
     { 
-        return new Vector($k * $v->x, $k * $v->y, $k * $v->z); 
+        return new Vector($k * $this->x, $k * $this->y, $k * $this->z); 
     }
     
-    public static function minus(Vector $v1,Vector $v2) 
+    public function minus(Vector $v2) : Vector
     { 
-        return new Vector($v1->x - $v2->x, $v1->y - $v2->y, $v1->z - $v2->z); 
+        return new Vector($this->x - $v2->x, $this->y - $v2->y, $this->z - $v2->z); 
     }
     
-    public static function plus(Vector $v1,Vector  $v2) 
+    public function plus(Vector  $v2) : Vector
     { 
-        return new Vector($v1->x + $v2->x, $v1->y + $v2->y, $v1->z + $v2->z); 
+        return new Vector($this->x + $v2->x, $this->y + $v2->y, $this->z + $v2->z); 
     }
     
-    public static function dot(Vector $v1, Vector $v2)
+    public function dot(Vector $v2) : float
     { 
-        return $v1->x * $v2->x + $v1->y * $v2->y + $v1->z * $v2->z; 
+        return $this->x * $v2->x + $this->y * $v2->y + $this->z * $v2->z; 
     }
     
-    public static function mag(Vector $v)
+    public function mag() : float
     {
-        return sqrt($v->x * $v->x + $v->y * $v->y + $v->z * $v->z);
+        return sqrt($this->x ** 2 +  $this->y ** 2 + $this->z ** 2);
     }
     
-    public static function norm(Vector $v) 
+    public function norm() : Vector
     {
-        $mag = Vector::mag($v);
+        $mag = $this->mag();
         $div = ($mag == 0) ? INF : 1.0 / $mag;
-        return Vector::times($div, $v);
+        return $this->times($div);
     }
     
-    public static function cross(Vector $v1,Vector $v2) 
+    public static function cross(Vector $v1,Vector $v2) : Vector 
     {
         return new Vector($v1->y * $v2->z - $v1->z * $v2->y,
                           $v1->z * $v2->x - $v1->x * $v2->z,
@@ -123,38 +123,45 @@ class Color
     public static $background; 
     public static $defaultColor;
             
-    public function __construct($r,$g,$b) 
+    public function __construct(float $r, float $g, float $b) 
     {
         $this->r = $r;
         $this->g = $g;
         $this->b = $b;
     }
       
-    public static function scale($k,Color $v)
+    public function scale(float $k) : Color
     { 
-        return new Color($k * $v->r, $k * $v->g, $k * $v->b); 
+        return new Color($k * $this->r, $k * $this->g, $k * $this->b); 
     }
     
-    public static function plus(Color $v1, Color $v2)
+    public function plus(Color $v2) : Color
     { 
-        return new Color($v1->r + $v2->r, $v1->g + $v2->g, $v1->b + $v2->b); 
+        return new Color($this->r + $v2->r, $this->g + $v2->g, $this->b + $v2->b); 
     }
     
-    public static function times(Color $v1, Color $v2)
+    public function times(Color $v2) : Color
     { 
-        return new Color($v1->r * $v2->r, $v1->g * $v2->g, $v1->b * $v2->b); 
+        return new Color($this->r * $v2->r, $this->g * $v2->g, $this->b * $v2->b); 
+    }
+    
+    public function addColor(Color $c)
+    {
+        $this->r += $c->r;
+        $this->g += $c->g;
+        $this->b += $c->b;
     }
 
-    public static function toDrawingColor(Color $c)
+    public function toDrawingColor() : RGBColor
     {
         $color = new RGBColor;
-        $color->r = self::legalize($c->r);
-        $color->g = self::legalize($c->g);
-        $color->b = self::legalize($c->b);
+        $color->r = self::legalize($this->r);
+        $color->g = self::legalize($this->g);
+        $color->b = self::legalize($this->b);
         return $color;
     }
     
-    static function legalize($c) 
+    static function legalize($c) : int
     {
         if ($c < 0) $c = 0;   
         if ($c > 1) $c = 1;
@@ -179,9 +186,9 @@ class Camera
     {
         $this->pos     = $pos;
         $down          = new Vector(0.0, -1.0, 0.0);
-        $this->forward = Vector::norm(Vector::minus($lookAt, $this->pos));
-        $this->right   = Vector::times(1.5, Vector::norm(Vector::cross($this->forward, $down)));
-        $this->up      = Vector::times(1.5, Vector::norm(Vector::cross($this->forward, $this->right)));
+        $this->forward = $lookAt->minus($this->pos)->norm();
+        $this->right   = Vector::cross($this->forward, $down)->norm()->times(1.5);
+        $this->up      = Vector::cross($this->forward, $this->right)->norm()->times(1.5);
     }
 }
 
@@ -203,7 +210,7 @@ class Intersection
     public $ray;
     public $dist;
     
-    public function __construct(Thing $thing, Ray $ray, $dist)
+    public function __construct(Thing $thing, Ray $ray, float $dist)
     {
         $this->thing = $thing;
         $this->ray = $ray;
@@ -221,12 +228,9 @@ interface Surface
 
 interface Thing 
 {
-    /** @return Intersection */
-    function intersect(Ray $ray);
-    /** @return Vector  */
-    function normal (Vector $pos);
-    /** @return Surface */
-    function surface();
+    function intersect(Ray $ray) ;
+    function normal (Vector $pos) : Vector;
+    function surface() : Surface;
 }
 
 class Light 
@@ -242,9 +246,9 @@ class Light
 
 interface Scene 
 {
-    public function things();
-    public function lights();
-    public function camera();
+    public function things() : array;
+    public function lights() : array;
+    public function camera() : Camera;
 }
 
 class Sphere implements Thing 
@@ -260,18 +264,18 @@ class Sphere implements Thing
         $this->surface = $surface;
     }
     
-    public function normal(Vector $pos) 
+    public function normal(Vector $pos) : Vector
     {
-        return Vector::norm(Vector::minus($pos, $this->center));
+        return $pos->minus($this->center)->norm();
     }
     
-    public function intersect(Ray $ray)
+    public function intersect(Ray $ray) 
     {
-        $eo = Vector::minus($this->center, $ray->start);
-        $v = Vector::dot($eo, $ray->dir);
+        $eo = $this->center->minus($ray->start);
+        $v  = $eo->dot($ray->dir);
         $dist = 0;
         if ($v >= 0) {
-            $disc = $this->radius2 - (Vector::dot($eo, $eo) - $v * $v);
+            $disc = $this->radius2 - ($eo->dot($eo) - $v * $v);
             if ($disc >= 0) {
                 $dist = $v - sqrt($disc);
             }
@@ -283,7 +287,7 @@ class Sphere implements Thing
         return new Intersection($this, $ray, $dist);
     }
 
-    public function surface() 
+    public function surface() : Surface
     {
         return $this->surface;
     }
@@ -295,18 +299,18 @@ class Plane implements Thing
     public  $surface;
     private $offset;
     
-    public function normal(Vector $pos) 
+    public function normal(Vector $pos) : Vector
     {
         return $this->norm;
     }
     
     public function intersect(Ray $ray)
     {
-        $denom = Vector::dot($this->norm, $ray->dir);
+        $denom = $this->norm->dot($ray->dir);
         if ($denom > 0) {
             return null;
         }
-        $dist = (Vector::dot($this->norm, $ray->start) + $this->offset) / (-$denom);
+        $dist = ($this->norm->dot($ray->start) + $this->offset) / (-$denom);
         return new Intersection($this, $ray, $dist);      
     }
 
@@ -317,7 +321,7 @@ class Plane implements Thing
         $this->offset = $offset;
     }
 
-    public function surface() 
+    public function surface() : Surface
     {
         return $this->surface;
     }
@@ -408,17 +412,17 @@ class DefaultScene implements Scene
         $this->camera= new Camera(new Vector(3.0, 2.0, 4.0), new Vector(-1.0, 0.5, 0.0));       
     }
 
-    public function things() 
+    public function things() : array
     {
         return $this->things;
     }
 
-    public function lights() 
+    public function lights() : array
     {
         return $this->lights;
     }
     
-    public function camera() 
+    public function camera() : Camera
     {
         return $this->camera;
     }
@@ -427,12 +431,13 @@ class DefaultScene implements Scene
 class RayTracerEngine 
 {
     private $maxDepth = 5;
+    private $scene;
 
-    private function intersections(Ray $ray,Scene $scene) 
+    private function intersections(Ray $ray)
     {
         $closest = INF;
         $closestInter = null;
-        foreach ($scene->things() as $thing) 
+        foreach ($this->scene->things() as $thing) 
         {
             $inter = $thing->intersect($ray);
             if ($inter != null && $inter->dist < $closest) 
@@ -444,82 +449,80 @@ class RayTracerEngine
         return $closestInter;
     }
 
-    private function testRay(Ray $ray,Scene $scene) {
-        $isect = $this->intersections($ray, $scene);
+    private function testRay(Ray $ray) 
+    {
+        $isect = $this->intersections($ray);
         if ($isect != null) {
             return $isect->dist;
         }
         return null;
     }
 
-    private function traceRay(Ray $ray, Scene $scene, $depth) {
-        $isect = $this->intersections($ray, $scene);
+    private function traceRay(Ray $ray, int $depth) : Color
+    {
+        $isect = $this->intersections($ray);
         if ($isect == null) {
             return Color::$background;
         }
-        return $this->shade($isect, $scene, $depth);
+        return $this->shade($isect, $depth);
     }
 
-    private function shade(Intersection $isect,Scene $scene, $depth) 
+    private function shade(Intersection $isect, int $depth) : Color
     {      
         $d      = $isect->ray->dir;
-        $pos    = Vector::plus(Vector::times($isect->dist, $d), $isect->ray->start);
+        $pos    = $d->times($isect->dist)->plus($isect->ray->start);
         $normal = $isect->thing->normal($pos);
-        $reflectDir   = Vector::minus($d, Vector::times(2.0, Vector::times(Vector::dot($normal, $d), $normal)));
-        $naturalColor = Color::plus(Color::$background, $this->getNaturalColor($isect->thing, $pos, $normal, $reflectDir, $scene));
         
-        $reflectedColor = ($depth >= $this->maxDepth) ? Color::$grey : $this->getReflectionColor($isect->thing, $pos, $normal, $reflectDir, $scene, $depth);
-        return Color::plus($naturalColor, $reflectedColor);
+        $reflectDir   = $d->minus($normal->times($normal->dot($d))->times(2.0));
+        
+        $naturalColor = Color::$background->plus($this->getNaturalColor($isect->thing, $pos, $normal, $reflectDir));
+        
+        $reflectedColor = ($depth >= $this->maxDepth) ? Color::$grey : $this->getReflectionColor($isect->thing, $pos, $normal, $reflectDir, $depth);
+        return $naturalColor->plus($reflectedColor);
     }
 
-    private function getReflectionColor(Thing $thing, Vector $pos, Vector $normal, Vector $reflectDir, Scene $scene,$depth) 
+    private function getReflectionColor(Thing $thing, Vector $pos, Vector $normal, Vector $reflectDir, int $depth) : Color
     {
-        return Color::scale($thing->surface()->reflect($pos), $this->traceRay(new Ray($pos, $reflectDir), $scene, $depth + 1));
+        $k   = $thing->surface()->reflect($pos);
+        $ray = new Ray($pos, $reflectDir);
+        return $this->traceRay($ray, $depth + 1)->scale($k);
     }
 
-    private function getNaturalColor(Thing $thing, Vector $pos, Vector $norm, Vector $reflectDir, Scene $scene) 
+    private function getNaturalColor(Thing $thing, Vector $pos, Vector $norm, Vector $reflectDir) : Color
     {
-        $natColor = Color::$black;       
-        foreach ($scene->lights() as $item)
+        $natColor = new Color(0,0,0);
+        $natColor->addColor(Color::$background);
+        $surface  = $thing->surface();
+        $surf_diffuse  = $surface->diffuse($pos);
+        $surf_specular = $surface->specular($pos);
+        $surf_roughness = $surface->roughness();
+        
+        foreach ($this->scene->lights() as $light)
         {
-            $natColor = self::addLight($natColor, $item, $pos, $scene, $thing, $reflectDir, $norm);
-        }
+            $ldis       = $light->pos->minus($pos);
+            $livec      = $ldis->norm();
+            $neatIsect  = $this->testRay(new Ray($pos,  $livec));
+            $isInShadow = $neatIsect != null && $neatIsect <= $ldis->mag();
+            if (!$isInShadow) 
+            {
+                $illum    = $livec->dot($norm);
+                $lcolor   = ($illum > 0) ? $light->color->scale($illum)  : Color::$defaultColor;    
+                
+                $specular = $livec->dot($reflectDir->norm());
+                $scolor   = ($specular > 0) ? $light->color->scale(pow($specular, $surf_roughness)) : Color::$defaultColor;
+                
+                $a        = $surf_diffuse->times($lcolor);
+                $b        = $surf_specular->times($scolor);             
+                $natColor->addColor($a);
+                $natColor->addColor($b);
+            } 
+        }   
         return $natColor;
     }
     
-    public function addLight(Color $col, Light $light, Vector $pos, Scene $scene, Thing $thing, Vector $reflectDir, Vector $norm)
+    public function render(Scene $scene, Image $image, int $w, int $h) 
     {
-        $ldis  = Vector::minus($light->pos, $pos);
-        $livec = Vector::norm($ldis);
-        $neatIsect = $this->testRay(new Ray($pos,  $livec), $scene);
-
-        $isInShadow = (($neatIsect != null) && ($neatIsect <= Vector::mag($ldis)));
-        if ($isInShadow) {
-            return $col;
-        } 
-        
-        $illum = Vector::dot($livec, $norm);
-        $lcolor = Color::$defaultColor;
-        
-        if ($illum > 0) {
-            $lcolor = Color::scale($illum, $light->color);
-        }
-       
-        $specular = Vector::dot($livec, Vector::norm($reflectDir));
-        $scolor   = Color::$defaultColor;
-        $surface  = $thing->surface();
-        
-
-        if ($specular > 0) {
-            $scolor = Color::scale(pow($specular, $surface->roughness()), $light->color);
-        }
-        
-        return Color::plus($col, Color::plus(Color::times($surface->diffuse($pos), $lcolor), 
-                                 Color::times($surface->specular($pos), $scolor)));       
-    }
-
-    public function render(Scene $scene, Image $image, $w, $h) 
-    {
+        $this->scene = $scene;
 		$camera = $scene->camera();
 		$camPos = $camera->pos;
 	
@@ -527,21 +530,21 @@ class RayTracerEngine
         for ($x = 0; $x < $w; ++$x) 
         {
             $ray      = new Ray($camPos, self::getPoint($x, $y, $camera, $w, $h));	
-            $color    = Color::toDrawingColor($this->traceRay($ray, $scene, 0));     
+            $color    = $this->traceRay($ray, 0)->toDrawingColor();     
             $image->setPixel($x, $y, $color);
         }
     }
     
-    static function getPoint($x, $y, Camera $camera, $screenWidth, $screenHeight)
+    static function getPoint($x, $y, Camera $camera, int $screenWidth, int $screenHeight)
     {
         $recenterX =   ($x - ($screenWidth / 2.0)) / 2.0 / $screenWidth;
         $recenterY = - ($y - ($screenHeight / 2.0)) / 2.0 / $screenHeight;
 		
-		$a = Vector::times($recenterX, $camera->right);
-		$b = Vector::times($recenterY, $camera->up);
-		$c = Vector::plus($a,$b);
+		$a = $camera->right->times($recenterX);
+		$b = $camera->up->times($recenterY);
+		$c = $a->plus($b);
 		
-        return Vector::norm(Vector::plus($camera->forward, $c) );        
+        return $camera->forward->plus($c)->norm();        
     }
 }
 

@@ -21,42 +21,29 @@ typedef enum ObjectType {
 } ObjectType;
 
 typedef struct RgbColor {
-    byte b;
-    byte g;
-    byte r;
-    byte a;
+    byte b, g, r ,a;
 } RgbColor;
 
 typedef struct Vector{
-    double x;
-    double y;
-    double z;
+    double x, y, z;
 } Vector;
 
 typedef struct Color {
-    double r;
-    double g;
-    double b;
+    double r, b, g;
 } Color;
 
 typedef struct Camera {
-    Vector forward;
-    Vector right;
-    Vector up;
-    Vector pos;
+    Vector forward, right, up, pos;
 } Camera;
 
 typedef struct Ray {
-    Vector start;
-    Vector dir;
+    Vector start, dir;
 } Ray;
 
 typedef struct Surface {
     SurfaceType type;
-    Color  diffuse;
-    Color  specular;
-    double reflect;
-    double roughness;
+    Color  diffuse, specular;
+    double reflect, roughness;
 } Surface;
 
 typedef struct Thing {
@@ -93,10 +80,8 @@ typedef struct Scene {
 } Scene;
 
 typedef struct SurfaceProperties {
-    Color diffuse;
-    Color specular;
-    double reflect;
-    double roughness;
+    Color diffuse, specular;
+    double reflect, roughness;
 } SurfaceProperties;
 
 static Color white  = { 1.0, 1.0, 1.0 };
@@ -109,7 +94,6 @@ static Surface shiny;
 static Surface checkerboard;
 
 Color Shade(Intersection  *isect, Scene *scene, int depth);
-
 
 Vector CreateVector(double x, double y, double z)
 {
@@ -148,9 +132,9 @@ Vector VectorNorm(Vector v)
 
 double VectorDot(Vector *v1, Vector *v2)
 {
-    return v1->x * v2->x +
-           v1->y * v2->y +
-           v1->z * v2->z;
+    return (v1->x * v2->x) + 
+           (v1->y * v2->y) + 
+           (v1->z * v2->z);
 }
 
 Vector VectorAdd(Vector *v1, Vector *v2)
@@ -243,7 +227,6 @@ Camera CreateCamera(Vector pos, Vector lookAt)
 
     camera.right = VectorScale(&rightNorm, 1.5);
     camera.up = VectorScale(&upNorm, 1.5);
-
     return camera;
 }
 
@@ -391,7 +374,6 @@ Surface CreateSurface(SurfaceType type)
 Scene CreateScene()
 {
     Scene scene;
-
     scene.maxDepth   = 5;
     scene.thingCount = 3;
     scene.lightCount = 4;
@@ -558,7 +540,6 @@ void RenderScene(Scene *scene, byte* bitmapData, int stride, int w, int h)
 {
     Ray ray;
     ray.start = scene->camera.pos;
-
     for (int y = 0; y < h; ++y)
     {
         RgbColor* pColor = (RgbColor*)(&bitmapData[y * stride]);

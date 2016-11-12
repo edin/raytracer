@@ -1,4 +1,5 @@
 ﻿Module RayTracer
+
     Sub Main()
         Dim bmp As Drawing.Bitmap = New Drawing.Bitmap(500, 500, Drawing.Imaging.PixelFormat.Format32bppArgb)
         Dim sw As New Stopwatch()
@@ -15,13 +16,17 @@
 
         Console.WriteLine("")
         Console.WriteLine("Total time: " + sw.ElapsedMilliseconds.ToString() + " ms")
+        'Console.WriteLine("Vector allocated: {0}", Vector.G_Count)
+        Console.ReadKey()
     End Sub
+
 End Module
 
 Class Vector
     Public x As Double
     Public y As Double
     Public z As Double
+
 
     Public Sub New(x As Double, y As Double, z As Double)
         Me.x = x
@@ -57,8 +62,8 @@ Class Vector
 
     Public Shared Function cross(v1 As Vector, v2 As Vector) As Vector
         Return New Vector(v1.y * v2.z - v1.z * v2.y,
-                          v1.z * v2.x - v1.x * v2.z,
-                          v1.x * v2.y - v1.y * v2.x)
+                         v1.z * v2.x - v1.x * v2.z,
+                         v1.x * v2.y - v1.y * v2.x)
     End Function
 End Class
 
@@ -366,34 +371,30 @@ Class RayTracerEngine
 
     Private Function getNaturalColor(thing As Thing, pos As Vector, norm As Vector, rd As Vector, scene As Scene) As Color
 
-        Dim c As Color = Color.defaultcolor
-        For Each item As Light In scene.lights()
-            c = Me.addLight(c, item, pos, scene, norm, rd, thing)
+        Dim resultColor As Color = Color.defaultcolor
+
+        For Each light As Light In scene.lights()
+            Dim ldis = light.pos - pos
+            Dim livec = Vector.norm(ldis)
+            Dim neatIsect = Me.testRay(New Ray(pos, livec), scene)
+
+            Dim isInShadow = If(Double.IsNaN(neatIsect), False, (neatIsect <= Vector.mag(ldis)))
+            If (Not isInShadow) Then
+
+                Dim illum = Vector.dot(livec, norm)
+                Dim lcolor = If((illum > 0), illum * light.color, Color.defaultcolor)
+
+                Dim specular = Vector.dot(livec, Vector.norm(rd))
+                Dim scolor = If(specular > 0, (Math.Pow(specular, thing.surface().roughness) * light.color), Color.defaultcolor)
+
+                resultColor = resultColor + (thing.surface.diffuse(pos) * lcolor) + (thing.surface.specular(pos) * scolor)
+            End If
         Next
-        Return c
+        Return resultColor
 
     End Function
 
-    Private Function addLight(col As Color, light As Light, pos As Vector, scene As Scene, norm As Vector, rd As Vector, thing As Thing) As Color
-        Dim ldis = light.pos - pos
-        Dim livec = Vector.norm(ldis)
-        Dim neatIsect = Me.testRay(New Ray(pos, livec), scene)
-
-        Dim isInShadow = If(Double.IsNaN(neatIsect), False, (neatIsect <= Vector.mag(ldis)))
-        If (isInShadow) Then Return col
-
-
-        Dim illum = Vector.dot(livec, norm)
-        Dim lcolor = If((illum > 0), illum * light.color, Color.defaultcolor)
-
-        Dim specular = Vector.dot(livec, Vector.norm(rd))
-        Dim scolor = If(specular > 0, (Math.Pow(specular, thing.surface().roughness) * light.color), Color.defaultcolor)
-
-        Return col + (thing.surface.diffuse(pos) * lcolor) + (thing.surface.specular(pos) * scolor)
-    End Function
-
-
-    Delegate Function GetPointDelegate(x As Integer, y As Integer, camera As Camera) As Vector
+    Private Delegate Function GetPointDelegate(x As Integer, y As Integer, camera As Camera) As Vector
 
     Public Sub render(scene As Scene, bmp As System.Drawing.Bitmap)
         Dim w As Integer = bmp.Width
@@ -412,9 +413,13 @@ Class RayTracerEngine
 
         System.Runtime.InteropServices.Marshal.Copy(bitmapData.Scan0, rgbData, 0, size)
 
+        Dim ray = New Ray(scene.camera.pos, New Vector(0, 0, 0))
+
         For y = 0 To h - 1
             For x = 0 To w - 1
-                Dim color As Color = Me.traceRay(New Ray(scene.camera.pos, getPoint(x, y, scene.camera)), scene, 0)
+
+                ray.dir = getPoint(x, y, scene.camera)
+                Dim color As Color = Me.traceRay(ray, scene, 0)
                 Dim c As Drawing.Color = color.toDrawingColor(color)
 
                 Dim pos = y * stride + x * 4

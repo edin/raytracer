@@ -4,7 +4,6 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.Drawing.Imaging;
 
-
 class Program
 {
     static void Main(string[] args)
@@ -14,9 +13,9 @@ class Program
         Console.WriteLine("C# RayTracer Test");
 
         sw.Start();
-        RayTracerEngine rayTracer = new RayTracerEngine();
-        DefaultScene scene = new DefaultScene();
-        rayTracer.render(scene, bmp);
+        var rayTracer = new RayTracerEngine();
+        var scene = new DefaultScene();
+        rayTracer.Render(scene, bmp);
         sw.Stop();
         bmp.Save("csharp-ray-tracer.png");
 
@@ -28,439 +27,355 @@ class Program
 
 class Vector
 {
-    public double x;
-    public double y;
-    public double z;
+    public double X;
+    public double Y;
+    public double Z;
 
     public Vector(double x, double y, double z)
     {
-        this.x = x;
-        this.y = y;
-        this.z = z;
+        X = x;
+        Y = y;
+        Z = z;
     }
 
-    public static Vector operator -(Vector v1, Vector v2)
-    {
-        return new Vector(v1.x - v2.x, v1.y - v2.y, v1.z - v2.z);
-    }
+    public static Vector operator -(Vector v1, Vector v2) => new Vector(v1.X - v2.X, v1.Y - v2.Y, v1.Z - v2.Z);
 
-    public static double dot(Vector v1, Vector v2)
-    {
-        return v1.x * v2.x + v1.y * v2.y + v1.z * v2.z;
-    }
+    public static double Dot(Vector v1, Vector v2) => v1.X * v2.X + v1.Y * v2.Y + v1.Z * v2.Z;
 
-    public static double mag(Vector v)
-    {
-        return Math.Sqrt(v.x * v.x + v.y * v.y + v.z * v.z);
-    }
+    public static double Mag(Vector v) => Math.Sqrt(v.X * v.X + v.Y * v.Y + v.Z * v.Z);
 
-    public static Vector operator +(Vector v1, Vector v2)
-    {
-        return new Vector(v1.x + v2.x, v1.y + v2.y, v1.z + v2.z);
-    }
+    public static Vector operator +(Vector v1, Vector v2) => new Vector(v1.X + v2.X, v1.Y + v2.Y, v1.Z + v2.Z);
 
-    public static Vector operator *(double k, Vector v)
-    {
-        return new Vector(k * v.x, k * v.y, k * v.z);
-    }
+    public static Vector operator *(double k, Vector v) => new Vector(k * v.X, k * v.Y, k * v.Z);
 
-    public static Vector norm(Vector v)
+    public static Vector Norm(Vector v)
     {
-        var mag = Vector.mag(v);
+        var mag = Mag(v);
         var div = (mag == 0) ? double.PositiveInfinity : 1.0 / mag;
         return div * v;
     }
 
-    public static Vector cross(Vector v1, Vector v2)
-    {
-        return new Vector(
-            v1.y * v2.z - v1.z * v2.y,
-            v1.z * v2.x - v1.x * v2.z,
-            v1.x * v2.y - v1.y * v2.x);
-    }
+    public static Vector Cross(Vector v1, Vector v2) => new Vector(
+        v1.Y * v2.Z - v1.Z * v2.Y,
+        v1.Z * v2.X - v1.X * v2.Z,
+        v1.X * v2.Y - v1.Y * v2.X);
 }
 
 class Color
 {
-    public double r;
-    public double g;
-    public double b;
+    public double R;
+    public double G;
+    public double B;
 
-    public static Color white = new Color(1.0, 1.0, 1.0);
-    public static Color grey = new Color(0.5, 0.5, 0.5);
-    public static Color black = new Color(0.0, 0.0, 0.0);
-    public static Color background = Color.black;
-    public static Color defaultcolor = Color.black;
+    public static Color White = new Color(1.0, 1.0, 1.0);
+    public static Color Grey = new Color(0.5, 0.5, 0.5);
+    public static Color Black = new Color(0.0, 0.0, 0.0);
+    public static Color Background = Color.Black;
+    public static Color Defaultcolor = Color.Black;
 
     public Color(double r, double g, double b)
     {
-        this.r = r;
-        this.g = g;
-        this.b = b;
+        R = r;
+        G = g;
+        B = b;
     }
 
     public static Color operator *(double k, Color v)
     {
-        return new Color(k * v.r, k * v.g, k * v.b);
+        return new Color(k * v.R, k * v.G, k * v.B);
     }
 
-    public static Color operator +(Color v1, Color v2)
-    {
-        return new Color(v1.r + v2.r, v1.g + v2.g, v1.b + v2.b);
-    }
+    public static Color operator +(Color a, Color b) => new Color(a.R + b.R, a.G + b.G, a.B + b.B);
 
-    public static Color operator *(Color v1, Color v2)
-    {
-        return new Color(v1.r * v2.r, v1.g * v2.g, v1.b * v2.b);
-    }
+    public static Color operator *(Color a, Color b) => new Color(a.R * b.R, a.G * b.G, a.B * b.B);
 
-    public static System.Drawing.Color ToDrawingColor(Color c)
-    {
-        return System.Drawing.Color.FromArgb(Clamp(c.r), Clamp(c.g), Clamp(c.b));
-    }
+    public static System.Drawing.Color ToDrawingColor(Color c) => System.Drawing.Color.FromArgb(Clamp(c.R), Clamp(c.G), Clamp(c.B));
 
     public static byte Clamp(double c)
     {
-        if (c > 1.0) return (byte)255;
-        if (c < 0.0) return (byte)0;
+        if (c > 1.0) return 255;
+        if (c < 0.0) return 0;
         return (byte)(c * 255);
     }
 }
 
 class Camera
 {
-    public Vector forward;
-    public Vector right;
-    public Vector up;
+    public Vector Forward;
+    public Vector Right;
+    public Vector Up;
+    public Vector Pos;
 
-    public Vector pos;
     public Camera(Vector pos, Vector lookAt)
     {
         var down = new Vector(0.0, -1.0, 0.0);
-        this.pos = pos;
-        this.forward = Vector.norm(lookAt - this.pos);
-        this.right = 1.5 * Vector.norm(Vector.cross(this.forward, down));
-        this.up = 1.5 * Vector.norm(Vector.cross(this.forward, this.right));
+        Pos = pos;
+        Forward = Vector.Norm(lookAt - Pos);
+        Right = 1.5 * Vector.Norm(Vector.Cross(Forward, down));
+        Up = 1.5 * Vector.Norm(Vector.Cross(Forward, Right));
     }
 }
 
 class Ray
 {
-    public Vector start;
-    public Vector dir;
+    public Vector Start;
+    public Vector Dir;
 
     public Ray(Vector start, Vector dir)
     {
-        this.start = start;
-        this.dir = dir;
+        Start = start;
+        Dir = dir;
     }
 }
 
 class Intersection
 {
-    public Thing thing;
-    public Ray ray;
-    public double dist;
+    public IThing Thing;
+    public Ray Ray;
+    public double Dist;
 
-    public Intersection(Thing thing, Ray ray, double dist)
+    public Intersection(IThing thing, Ray ray, double dist)
     {
-        this.thing = thing;
-        this.ray = ray;
-        this.dist = dist;
+        Thing = thing;
+        Ray = ray;
+        Dist = dist;
     }
 }
 
-interface Surface
+interface ISurface
 {
-    Color diffuse(Vector pos);
-    Color specular(Vector pos);
-    double reflect(Vector pos);
-    double roughness { get; set; }
+    Color Diffuse(Vector pos);
+    Color Specular(Vector pos);
+    double Reflect(Vector pos);
+    double Roughness { get; set; }
 }
 
-interface Thing
+interface IThing
 {
-    Intersection intersect(Ray ray);
-    Vector normal(Vector pos);
-    Surface surface { get; set; }
+    Intersection Intersect(Ray ray);
+    Vector Normal(Vector pos);
+    ISurface Surface { get; set; }
 }
 
 class Light
 {
-    public Vector pos;
+    public Vector Pos;
+    public Color Color;
 
-    public Color color;
     public Light(Vector pos, Color color)
     {
-        this.pos = pos;
-        this.color = color;
+        Pos = pos;
+        Color = color;
     }
 }
 
-interface Scene
+interface IScene
 {
-    List<Thing> things();
-    List<Light> lights();
-    Camera camera { get; set; }
+    List<IThing> Things();
+    List<Light> Lights();
+    Camera Camera { get; set; }
 }
 
-class Sphere : Thing
+class Sphere : IThing
 {
+    private readonly double m_Radius2;
+    private readonly Vector m_Center;
 
-    private double radius2;
-
-    private Vector center;
-    public Sphere(Vector center, double radius, Surface surface)
+    public Sphere(Vector center, double radius, ISurface surface)
     {
-        this.radius2 = radius * radius;
-        this.surface = surface;
-        this.center = center;
+        m_Radius2 = radius * radius;
+        Surface = surface;
+        m_Center = center;
     }
 
-    public Intersection intersect(Ray ray)
+    public Intersection Intersect(Ray ray)
     {
-        var eo = (this.center - ray.start);
-        var v = Vector.dot(eo, ray.dir);
+        var eo = (m_Center - ray.Start);
+        var v = Vector.Dot(eo, ray.Dir);
         var dist = 0.0;
 
         if (v >= 0) {
-            var disc = this.radius2 - (Vector.dot(eo, eo) - v * v);
+            var disc = m_Radius2 - (Vector.Dot(eo, eo) - v * v);
             if (disc >= 0) {
                 dist = v - Math.Sqrt(disc);
             }
         }
 
-        if (dist == 0)
+        return dist == 0 ? null : new Intersection(this, ray, dist);
+    }
+
+    public Vector Normal(Vector pos) => Vector.Norm(pos - m_Center);
+
+    public ISurface Surface { get; set; }
+}
+
+class Plane : IThing
+{
+    private readonly Vector m_Normal;
+    private readonly double m_Offset;
+
+    public Plane(Vector norm, double offset, ISurface surface)
+    {
+        m_Normal = norm;
+        m_Offset = offset;
+        Surface = surface;
+    }
+
+    public Intersection Intersect(Ray ray)
+    {
+        var denom = Vector.Dot(m_Normal, ray.Dir);
+        if (denom > 0)
             return null;
 
+        var dist = (Vector.Dot(m_Normal, ray.Start) + m_Offset) / (-denom);
         return new Intersection(this, ray, dist);
     }
 
-    public Vector normal(Vector pos)
-    {
-        return Vector.norm(pos - this.center);
-    }
+    public Vector Normal(Vector pos) => m_Normal;
 
-    public Surface surface { get; set; }
+    public ISurface Surface { get; set; }
 }
 
-class Plane : Thing
+class ShinySurface : ISurface
 {
-    private Vector _normal;
+    public Color Diffuse(Vector pos) => Color.White;
 
-    private double _offset;
-    public Plane(Vector norm, double offset, Surface surface)
-    {
-        this._normal = norm;
-        this._offset = offset;
-        this.surface = surface;
-    }
+    public double Reflect(Vector pos) => 0.7;
 
-    public Intersection intersect(Ray ray)
-    {
-        var denom = Vector.dot(this._normal, ray.dir);
-        if ((denom > 0))
-            return null;
+    public double Roughness { get; set; } = 250.0;
 
-        var dist = (Vector.dot(this._normal, ray.start) + this._offset) / (-denom);
-        return new Intersection(this, ray, dist);
-    }
-
-    public Vector normal(Vector pos)
-    {
-        return this._normal;
-    }
-
-    public Surface surface { get; set; }
+    public Color Specular(Vector pos) => Color.Grey;
 }
 
-class ShinySurface : Surface
+class CheckerboardSurface : ISurface
 {
-    public ShinySurface()
-    {
-        roughness = 250.0;
-    }
+  
+    public Color Diffuse(Vector pos) => (Math.Floor(pos.Z) + Math.Floor(pos.X)) % 2 != 0 ? Color.White : Color.Black;
 
-    public Color diffuse(Vector pos)
-    {
-        return Color.white;
-    }
+    public double Reflect(Vector pos) => (Math.Floor(pos.Z) + Math.Floor(pos.X)) % 2 != 0 ? 0.1 : 0.7;
 
-    public double reflect(Vector pos)
-    {
-        return 0.7;
-    }
+    public double Roughness { get; set; } = 150.0;
 
-    public double roughness { get; set; }
-
-    public Color specular(Vector pos)
-    {
-        return Color.grey;
-    }
-}
-
-class CheckerboardSurface : Surface
-{
-    public CheckerboardSurface()
-    {
-        roughness = 150.0;
-    }
-    
-    public Color diffuse(Vector pos)
-    {
-        if ((Math.Floor(pos.z) + Math.Floor(pos.x)) % 2 != 0) {
-            return Color.white;
-        } else {
-            return Color.black;
-        }
-    }
-
-    public double reflect(Vector pos)
-    {
-        if ((Math.Floor(pos.z) + Math.Floor(pos.x)) % 2 != 0) {
-            return 0.1;
-        } else {
-            return 0.7;
-        }
-    }
-
-    public double roughness { get; set; }
-
-    public Color specular(Vector pos)
-    {
-        return Color.white;
-    }
+    public Color Specular(Vector pos) => Color.White;
 }
 
 class Surfaces
 {
-    public static Surface shiny = new ShinySurface();
-    public static Surface checkerboard = new CheckerboardSurface();
+    public static ISurface Shiny = new ShinySurface();
+    public static ISurface Checkerboard = new CheckerboardSurface();
 }
 
-class DefaultScene : Scene
+class DefaultScene : IScene
 {
-    public Camera camera { get; set; }
+    public Camera Camera { get; set; }
 
-    private List<Light> _lights = new List<Light>();
-    private List<Thing> _things = new List<Thing>();
+    private readonly List<Light> m_Lights = new List<Light>();
+    private readonly List<IThing> m_Things = new List<IThing>();
 
     public DefaultScene()
     {
-        this.camera = new Camera(new Vector(3.0, 2.0, 4.0), new Vector(-1.0, 0.5, 0.0));
+        Camera = new Camera(new Vector(3.0, 2.0, 4.0), new Vector(-1.0, 0.5, 0.0));
 
-        _things.Add(new Plane(new Vector(0.0, 1.0, 0.0), 0.0, Surfaces.checkerboard));
-        _things.Add(new Sphere(new Vector(0.0, 1.0, -0.25), 1.0, Surfaces.shiny));
-        _things.Add(new Sphere(new Vector(-1.0, 0.5, 1.5), 0.5, Surfaces.shiny));
+        m_Things.Add(new Plane(new Vector(0.0, 1.0, 0.0), 0.0, Surfaces.Checkerboard));
+        m_Things.Add(new Sphere(new Vector(0.0, 1.0, -0.25), 1.0, Surfaces.Shiny));
+        m_Things.Add(new Sphere(new Vector(-1.0, 0.5, 1.5), 0.5, Surfaces.Shiny));
 
-        _lights.Add(new Light(new Vector(-2.0, 2.5, 0.0), new Color(0.49, 0.07, 0.07)));
-        _lights.Add(new Light(new Vector(1.5, 2.5, 1.5), new Color(0.07, 0.07, 0.49)));
-        _lights.Add(new Light(new Vector(1.5, 2.5, -1.5), new Color(0.07, 0.49, 0.071)));
-        _lights.Add(new Light(new Vector(0.0, 3.5, 0.0), new Color(0.21, 0.21, 0.35)));
+        m_Lights.Add(new Light(new Vector(-2.0, 2.5, 0.0), new Color(0.49, 0.07, 0.07)));
+        m_Lights.Add(new Light(new Vector(1.5, 2.5, 1.5), new Color(0.07, 0.07, 0.49)));
+        m_Lights.Add(new Light(new Vector(1.5, 2.5, -1.5), new Color(0.07, 0.49, 0.071)));
+        m_Lights.Add(new Light(new Vector(0.0, 3.5, 0.0), new Color(0.21, 0.21, 0.35)));
     }
 
-    public List<Light> lights()
-    {
-        return _lights;
-    }
+    public List<Light> Lights() => m_Lights;
 
-    public List<Thing> things()
-    {
-        return _things;
-    }
+    public List<IThing> Things() => m_Things;
 }
 
 class RayTracerEngine
 {
-
-    private int maxDepth = 5;
-    private Intersection intersections(Ray ray, Scene scene)
+    private readonly int m_MaxDepth = 5;
+    private Intersection Intersections(Ray ray, IScene scene)
     {
         var closest = double.PositiveInfinity;
         Intersection closestInter = null;
 
-        foreach (Thing item in scene.things()) {
-            var inter = item.intersect(ray);
-            if (inter != null && inter.dist < closest) {
-                closestInter = inter;
-                closest = inter.dist;
-            }
+        foreach (IThing item in scene.Things()) {
+            var inter = item.Intersect(ray);
+            if (inter == null || !(inter.Dist < closest)) continue;
+            closestInter = inter;
+            closest = inter.Dist;
         }
         return closestInter;
 
     }
 
-    private double testRay(Ray ray, Scene scene)
+    private double TestRay(Ray ray, IScene scene)
     {
-        Intersection isect = this.intersections(ray, scene);
-        if (isect != null) {
-            return isect.dist;
-        } else {
-            return double.NaN;
-        }
+        Intersection isect = Intersections(ray, scene);
+        return isect?.Dist ?? double.NaN;
     }
 
-    private Color traceRay(Ray ray, Scene scene, int depth)
+    private Color TraceRay(Ray ray, IScene scene, int depth)
     {
-        Intersection isect = this.intersections(ray, scene);
-        if (isect == null)
-            return Color.background;
-        return this.shade(isect, scene, depth);
+        var isect = Intersections(ray, scene);
+        return isect == null ? Color.Background : Shade(isect, scene, depth);
     }
 
-    private Color shade(Intersection isect, Scene scene, int depth)
+    private Color Shade(Intersection isect, IScene scene, int depth)
     {
-        Vector d = isect.ray.dir;
+        Vector d = isect.Ray.Dir;
 
-        var pos = (isect.dist * d) + isect.ray.start;
-        var normal = isect.thing.normal(pos);
-        var reflectDir = d - (2 * Vector.dot(normal, d) * normal);
+        var pos = (isect.Dist * d) + isect.Ray.Start;
+        var normal = isect.Thing.Normal(pos);
+        var reflectDir = d - (2 * Vector.Dot(normal, d) * normal);
 
-        var naturalColor = Color.background + this.getNaturalColor(isect.thing, pos, normal, reflectDir, scene);
+        var naturalColor = Color.Background + GetNaturalColor(isect.Thing, pos, normal, reflectDir, scene);
 
-        var reflectedColor = depth >= this.maxDepth ? Color.grey : this.getReflectionColor(isect.thing, pos, normal, reflectDir, scene, depth);
+        var reflectedColor = depth >= m_MaxDepth ? Color.Grey : GetReflectionColor(isect.Thing, pos, normal, reflectDir, scene, depth);
         return naturalColor + reflectedColor;
     }
 
-    private Color getReflectionColor(Thing thing, Vector pos, Vector normal, Vector rd, Scene scene, int depth)
+    private Color GetReflectionColor(IThing thing, Vector pos, Vector normal, Vector rd, IScene scene, int depth)
     {
-        return thing.surface.reflect(pos) * this.traceRay(new Ray(pos, rd), scene, depth + 1);
+        return thing.Surface.Reflect(pos) * TraceRay(new Ray(pos, rd), scene, depth + 1);
     }
 
 
-    private Color getNaturalColor(Thing thing, Vector pos, Vector norm, Vector rd, Scene scene)
+    private Color GetNaturalColor(IThing thing, Vector pos, Vector norm, Vector rd, IScene scene)
     {
-
-        Color c = Color.defaultcolor;
-        foreach (Light item in scene.lights()) {
-            c = this.addLight(c, item, pos, scene, norm, rd, thing);
+        var c = Color.Defaultcolor;
+        foreach (var item in scene.Lights()) 
+        {
+            var newColor = AddLight(c, item, pos, scene, norm, rd, thing);
+            c = newColor;
         }
         return c;
     }
 
-    private Color addLight(Color col, Light light, Vector pos, Scene scene, Vector norm, Vector rd, Thing thing)
+    private Color AddLight(Color col, Light light, Vector pos, IScene scene, Vector norm, Vector rd, IThing thing)
     {
-        var ldis = light.pos - pos;
-        var livec = Vector.norm(ldis);
-        var neatIsect = this.testRay(new Ray(pos, livec), scene);
+        var ldis = light.Pos - pos;
+        var livec = Vector.Norm(ldis);
+        var neatIsect = TestRay(new Ray(pos, livec), scene);
 
-        var isInShadow = double.IsNaN(neatIsect) ? false : (neatIsect <= Vector.mag(ldis));
+        var isInShadow = !double.IsNaN(neatIsect) && (neatIsect <= Vector.Mag(ldis));
         if (isInShadow)
+        {
             return col;
+        }
+        var illum = Vector.Dot(livec, norm);
+        var lcolor = (illum > 0) ? illum * light.Color : Color.Defaultcolor;
 
-        var illum = Vector.dot(livec, norm);
-        var lcolor = (illum > 0) ? illum * light.color : Color.defaultcolor;
+        var specular = Vector.Dot(livec, Vector.Norm(rd));
+        var scolor = specular > 0 ? (Math.Pow(specular, thing.Surface.Roughness) * light.Color) : Color.Defaultcolor;
 
-        var specular = Vector.dot(livec, Vector.norm(rd));
-        var scolor = specular > 0 ? (Math.Pow(specular, thing.surface.roughness) * light.color) : Color.defaultcolor;
-
-        return col + (thing.surface.diffuse(pos) * lcolor) + (thing.surface.specular(pos) * scolor);
+        return col + (thing.Surface.Diffuse(pos) * lcolor) + (thing.Surface.Specular(pos) * scolor);
     }
 
 
     public delegate Vector GetPointDelegate(int x, int y, Camera camera);
 
-    public void render(Scene scene, System.Drawing.Bitmap bmp)
+    public void Render(IScene scene, System.Drawing.Bitmap bmp)
     {
         int w = bmp.Width;
         int h = bmp.Height;
@@ -469,27 +384,27 @@ class RayTracerEngine
         {
             var recenterX = (x - (w / 2.0)) / 2.0 / w;
             var recenterY = -(y - (h / 2.0)) / 2.0 / h;
-            return Vector.norm(camera.forward + (recenterX * camera.right) + (recenterY * camera.up));
+            return Vector.Norm(camera.Forward + (recenterX * camera.Right) + (recenterY * camera.Up));
         };
 
         BitmapData bitmapData = bmp.LockBits(new  System.Drawing.Rectangle(0, 0, w, h), ImageLockMode.ReadWrite, bmp.PixelFormat);
 
         unsafe
         {
-            int PixelSize = 4;
+            var pixelSize = 4;
             for (var y = 0; y < h ; ++y)
             {
                 byte* row = (byte*)bitmapData.Scan0 + (y * bitmapData.Stride);
 
                 for (var x = 0; x < w ; ++x)
                 {
-                    var color = this.traceRay(new Ray(scene.camera.pos, getPoint(x, y, scene.camera)), scene, 0);
+                    var color = TraceRay(new Ray(scene.Camera.Pos, getPoint(x, y, scene.Camera)), scene, 0);
                     var c = Color.ToDrawingColor(color);
 
-                    row[x * PixelSize + 0] = c.B;
-                    row[x * PixelSize + 1] = c.G;
-                    row[x * PixelSize + 2] = c.R;
-                    row[x * PixelSize + 3] = 255;
+                    row[x * pixelSize + 0] = c.B;
+                    row[x * pixelSize + 1] = c.G;
+                    row[x * pixelSize + 2] = c.R;
+                    row[x * pixelSize + 3] = 255;
                 }
             }
         }
