@@ -3,27 +3,26 @@ program DelphiRayTracer;
 {$APPTYPE CONSOLE}
 
 uses
-  Graphics, Windows,
+  Vcl.Graphics, Windows,
   SysUtils, Diagnostics,
   RayTracer in 'RayTracer.pas';
 
 var
-  sc  : Scene;
-  rt  : RayTracerEngine;
-  s   : String;
-  bmp : Graphics.TBitmap;
-  //t1,t2:Cardinal;
-  sw  : TStopwatch;
+  sc: Scene;
+  rt: RayTracerEngine;
+  bmp: Vcl.Graphics.TBitmap;
+  sw: TStopwatch;
+
 begin
 
   try
-    bmp := Graphics.TBitmap.Create;
+    bmp := Vcl.Graphics.TBitmap.Create;
     bmp.PixelFormat := pf32bit;
     bmp.Width := 500;
     bmp.Height := 500;
-    
-    sw := TStopWatch.Create;
-    
+
+    sw := TStopwatch.Create;
+
     sw.Start;
     sc := Scene.Create();
     rt := RayTracerEngine.Create();
@@ -36,10 +35,13 @@ begin
     rt.Free;
     bmp.Free;
 
-    Writeln('Completed in: ' + IntToStr(sw.ElapsedMilliseconds) + ' ms' );
+    Writeln('Completed in: ' + IntToStr(sw.ElapsedMilliseconds) + ' ms');
+
+    readln;
 
   except
     on E: Exception do
       Writeln(E.ClassName, ': ', E.Message);
   end;
+
 end.

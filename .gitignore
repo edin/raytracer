@@ -13,3 +13,8 @@ obj
 *.pdb
 **/Debug/*
 **/Release/*
+.vscode/*
+**/Release*
+delphi/DelphiRayTracer.dproj.local
+delphi/DelphiRayTracer.identcache
+c++/RayTracer/RayTracer.sdf

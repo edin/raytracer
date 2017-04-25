@@ -1,2 +1,2 @@
-g++ RayTracer.cpp -O3 -std=c++14 -o gcc-raytracer.exe
+g++ RayTracer.cpp -O2 -std=c++1z -o gcc-raytracer.exe
 gcc-raytracer.exe
