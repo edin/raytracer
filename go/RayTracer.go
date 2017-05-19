@@ -127,9 +127,9 @@ func main() {
 	img := image.NewRGBA(image.Rect(0, 0, width, height))
 
 	var scene = CreateDefaultScene()
-	var rayTracer = RayTracerEngine{maxDepth: 5}
+	var rayTracer = RayTracerEngine{maxDepth: 5, scene: scene}
 
-	rayTracer.render(scene, img, width, height)
+	rayTracer.render(img, width, height)
 
 	elapsed := time.Since(start)
 
@@ -171,15 +171,15 @@ func CreateCamera(pos Vector, lookAt Vector) Camera {
 }
 
 type Surface interface {
-	diffuse(pos Vector) Color
-	specular(pos Vector) Color
-	reflect(pos Vector) float64
+	diffuse(pos *Vector) Color
+	specular(pos *Vector) Color
+	reflect(pos *Vector) float64
 	roughness() float64
 }
 
 type Thing interface {
-	intersect(ray Ray) Intersection
-	normal(pos Vector) Vector
+	intersect(ray *Ray) Intersection
+	normal(pos *Vector) Vector
 	surface() Surface
 }
 
@@ -216,13 +216,13 @@ func CreateSphere(center Vector, radius float64, surface Surface) *Sphere {
 	}
 }
 
-func (sphere *Sphere) normal(pos Vector) Vector {
+func (sphere *Sphere) normal(pos *Vector) Vector {
 	var diff = pos.sub(sphere.center)
 
 	return diff.norm()
 }
 
-func (sphere *Sphere) intersect(ray Ray) Intersection {
+func (sphere *Sphere) intersect(ray *Ray) Intersection {
 	var result Intersection
 
 	var eo = sphere.center.sub(ray.start)
@@ -239,7 +239,7 @@ func (sphere *Sphere) intersect(ray Ray) Intersection {
 	if dist == 0 {
 		return result
 	}
-	result = Intersection{sphere, &ray, dist}
+	result = Intersection{sphere, ray, dist}
 	return result
 }
 
@@ -253,11 +253,11 @@ type Plane struct {
 	mSurface Surface
 }
 
-func (plane *Plane) normal(pos Vector) Vector {
+func (plane *Plane) normal(pos *Vector) Vector {
 	return plane.norm
 }
 
-func (plane *Plane) intersect(ray Ray) Intersection {
+func (plane *Plane) intersect(ray *Ray) Intersection {
 	var result Intersection
 
 	var denom = plane.norm.dot(ray.dir)
@@ -266,7 +266,7 @@ func (plane *Plane) intersect(ray Ray) Intersection {
 	}
 	var dist = (plane.norm.dot(ray.start) + plane.offset) / (-denom)
 
-	result = Intersection{plane, &ray, dist}
+	result = Intersection{plane, ray, dist}
 	return result
 }
 
@@ -286,15 +286,15 @@ func (plane *Plane) surface() Surface {
 type ShinySurface struct {
 }
 
-func (surface *ShinySurface) diffuse(pos Vector) Color {
+func (surface *ShinySurface) diffuse(pos *Vector) Color {
 	return gColors.white
 }
 
-func (surface *ShinySurface) specular(pos Vector) Color {
+func (surface *ShinySurface) specular(pos *Vector) Color {
 	return gColors.grey
 }
 
-func (surface *ShinySurface) reflect(pos Vector) float64 {
+func (surface *ShinySurface) reflect(pos *Vector) float64 {
 	return 0.7
 }
 
@@ -306,7 +306,7 @@ func (surface *ShinySurface) roughness() float64 {
 type CheckerboardSurface struct {
 }
 
-func (surface *CheckerboardSurface) diffuse(pos Vector) Color {
+func (surface *CheckerboardSurface) diffuse(pos *Vector) Color {
 	var val = (math.Floor(pos.z) + math.Floor(pos.x))
 	if math.Mod(val, 2.0) != 0 {
 		return gColors.white
@@ -314,11 +314,11 @@ func (surface *CheckerboardSurface) diffuse(pos Vector) Color {
 	return gColors.black
 }
 
-func (surface *CheckerboardSurface) specular(pos Vector) Color {
+func (surface *CheckerboardSurface) specular(pos *Vector) Color {
 	return gColors.white
 }
 
-func (surface *CheckerboardSurface) reflect(pos Vector) float64 {
+func (surface *CheckerboardSurface) reflect(pos *Vector) float64 {
 	var val = (math.Floor(pos.z) + math.Floor(pos.x))
 	if math.Mod(val, 2.0) != 0 {
 		return 0.1
@@ -372,13 +372,14 @@ func (scene *DefaultScene) Camera() Camera {
 
 type RayTracerEngine struct {
 	maxDepth int
+	scene    *DefaultScene
 }
 
-func (rayTracer *RayTracerEngine) intersections(ray Ray, scene Scene) Intersection {
+func (rayTracer *RayTracerEngine) intersections(ray *Ray) Intersection {
 	var closest = math.Inf(1)
 	var closestInter Intersection
 
-	for _, thing := range scene.Things() {
+	for _, thing := range rayTracer.scene.Things() {
 		var inter = thing.intersect(ray)
 		if !inter.isNull() && inter.dist < closest {
 			closestInter = inter
@@ -388,27 +389,27 @@ func (rayTracer *RayTracerEngine) intersections(ray Ray, scene Scene) Intersecti
 	return closestInter
 }
 
-func (rayTracer *RayTracerEngine) testRay(ray Ray, scene Scene) float64 {
-	var isect = rayTracer.intersections(ray, scene)
+func (rayTracer *RayTracerEngine) testRay(ray *Ray) float64 {
+	var isect = rayTracer.intersections(ray)
 	if !isect.isNull() {
 		return isect.dist
 	}
 	return math.NaN()
 }
 
-func (rayTracer *RayTracerEngine) traceRay(ray Ray, scene Scene, depth int) Color {
-	var isect = rayTracer.intersections(ray, scene)
+func (rayTracer *RayTracerEngine) traceRay(ray *Ray, depth int) Color {
+	var isect = rayTracer.intersections(ray)
 	if isect.isNull() {
 		return gColors.background
 	}
-	return rayTracer.shade(isect, scene, depth)
+	return rayTracer.shade(isect, depth)
 }
 
-func (rayTracer *RayTracerEngine) shade(isect Intersection, scene Scene, depth int) Color {
+func (rayTracer *RayTracerEngine) shade(isect Intersection, depth int) Color {
 	var d = isect.ray.dir
 	var pos = d.mul(isect.dist)
 	pos = pos.add(isect.ray.start)
-	var normal = isect.thing.normal(pos)
+	var normal = isect.thing.normal(&pos)
 
 	var normalDotD = normal.dot(d)
 	var vec = normal.mul(normalDotD)
@@ -416,13 +417,13 @@ func (rayTracer *RayTracerEngine) shade(isect Intersection, scene Scene, depth i
 
 	var reflectDir = d.sub(vec)
 
-	var naturalColor = rayTracer.getNaturalColor(isect.thing, pos, normal, reflectDir, scene)
+	var naturalColor = rayTracer.getNaturalColor(isect.thing, &pos, &normal, &reflectDir)
 	naturalColor = naturalColor.add(gColors.background)
 
 	getReflectionColor := func() Color {
 		var ray = Ray{pos, reflectDir}
-		var reflect = isect.thing.surface().reflect(pos)
-		var color = rayTracer.traceRay(ray, scene, depth+1)
+		var reflect = isect.thing.surface().reflect(&pos)
+		var color = rayTracer.traceRay(&ray, depth+1)
 		color = color.scale(reflect)
 		return color
 	}
@@ -437,7 +438,7 @@ func (rayTracer *RayTracerEngine) shade(isect Intersection, scene Scene, depth i
 	return resultColor
 }
 
-func (rayTracer *RayTracerEngine) getNaturalColor(thing Thing, pos Vector, norm Vector, rd Vector, scene Scene) Color {
+func (rayTracer *RayTracerEngine) getNaturalColor(thing Thing, pos *Vector, norm *Vector, rd *Vector) Color {
 	var resultColor = gColors.black
 	var surface = thing.surface()
 	var rayDirNormal = rd.norm()
@@ -449,13 +450,13 @@ func (rayTracer *RayTracerEngine) getNaturalColor(thing Thing, pos Vector, norm 
 	var scolor Color
 
 	var ray Ray
-	ray.start = pos
+	ray.start = *pos
 
-	addLight := func(light Light) {
-		var ldis = light.pos.sub(pos)
+	addLight := func(light *Light) {
+		var ldis = light.pos.sub(*pos)
 		var livec = ldis.norm()
 
-		var neatIsect = rayTracer.testRay(Ray{pos, livec}, scene)
+		var neatIsect = rayTracer.testRay(&Ray{*pos, livec})
 		var isInShadow bool
 		if math.IsNaN(neatIsect) {
 			isInShadow = false
@@ -467,7 +468,7 @@ func (rayTracer *RayTracerEngine) getNaturalColor(thing Thing, pos Vector, norm 
 			return
 		}
 
-		var illum = livec.dot(norm)
+		var illum = livec.dot(*norm)
 		var specular = livec.dot(rayDirNormal)
 
 		lcolor = gColors.defaultColor
@@ -487,8 +488,8 @@ func (rayTracer *RayTracerEngine) getNaturalColor(thing Thing, pos Vector, norm 
 		resultColor = resultColor.add(specularColor)
 	}
 
-	for _, light := range scene.Lights() {
-		addLight(light)
+	for _, light := range rayTracer.scene.Lights() {
+		addLight(&light)
 	}
 
 	return resultColor
@@ -508,8 +509,8 @@ func (rayTracer *RayTracerEngine) getPoint(x int, y int, camera Camera, screenWi
 	return z
 }
 
-func (rayTracer *RayTracerEngine) render(scene Scene, img *image.RGBA, w int, h int) {
-	var camera = scene.Camera()
+func (rayTracer *RayTracerEngine) render(img *image.RGBA, w int, h int) {
+	var camera = rayTracer.scene.Camera()
 	var ray Ray
 	ray.start = camera.pos
 
@@ -517,13 +518,11 @@ func (rayTracer *RayTracerEngine) render(scene Scene, img *image.RGBA, w int, h 
 	if scale > w {
 		scale = w
 	}
-
 	for y := 0; y < h; y++ {
 		for x := 0; x < w; x++ {
 			var dir = rayTracer.getPoint(x, y, camera, w, h, scale)
 			ray.dir = dir
-
-			color := rayTracer.traceRay(ray, scene, 0)
+			color := rayTracer.traceRay(&ray, 0)
 			img.Set(x, y, color.toDrawingColor())
 		}
 	}
