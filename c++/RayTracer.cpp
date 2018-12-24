@@ -21,27 +21,16 @@ struct RgbColor
     byte a;
 };
 
-class Vector
+struct Vector
 {
-public:
     double x;
     double y;
     double z;
 
     Vector() : x(0), y(0), z(0) {}
 
-    Vector(double x, double y, double z)
+    Vector(double x, double y, double z) : x(x), y(y), z(z)
     {
-        this->x = x;
-        this->y = y;
-        this->z = z;
-    }
-
-    static Vector cross(const Vector &v1, const Vector &v2)
-    {
-        return Vector(v1.y * v2.z - v1.z * v2.y,
-            v1.z * v2.x - v1.x * v2.z,
-            v1.x * v2.y - v1.y * v2.x);
     }
 
     double mag() const
@@ -89,9 +78,8 @@ public:
     }
 };
 
-class Color
+struct Color
 {
-public:
     double r;
     double g;
     double b;
@@ -161,9 +149,8 @@ Color Color::black = Color(0.0, 0.0, 0.0);
 Color Color::background = Color::black;
 Color Color::defaultColor = Color::black;
 
-class Camera
+struct Camera
 {
-public:
     Vector forward;
     Vector right;
     Vector up;
@@ -182,9 +169,8 @@ public:
     }
 };
 
-class Ray
+struct Ray
 {
-public:
     Vector start;
     Vector dir;
 
@@ -243,9 +229,8 @@ public:
     virtual Surface& surface() const = 0;
 };
 
-class Light
+struct Light
 {
-public:
     Vector pos;
     Color color;
 
@@ -263,7 +248,6 @@ private:
     double   m_radius2;
     Vector   m_center;
 public:
-
     Sphere(Vector center, double radius, Surface& surface) : m_surface{ surface }
     {
         this->m_radius2 = radius * radius;
@@ -620,9 +604,6 @@ int main()
 
     std::cout << "Completed in " << diff.count() << " ms" << std::endl;
     SaveRGBBitmap(&bitmapData[0], width, height, 32, "cpp-raytracer.bmp");
-
-    int in;
-    std::cin >> in;
 
     return 0;
 };
