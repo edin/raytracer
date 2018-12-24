@@ -15,7 +15,6 @@ module ModRaytracer
     integer, parameter :: SPHERE = 1
     integer, parameter :: PLANE = 2
 
-
     type Vector
         real(8) x
         real(8) y
@@ -64,7 +63,7 @@ module ModRaytracer
     type Intersection
         type(Thing), pointer :: thing
         type(Ray) :: ray
-        real(8)       :: dist
+        real(8)   :: dist
     end type
 
     type Light
@@ -87,7 +86,6 @@ module ModRaytracer
         type(Color) :: diffuse
         type(Color) :: specular
     end type
-
 
     interface operator (+)
         module procedure VectorAdd
