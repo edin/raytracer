@@ -6,19 +6,14 @@ import std.math;
 import std.conv;
 import core.sys.windows.windows;
 
-struct RGBColor
+struct RGBColor 
 {
-    ubyte b; 
-    ubyte g;
-    ubyte r;
-    ubyte a;
+    ubyte b, g, r, a;
 }
 
 struct Vector
 {
-    double x;
-    double y;
-    double z;
+    double x, y, z;
 
     this(double x, double y, double z)
     {
@@ -37,15 +32,15 @@ struct Vector
         return Vector(x + v.x, y + v.y, z + v.z);
     }
 
-	Vector opBinary(string op)(ref const Vector v) if (op == "-")
-	{
-		return Vector(x - v.x, y - v.y, z - v.z);
-	}
+    Vector opBinary(string op)(ref const Vector v) if (op == "-")
+    {
+        return Vector(x - v.x, y - v.y, z - v.z);
+    }
 
-	double dot(ref const Vector v)
-	{
-		return x * v.x + y * v.y + z * v.z;
-	}
+    double dot(ref const Vector v)
+    {
+        return x * v.x + y * v.y + z * v.z;
+    }
 
     double mag()
     {
@@ -59,19 +54,17 @@ struct Vector
         return div * this;
     }
 
-	Vector cross(ref const Vector v)
-	{
-		return Vector(y * v.z - z * v.y,
-					  z * v.x - x * v.z,
-					  x * v.y - y * v.x);
-	}
+    Vector cross(ref const Vector v)
+    {
+        return Vector(y * v.z - z * v.y,
+                      z * v.x - x * v.z,
+                      x * v.y - y * v.x);
+    }
 }
 
 struct Color
 {
-    double r = 0;
-    double g = 0;
-    double b = 0;
+    double r, g, b;
 
     static immutable Color white = Color(1.0, 1.0, 1.0);
     static immutable Color grey  = Color(0.5, 0.5, 0.5);
@@ -86,31 +79,31 @@ struct Color
         this.b = b;
     }
 
-	Color opBinaryRight(string op)(double k) if(op == "*")
-	{
-		return Color(k * r, k * g, k * b);
-	}
+    Color opBinaryRight(string op)(double k) if(op == "*")
+    {
+        return Color(k * r, k * g, k * b);
+    }
 
-	Color opBinary(string op)(ref const Color color) if (op == "+")
-	{
-		return Color(r + color.r, g + color.g, b + color.b);
-	}
+    Color opBinary(string op)(ref const Color color) if (op == "+")
+    {
+        return Color(r + color.r, g + color.g, b + color.b);
+    }
 
-	ref Color scale(ref const Color c)
-	{
-		r = r * c.r;
-		g = g * c.g;
-		b = b * c.b;
-		return this;
-	}
+    ref Color scale(ref const Color c)
+    {
+        r = r * c.r;
+        g = g * c.g;
+        b = b * c.b;
+        return this;
+    }
 
-	ref Color add(ref const Color c)
-	{
-		r = r + c.r;
-		g = g + c.g;
-		b = b + c.b;
-		return this;
-	}
+    ref Color add(ref const Color c)
+    {
+        r = r + c.r;
+        g = g + c.g;
+        b = b + c.b;
+        return this;
+    }
 
     RGBColor toDrawingColor()
     {
@@ -124,7 +117,6 @@ struct Color
 
     static int legalize(double c)
     {
-		return 0;
         int x = to!int(c * 255.0);
         if (x < 0) x = 0;
         if (x > 255) x = 255;
@@ -134,15 +126,14 @@ struct Color
 
 class Camera
 {
-public:
-    Vector forward;
-    Vector right;
-    Vector up;
-    Vector pos;
+    public Vector forward;
+    public Vector right;
+    public Vector up;
+    public Vector pos;
 
-    this(){}
+    public this() {}
 
-    this(Vector pos, Vector lookAt)
+    public this(Vector pos, Vector lookAt)
     {
         this.pos = pos;
         Vector down    = Vector(0.0, -1.0, 0.0);
@@ -155,33 +146,14 @@ public:
 
 struct Ray
 {
-private:
-    Vector* m_start;
-    Vector* m_dir;
-public:
-    this(Vector* start, Vector* dir)
+    Vector start;
+    Vector dir;
+
+    public this(Vector start, Vector dir)
     {
-        this.m_start = start;
-        this.m_dir   = dir;
+        this.start = start;
+        this.dir   = dir;
     }
-
-	ref Vector start() 
-	{ 
-		return *m_start;
-	}
-	void start(Vector * value) 
-	{
-		m_start = value;
-	}
-
-	ref Vector dir() 
-	{ 
-		return *m_dir;
-	}
-	void dir(Vector * value) 
-	{
-		m_dir = value;
-	}
 }
 
 struct Intersection
@@ -200,11 +172,10 @@ struct Intersection
 
 class Surface
 {
-public:
-    Color  diffuse(ref Vector pos)  { return Color.black; };
-    Color  specular(ref Vector pos) { return Color.black; };
-    double reflect(ref Vector pos)  { return 0; };
-    double roughness()              { return 0; };
+    public Color  diffuse(ref Vector pos)  { return Color.black; };
+    public Color  specular(ref Vector pos) { return Color.black; };
+    public double reflect(ref Vector pos)  { return 0; };
+    public double roughness()              { return 0; };
 }
 
 interface Thing
@@ -214,46 +185,37 @@ interface Thing
     Surface surface();
 }
 
-class Light
+struct Light
 {
-public:
-    Vector pos;
-    Color color;
+    public Vector pos;
+    public Color color;
 
-    this(Vector pos, Color color)
+    public this(Vector pos, Color color)
     {
         this.pos = pos;
         this.color = color;
     }
 }
 
-interface Scene
-{
-    Thing[] things();
-    Light[] lights();
-    Camera camera();
-}
-
 class Sphere : Thing
 {
-public:
-    double radius2;
-    Vector center;
-    Surface _surface;
+    public double radius2;
+    public Vector center;
+    public Surface _surface;
 
-    this(Vector center, double radius, Surface surface)
+    public this(Vector center, double radius, Surface surface)
     {
         this.radius2 = radius * radius;
         this.center = center;
         this._surface = surface;
     }
 
-    Vector normal(ref Vector pos)
+    public Vector normal(ref Vector pos)
     {
         return (pos - this.center).norm;
     }
 
-    Nullable!Intersection intersect(ref Ray ray)
+    public Nullable!Intersection intersect(ref Ray ray)
     {
         Nullable!Intersection result;
 
@@ -277,7 +239,7 @@ public:
         return result;
     }
 
-    Surface surface()
+    public Surface surface()
     {
         return _surface;
     }
@@ -285,18 +247,16 @@ public:
 
 class Plane: Thing
 {
-private:
-    Vector norm;
-    double offset;
-	Surface _surface;
+    private Vector norm;
+    private double offset;
+    private Surface _surface;
 
-public:
-    Vector normal(ref Vector pos)
+    public Vector normal(ref Vector pos)
     {
         return this.norm;
     }
 
-    Nullable!Intersection intersect(ref Ray ray)
+    public Nullable!Intersection intersect(ref Ray ray)
     {
         Nullable!Intersection result;
 
@@ -310,14 +270,14 @@ public:
         return result;
     }
 
-    this(Vector norm, double offset, Surface surface)
+    public this(Vector norm, double offset, Surface surface)
     {
         this._surface = surface;
         this.norm = norm;
         this.offset = offset;
     }
 
-    Surface surface()
+    public Surface surface()
     {
         return _surface;
     }
@@ -325,22 +285,22 @@ public:
 
 class ShinySurface: Surface
 {
-    override Color diffuse(ref Vector pos)
+    public override Color diffuse(ref Vector pos)
     {
         return Color.white;
     }
 
-    override Color specular(ref Vector pos)
+    public override Color specular(ref Vector pos)
     {
         return Color.grey;
     }
 
-    override double reflect(ref Vector pos)
+    public override double reflect(ref Vector pos)
     {
         return 0.7;
     }
 
-    override double roughness()
+    public override double roughness()
     {
         return 250.0;
     }
@@ -348,8 +308,7 @@ class ShinySurface: Surface
 
 class CheckerboardSurface : Surface
 {
-public:
-    override Color diffuse(ref Vector pos)
+    public override Color diffuse(ref Vector pos)
     {
         if (to!int(floor(pos.z) + floor(pos.x))  % 2 != 0)
         {
@@ -358,12 +317,12 @@ public:
         return Color.black;
     }
 
-    override Color specular(ref Vector pos)
+    public override Color specular(ref Vector pos)
     {
         return Color.white;
     }
 
-    override double reflect(ref Vector pos)
+    public override double reflect(ref Vector pos)
     {
         if (to!int(floor(pos.z) + floor(pos.x)) % 2 != 0)
         {
@@ -372,67 +331,50 @@ public:
         return 0.7;
     }
 
-    override double roughness()
+    public override double roughness()
     {
         return 150.0;
     }
 }
 
-class DefaultScene: Scene
+class Scene
 {
-//private:
-    Thing[] m_things;
-    Light[] m_lights;
-    Camera  m_camera;
-public:
-    this()
+    public Thing[] things;
+    public Light[] lights;
+    public Camera  camera;
+
+    public this()
     {
-        ShinySurface        shiny        = new ShinySurface();
+        ShinySurface shiny = new ShinySurface();
         CheckerboardSurface checkerboard = new CheckerboardSurface();
 
-        m_things = [
+        this.things = [
             cast(Thing)new Plane (Vector(0.0, 1.0, 0.0),   0.0, checkerboard),
             cast(Thing)new Sphere(Vector(0.0, 1.0, -0.25), 1.0, shiny),
             cast(Thing)new Sphere(Vector(-1.0, 0.5, 1.5),  0.5, shiny)
         ];
 
-        m_lights = [
-            new Light(Vector(-2.0, 2.5, 0.0), Color(0.49, 0.07, 0.07)),
-            new Light(Vector(1.5, 2.5, 1.5),  Color(0.07, 0.07, 0.49)),
-            new Light(Vector(1.5, 2.5, -1.5), Color(0.07, 0.49, 0.071)),
-            new Light(Vector(0.0, 3.5, 0.0),  Color(0.21, 0.21, 0.35)),
+        this.lights = [
+            Light(Vector(-2.0, 2.5, 0.0), Color(0.49, 0.07, 0.07)),
+            Light(Vector(1.5, 2.5, 1.5),  Color(0.07, 0.07, 0.49)),
+            Light(Vector(1.5, 2.5, -1.5), Color(0.07, 0.49, 0.071)),
+            Light(Vector(0.0, 3.5, 0.0),  Color(0.21, 0.21, 0.35)),
         ];
 
-        m_camera = new Camera(Vector(3.0, 2.0, 4.0), Vector(-1.0, 0.5, 0.0));
-    }
-
-    Thing[] things()
-    {
-        return m_things;
-    }
-
-    Light[] lights()
-    {
-        return m_lights;
-    }
-
-    Camera camera()
-    {
-        return m_camera;
+        this.camera = new Camera(Vector(3.0, 2.0, 4.0), Vector(-1.0, 0.5, 0.0));
     }
 }
 
 class RayTracerEngine
 {
-private:
-    static const int maxDepth = 5;
+    private static const int maxDepth = 5;
 
-    Nullable!Intersection intersections(ref Ray ray, Scene scene)
+    private Nullable!Intersection intersections(ref Ray ray, Scene scene)
     {
         double closest = double.infinity;
         Nullable!Intersection closestInter;
 
-        foreach (thing; scene.things())
+        foreach (thing; scene.things)
         {
             auto inter = thing.intersect(ray);
             if (!inter.isNull && inter.dist < closest)
@@ -444,136 +386,114 @@ private:
         return closestInter;
     }
 
-    double testRay(ref Ray ray, Scene scene)
+    private double testRay(ref Ray ray, Scene scene)
     {
         Nullable!Intersection isect = this.intersections(ray, scene);
-        if (!isect.isNull)
-        {
+        if (!isect.isNull) {
             return isect.dist;
         }
         return double.nan;
     }
 
-    Color traceRay(ref Ray ray, Scene scene, int depth)
+    private Color traceRay(ref Ray ray, Scene scene, int depth)
     {
         Nullable!Intersection isect = this.intersections(ray, scene);
-        if (isect.isNull)
-        {
+        if (isect.isNull) {
             return Color.background;
         }
         return this.shade(isect, scene, depth);
     }
 
-    Color shade(ref Intersection isect, Scene scene, int depth)
+    private Color shade(ref Intersection isect, Scene scene, int depth)
     {
         Vector d      = isect.ray.dir;
         Vector pos    = isect.dist * d + isect.ray.start;
         Vector normal = isect.thing.normal(pos);
-        
-		Vector vec         = 2.0 * (normal.dot(d) * normal);
-		Vector reflectDir  = d - vec;
+
+        Vector vec         = 2.0 * (normal.dot(d) * normal);
+        Vector reflectDir  = d - vec;
 
         Color naturalColor = this.getNaturalColor(isect.thing, pos, normal, reflectDir, scene) + Color.background;
 
-		Color getReflectionColor() 
-		{
-			Ray ray = Ray(&pos, &reflectDir);
-			return isect.thing.surface.reflect(pos) * this.traceRay(ray, scene, depth + 1);
-		}
+        Color getReflectionColor() {
+            Ray ray = Ray(pos, reflectDir);
+            return isect.thing.surface.reflect(pos) * this.traceRay(ray, scene, depth + 1);
+        }
 
-		Color reflectedColor;
-		if (depth >= this.maxDepth) {
-			reflectedColor = Color.grey;
-		} else {
-			reflectedColor = getReflectionColor();
-		}
-		return naturalColor + reflectedColor;
+        Color reflectedColor;
+        if (depth >= this.maxDepth) {
+            reflectedColor = Color.grey;
+        } else {
+            reflectedColor = getReflectionColor();
+        }
+        return naturalColor + reflectedColor;
     }
 
-    Color getNaturalColor(Thing thing, ref Vector pos, ref Vector norm, ref Vector rd, Scene scene)
+    private Color getNaturalColor(Thing thing, ref Vector pos, ref Vector norm, ref Vector rd, Scene scene)
     {
-		Color   resultColor = Color.black;
-		Surface surface = thing.surface;
-		Vector  rayDirNormal = rd.norm();
+        Color   resultColor = Color.black;
+        Surface surface = thing.surface;
+        Vector  rayDirNormal = rd.norm();
 
-		Color colDiffuse  = surface.diffuse(pos);
-		Color colSpecular = surface.specular(pos);
+        Color colDiffuse  = surface.diffuse(pos);
+        Color colSpecular = surface.specular(pos);
 
-		Color lcolor;
-		Color scolor;
-		//Vector ldis; 
-		//Vector livec;
+        Color lcolor;
+        Color scolor;
+        Ray ray = Ray(pos, Vector(0,0,0));
 
-		Ray ray;
-		ray.start = &pos;
+        void addLight(ref Light light)
+        {
+            Vector ldis    = light.pos - pos;
+            Vector livec   = ldis.norm;
+            ray.dir = livec;
 
-		void addLight(Light light)
-		{
-			Vector ldis    = light.pos - pos;
-			Vector livec   = ldis.norm;
-			ray.dir = &livec;
+            double neatIsect  = testRay(ray, scene);
+            bool   isInShadow = (neatIsect == double.nan) ? false : (neatIsect <= ldis.mag);
 
-			double neatIsect  = testRay(ray, scene);
-			bool   isInShadow = (neatIsect == double.nan) ? false : (neatIsect <= ldis.mag);
+            if (!isInShadow) {
+                double illum    = livec.dot(norm);
+                double specular = livec.dot(rayDirNormal);
 
-			if (isInShadow) {
-				return;
-			}
+                lcolor = (illum > 0) ? illum * light.color : Color.defaultColor;
+                scolor = (specular > 0) ? pow(specular, surface.roughness) * light.color : Color.defaultColor;
 
-			double illum    = livec.dot(norm);
-			double specular = livec.dot(rayDirNormal);
+                lcolor.scale(colDiffuse);
+                scolor.scale(colSpecular);
 
-			lcolor = (illum > 0)    ? illum                            * light.color : Color.defaultColor;
-			scolor = (specular > 0) ? pow(specular, surface.roughness) * light.color : Color.defaultColor;
-				
-			lcolor.scale(colDiffuse);
-			scolor.scale(colSpecular);
+                resultColor.add(lcolor).add(scolor);
+            }
+        }
 
-			resultColor.add(lcolor).add(scolor);
-		}
-
-		foreach (item; scene.lights) 
-		{
-		    addLight(item);
-		}
-
+        foreach (item; scene.lights) {
+            addLight(item);
+        }
         return resultColor;
     }
 
-
-    inout Vector getPoint(int x, int y, Camera camera, int screenWidth, int screenHeight, int scale)
+    private Vector getPoint(int x, int y, Camera camera, int screenWidth, int screenHeight, int scale)
     {
         double recenterX =  (x - (screenWidth / 2.0)) / 2.0 / scale;
         double recenterY = -(y - (screenHeight / 2.0)) / 2.0 / scale;
-
-		Vector vx = recenterX * camera.right;
-		Vector vy = recenterY * camera.up;
-		Vector v  = vx + vy;
-
+        Vector vx = recenterX * camera.right;
+        Vector vy = recenterY * camera.up;
+        Vector v  = vx + vy;
         return (camera.forward + v).norm;
     }
 
-public:
-    void render(Scene scene, ubyte[] bitmapData, int stride, int w, int h)
+    public void render(Scene scene, ubyte[] bitmapData, int stride, int w, int h)
     {
         import std.algorithm.comparison;
-
         Camera camera = scene.camera;
-		Ray ray;
-		ray.start = &camera.pos;
-
+        Ray ray = Ray(camera.pos, Vector(0,0,0));
         int scale = min(w,h);
 
-		Color result;
-
-        for (int y = 0; y < h; ++y)
-        {
+        for (int y = 0; y < h; ++y) {
             int pos = y * stride;
             RGBColor* ptrColor = (cast(RGBColor*)&bitmapData[pos]);
 
             for (int x = 0; x < w; ++x) {
-				Vector dir   = this.getPoint(x, y, camera, w, h, scale);
-				ray.dir      = &dir;
+                ray.dir = this.getPoint(x, y, camera, w, h, scale);
                 *ptrColor++  = this.traceRay(ray, scene, 0).toDrawingColor;
             }
         }
@@ -583,7 +503,6 @@ public:
 void SaveRGBBitmap(ubyte[] pBitmapBits, int lWidth, int lHeight, int wBitsPerPixel, string fileName )
 {
     const BI_RGB = 0;
-
     BITMAPINFOHEADER bmpInfoHeader = {};
     bmpInfoHeader.biSize = BITMAPINFOHEADER.sizeof;
     bmpInfoHeader.biBitCount = cast(WORD)wBitsPerPixel;
@@ -595,31 +514,28 @@ void SaveRGBBitmap(ubyte[] pBitmapBits, int lWidth, int lHeight, int wBitsPerPix
     bmpInfoHeader.biPlanes = 1;
     bmpInfoHeader.biSizeImage = lWidth* lHeight * (wBitsPerPixel/8);
 
-    struct BITMAPFILEHEADER
-    {
-        //align(1):
+    struct BITMAPFILEHEADER {
         WORD  bfType;
         DWORD bfSize;
         WORD  bfReserved1;
         WORD  bfReserved2;
         DWORD bfOffBits;
-    };
+    }
 
-    BITMAPFILEHEADER bfh = {};
+    BITMAPFILEHEADER bfh = {  };
     bfh.bfType    = 'B' + ('M' << 8);
-    bfh.bfOffBits = BITMAPINFOHEADER.sizeof + 14; // BITMAPFILEHEADER.sizeof;
+    bfh.bfOffBits = BITMAPINFOHEADER.sizeof + 14;
     bfh.bfSize    = bfh.bfOffBits + bmpInfoHeader.biSizeImage;
 
     auto file = File(fileName, "wb");
-
-    file.rawWrite((cast(ubyte*)&bfh)[0..2]); //Skip padded bytes
+    file.rawWrite((cast(ubyte*)&bfh)[0..2]); // Skip padded bytes
     file.rawWrite((cast(ubyte*)&bfh)[4..16]);
     file.rawWrite((cast(ubyte*)&bmpInfoHeader)[0 .. 40]);
     file.rawWrite(pBitmapBits);
     file.close();
 }
 
-int main(string[] argv)
+void main(string[] argv)
 {
     writeln("Starting");
     StopWatch sw;
@@ -630,16 +546,11 @@ int main(string[] argv)
     int stride = width * 4;
     ubyte[] bitmapData = new ubyte[stride * height];
 
-    Scene scene = new DefaultScene();
+    Scene scene = new Scene();
     RayTracerEngine rayTracer = new RayTracerEngine();
 
     rayTracer.render(scene, bitmapData, stride,width,height);
     sw.stop();
-
     SaveRGBBitmap(bitmapData, width,height, 32, "d-raytracer.bmp");
-
     writeln("Completed in: ", sw.peek.msecs, " [ms]");
-
-    readln;
-    return 0;
 }
