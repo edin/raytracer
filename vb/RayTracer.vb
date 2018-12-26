@@ -16,7 +16,6 @@
 
         Console.WriteLine("")
         Console.WriteLine("Total time: " + sw.ElapsedMilliseconds.ToString() + " ms")
-        'Console.WriteLine("Vector allocated: {0}", Vector.G_Count)
         Console.ReadKey()
     End Sub
 
@@ -26,7 +25,6 @@ Class Vector
     Public x As Double
     Public y As Double
     Public z As Double
-
 
     Public Sub New(x As Double, y As Double, z As Double)
         Me.x = x

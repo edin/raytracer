@@ -90,7 +90,6 @@ Color_black        = Color.new(0.0, 0.0, 0.0)
 Color_background   = Color_black
 Color_defaultColor = Color_black
 
-
 class Camera
     attr_accessor :pos, :forward, :right, :up
     def initialize(pos, lookAt)
@@ -110,35 +109,12 @@ class Ray
     end
 end
 
-class Thing
-end
-
 class Intersection
     attr_accessor :thing, :ray, :dist
     def initialize(thing, ray, dist)
         @thing = thing
         @ray   = ray
         @dist  = dist
-    end
-end
-
-class Surface
-    def diffuse(pos)
-    end
-    def specular(pos)
-    end
-    def reflect(pos)
-    end
-    def roughness()
-    end
-end
-
-class Thing
-    def intersect(ray)
-    end
-    def normal(pos)
-    end
-    def surface()
     end
 end
 
@@ -150,17 +126,7 @@ class Light
     end
 end
 
-class Scene
-    def things()
-    end
-    def lights()
-    end
-    def camera()
-    end
-end
-
-
-class Sphere < Thing
+class Sphere
     def initialize(center, radius, surface)
         @radius2 = radius*radius
         @_surface = surface
@@ -192,7 +158,7 @@ class Sphere < Thing
     end
 end
 
-class Plane < Thing
+class Plane
     def initialize(norm, offset, surface)
         @_norm    = norm
         @_surface = surface
@@ -215,7 +181,7 @@ class Plane < Thing
     end
 end
 
-class ShinySurface < Surface
+class ShinySurface
     def diffuse(pos)
         return Color_white
     end
@@ -230,7 +196,7 @@ class ShinySurface < Surface
     end
 end
 
-class CheckerboardSurface < Surface
+class CheckerboardSurface
     def diffuse(pos)
         return Color_white if ((pos.z).floor + (pos.x).floor) % 2 != 0
         return Color_black
@@ -351,7 +317,8 @@ class RayTracer
     end
 end
 
-class DefaultScene < Scene
+class DefaultScene
+    attr_accessor :things, :lights, :camera
     def initialize
         @things = [
             Plane.new(Vector.new(0.0, 1.0, 0.0)  ,0.0, Surface_checkerboard),
@@ -366,23 +333,11 @@ class DefaultScene < Scene
         ]
         @camera = Camera.new(Vector.new(3.0, 2.0, 4.0), Vector.new(-1.0, 0.5, 0.0))
     end
-
-    def things
-        return @things
-    end
-
-    def lights
-        return @lights
-    end
-
-    def camera
-        return @camera
-    end
 end
 
 width  = 500
 height = 500
-image = ImageRuby::Image.new(width,height, ImageRuby::Color.black)
+image = ImageRuby::Image.new(width, height, ImageRuby::Color.black)
 
 t1 = Time.now
 rayTracer = RayTracer.new()
