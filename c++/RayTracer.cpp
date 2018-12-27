@@ -177,20 +177,30 @@ public:
 
     Intersection(const Thing* thing, Ray ray, double dist) :
         thing(thing), ray(ray), dist(dist), isValid(true)
-    {
-    }
+    {}
 
-    bool IsValid() {
+    bool IsValid()
+    {
         return isValid;
     }
 };
 
+struct SurfacePropreties
+{
+    Color Diffuse;
+    Color Specular;
+    double Reflect;
+    double Roughness;
+
+    SurfacePropreties() {}
+    SurfacePropreties(Color diffuse, Color specular, double reflect, double roughness) :
+        Diffuse(diffuse), Specular(specular), Reflect(reflect), Roughness(roughness)
+    {}
+};
+
 struct Surface
 {
-    virtual Color  Diffuse(const Vector& pos) const { return Color::Black; };
-    virtual Color  Specular(const Vector& pos) const { return Color::Black; };
-    virtual double Reflect(const Vector& pos) const { return 0; };
-    virtual double Roughness() const { return 0; };
+    virtual SurfacePropreties GetSurfaceProperties(const Vector& pos) const = 0;
 };
 
 struct Thing
@@ -215,10 +225,8 @@ private:
     Vector   center;
 public:
     Sphere(Vector center, double radius, Surface& surface)
-        : center(center), surface(surface)
-    {
-        radius2 = radius * radius;
-    }
+        : center(center), surface(surface), radius2(radius*radius)
+    { }
 
     Vector GetNormal(const Vector& pos) const override
     {
@@ -284,68 +292,34 @@ public:
 
 struct ShinySurface : public Surface
 {
-    Color Diffuse(const Vector& pos) const override
+    SurfacePropreties GetSurfaceProperties(const Vector& pos) const override
     {
-        return Color::White;
-    }
-
-    Color Specular(const Vector& pos) const override
-    {
-        return Color::Grey;
-    }
-
-    double Reflect(const Vector& pos) const override
-    {
-        return 0.7;
-    }
-
-    double Roughness() const override
-    {
-        return 250.0;
+        return SurfacePropreties(Color::White, Color::Grey, 0.7, 250.0);
     }
 };
 
 struct CheckerboardSurface : public Surface
 {
-    Color Diffuse(const Vector& pos) const override
+    SurfacePropreties GetSurfaceProperties(const Vector& pos) const override
     {
+        Color diffuse = Color::Black;
+        double reflect = 0.7;
         if (((int)(floor(pos.z) + floor(pos.x))) % 2 != 0)
         {
-            return Color::White;
+            diffuse = Color::White;
+            reflect = 0.1;
         }
-        return Color::Black;
-    }
-
-    Color Specular(const Vector& pos) const override
-    {
-        return Color::White;
-    }
-
-    double Reflect(const Vector& pos) const override
-    {
-        if (((int)(floor(pos.z) + floor(pos.x))) % 2 != 0)
-        {
-            return 0.1;
-        }
-        return 0.7;
-    }
-
-    double Roughness() const override
-    {
-        return 150.0;
+        return SurfacePropreties(diffuse, Color::White, reflect, 150.0);
     }
 };
-
-using ThingList = std::vector<std::unique_ptr<Thing>>;
-using LightList = std::vector<Light>;
 
 class Scene {
 private:
     ShinySurface        shiny;
     CheckerboardSurface checkerboard;
 public:
-    ThingList things;
-    LightList lights;
+    std::vector<std::unique_ptr<Thing>> things;
+    std::vector<Light> lights;
     Camera    camera;
 
     Scene()
@@ -426,7 +400,7 @@ class RayTracerEngine
     {
         Ray    ray(pos, rd);
         Color  color = TraceRay(ray, depth + 1);
-        double factor = thing->GetSurface().Reflect(pos);
+        double factor = thing->GetSurface().GetSurfaceProperties(pos).Reflect;
         return color.Scale(factor);
     }
 
@@ -455,11 +429,11 @@ class RayTracerEngine
         double illum = livec * norm;
         double specular = livec * rd.Norm();
 
-        auto& surface = thing->GetSurface();
+        auto& surface = thing->GetSurface().GetSurfaceProperties(pos);
 
         Color lcolor = (illum > 0) ? (light.color * illum) : Color::DefaultColor;
-        Color scolor = (specular > 0) ? (light.color * pow(specular, surface.Roughness())) : Color::DefaultColor;
-        resultColor = resultColor + lcolor * surface.Diffuse(pos) + scolor * surface.Specular(pos);
+        Color scolor = (specular > 0) ? (light.color * pow(specular, surface.Roughness)) : Color::DefaultColor;
+        resultColor = resultColor + lcolor * surface.Diffuse + scolor * surface.Specular;
     }
 
     Vector GetPoint(int x, int y, const Camera& camera, int screenWidth, int screenHeight)
@@ -529,7 +503,6 @@ int main()
     int stride = width * 4;
 
     std::vector<byte> bitmapData(stride * height);
-
     rayTracer.render(&bitmapData[0], stride, width, height);
 
     auto t2 = std::chrono::high_resolution_clock::now();
