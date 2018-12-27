@@ -8,67 +8,67 @@
 
         sw.Start()
         Dim rayTracer As New RayTracerEngine()
-        Dim scene As New DefaultScene()
-        rayTracer.render(scene, bmp)
+        Dim scene As New Scene()
+        rayTracer.Render(scene, bmp)
         sw.Stop()
 
         bmp.Save("vb-ray-tracer.png")
 
         Console.WriteLine("")
         Console.WriteLine("Total time: " + sw.ElapsedMilliseconds.ToString() + " ms")
-        Console.ReadKey()
     End Sub
 
 End Module
 
 Class Vector
-    Public x As Double
-    Public y As Double
-    Public z As Double
+    Public X As Double
+    Public Y As Double
+    Public Z As Double
 
     Public Sub New(x As Double, y As Double, z As Double)
-        Me.x = x
-        Me.y = y
-        Me.z = z
+        Me.X = x
+        Me.Y = y
+        Me.Z = z
     End Sub
 
-    Public Shared Operator -(v1 As Vector, v2 As Vector) As Vector
-        Return New Vector(v1.x - v2.x, v1.y - v2.y, v1.z - v2.z)
+    Public Shared Operator -(a As Vector, b As Vector) As Vector
+        Return New Vector(a.X - b.X, a.Y - b.Y, a.Z - b.Z)
     End Operator
 
-    Public Shared Function dot(v1 As Vector, v2 As Vector) As Double
-        Return v1.x * v2.x + v1.y * v2.y + v1.z * v2.z
+    Public Function Dot(v As Vector) As Double
+        Return X * v.X + Y * v.Y + Z * v.Z
     End Function
 
-    Public Shared Function mag(v As Vector) As Double
-        Return Math.Sqrt(v.x * v.x + v.y * v.y + v.z * v.z)
+    Public Function Length() As Double
+        Return Math.Sqrt(X * X + Y * Y + Z * Z)
     End Function
 
-    Public Shared Operator +(v1 As Vector, v2 As Vector) As Vector
-        Return New Vector(v1.x + v2.x, v1.y + v2.y, v1.z + v2.z)
+    Public Shared Operator +(a As Vector, b As Vector) As Vector
+        Return New Vector(a.X + b.X, a.Y + b.Y, a.Z + b.Z)
     End Operator
 
     Public Shared Operator *(k As Double, v As Vector) As Vector
-        Return New Vector(k * v.x, k * v.y, k * v.z)
+        Return New Vector(k * v.X, k * v.Y, k * v.Z)
     End Operator
 
-    Public Shared Function norm(v As Vector) As Vector
-        Dim mag = Vector.mag(v)
-        Dim div = If((mag = 0), Double.PositiveInfinity, 1.0 / mag)
-        Return div * v
+    Public Function Norm() As Vector
+        Dim mag = Me.Length
+        Dim div = If(mag = 0, Double.PositiveInfinity, 1.0 / mag)
+        Return div * Me
     End Function
 
-    Public Shared Function cross(v1 As Vector, v2 As Vector) As Vector
-        Return New Vector(v1.y * v2.z - v1.z * v2.y,
-                         v1.z * v2.x - v1.x * v2.z,
-                         v1.x * v2.y - v1.y * v2.x)
+    Public Function Cross(v As Vector) As Vector
+        Return New Vector(Y * v.Z - Z * v.Y,
+                          Z * v.X - X * v.Z,
+                          X * v.Y - Y * v.X)
     End Function
+
 End Class
 
 Class Color
-    Public r As Double
-    Public g As Double
-    Public b As Double
+    Public R As Double
+    Public G As Double
+    Public B As Double
 
     Public Shared white As Color = New Color(1.0, 1.0, 1.0)
     Public Shared grey As Color = New Color(0.5, 0.5, 0.5)
@@ -77,25 +77,25 @@ Class Color
     Public Shared defaultcolor As Color = Color.black
 
     Public Sub New(r As Double, g As Double, b As Double)
-        Me.r = r
-        Me.g = g
-        Me.b = b
+        Me.R = r
+        Me.G = g
+        Me.B = b
     End Sub
 
     Public Shared Operator *(k As Double, v As Color) As Color
-        Return New Color(k * v.r, k * v.g, k * v.b)
+        Return New Color(k * v.R, k * v.G, k * v.B)
     End Operator
 
     Public Shared Operator +(v1 As Color, v2 As Color) As Color
-        Return New Color(v1.r + v2.r, v1.g + v2.g, v1.b + v2.b)
+        Return New Color(v1.R + v2.R, v1.G + v2.G, v1.B + v2.B)
     End Operator
 
     Public Shared Operator *(v1 As Color, v2 As Color) As Color
-        Return New Color(v1.r * v2.r, v1.g * v2.g, v1.b * v2.b)
+        Return New Color(v1.R * v2.R, v1.G * v2.G, v1.B * v2.B)
     End Operator
 
-    Public Shared Function toDrawingColor(c As Color) As System.Drawing.Color
-        Return System.Drawing.Color.FromArgb(Clamp(c.r), Clamp(c.g), Clamp(c.b))
+    Public Function ToDrawingColor() As System.Drawing.Color
+        Return System.Drawing.Color.FromArgb(Clamp(R), Clamp(G), Clamp(B))
     End Function
 
     Public Shared Function Clamp(c As Double) As Byte
@@ -104,94 +104,101 @@ Class Color
         If (v < 0) Then Return 0
         Return CType(v, Byte)
     End Function
+
 End Class
 
 Class Camera
-    Public forward As Vector
-    Public right As Vector
-    Public up As Vector
-    Public pos As Vector
+    Public Forward As Vector
+    Public Right As Vector
+    Public Up As Vector
+    Public Pos As Vector
 
     Public Sub New(pos As Vector, lookAt As Vector)
         Dim down = New Vector(0.0, -1.0, 0.0)
-        Me.pos = pos
-        Me.forward = Vector.norm(lookAt - Me.pos)
-        Me.right = 1.5 * Vector.norm(Vector.cross(Me.forward, down))
-        Me.up = 1.5 * Vector.norm(Vector.cross(Me.forward, Me.right))
+        Me.Pos = pos
+
+        Forward = (lookAt - Me.Pos).Norm
+        Right = 1.5 * Forward.Cross(down).Norm
+        Up = 1.5 * Forward.Cross(Right).Norm
     End Sub
+
 End Class
 
 Class Ray
-    Public start As Vector
-    Public dir As Vector
+    Public Start As Vector
+    Public Dir As Vector
 
     Public Sub New(start As Vector, dir As Vector)
-        Me.start = start
-        Me.dir = dir
+        Me.Start = start
+        Me.Dir = dir
     End Sub
+
 End Class
 
 Class Intersection
-    Public thing As Thing
-    Public ray As Ray
-    Public dist As Double
+    Public Thing As IThing
+    Public Ray As Ray
+    Public Dist As Double
 
-    Public Sub New(thing As Thing, ray As Ray, dist As Double)
-        Me.thing = thing
-        Me.ray = ray
-        Me.dist = dist
+    Public Sub New(thing As IThing, ray As Ray, dist As Double)
+        Me.Thing = thing
+        Me.Ray = ray
+        Me.Dist = dist
     End Sub
+
 End Class
 
-Interface Surface
-    Function diffuse(pos As Vector) As Color
-    Function specular(pos As Vector) As Color
-    Function reflect(pos As Vector) As Double
-    Property roughness As Double
+Interface ISurface
+
+    Function Diffuse(pos As Vector) As Color
+
+    Function Specular(pos As Vector) As Color
+
+    Function Reflect(pos As Vector) As Double
+
+    Property Roughness As Double
 End Interface
 
-Interface Thing
-    Function intersect(ray As Ray) As Intersection
-    Function normal(pos As Vector) As Vector
-    Property surface As Surface
+Interface IThing
+
+    Function Intersect(ray As Ray) As Intersection
+
+    Function Normal(pos As Vector) As Vector
+
+    Property Surface As ISurface
 End Interface
 
 Class Light
-    Public pos As Vector
-    Public color As Color
+    Public Pos As Vector
+    Public Color As Color
 
     Public Sub New(pos As Vector, color As Color)
-        Me.pos = pos
-        Me.color = color
+        Me.Pos = pos
+        Me.Color = color
     End Sub
+
 End Class
 
-Interface Scene
-    Function things() As List(Of Thing)
-    Function lights() As List(Of Light)
-    Property camera As Camera
-End Interface
-
 Class Sphere
-    Implements Thing
+    Implements IThing
 
-    Private radius2 As Double
-    Private center As Vector
+    Private Radius2 As Double
+    Private Center As Vector
 
-    Public Sub New(center As Vector, radius As Double, surface As Surface)
-        Me.radius2 = radius * radius
-        Me.surface = surface
-        Me.center = center
+    Public Sub New(center As Vector, radius As Double, surface As ISurface)
+        Me.Radius2 = radius * radius
+        Me.Surface = surface
+        Me.Center = center
     End Sub
 
-    Public Function intersect(ray As Ray) As Intersection Implements Thing.intersect
+    Public Function Intersect(ray As Ray) As Intersection Implements IThing.Intersect
 
-        Dim eo = (Me.center - ray.start)
-        Dim v = Vector.dot(eo, ray.dir)
+        Dim eo = (Me.Center - ray.Start)
+        Dim v = eo.Dot(ray.Dir)
         Dim dist = 0.0
 
         If (v >= 0) Then
-            Dim disc = Me.radius2 - (Vector.dot(eo, eo) - v * v)
+            Dim disc = Me.Radius2 - (eo.Dot(eo) - v * v)
             If (disc >= 0) Then
                 dist = v - Math.Sqrt(disc)
             End If
@@ -202,206 +209,197 @@ Class Sphere
         Return New Intersection(Me, ray, dist)
     End Function
 
-    Public Function normal(pos As Vector) As Vector Implements Thing.normal
-        Return Vector.norm(pos - Me.center)
+    Public Function Normal(pos As Vector) As Vector Implements IThing.Normal
+        Return (pos - Me.Center).Norm
     End Function
 
-    Public Property surface As Surface Implements Thing.surface
+    Public Property Surface As ISurface Implements IThing.Surface
 End Class
 
 Class Plane
-    Implements Thing
+    Implements IThing
 
-    Private _normal As Vector
-    Private _offset As Double
+    Private Normal As Vector
+    Private Offset As Double
 
-    Public Sub New(norm As Vector, offset As Double, surface As Surface)
-        Me._normal = norm
-        Me._offset = offset
-        Me.surface = surface
+    Public Sub New(normal As Vector, offset As Double, surface As ISurface)
+        Me.Normal = normal
+        Me.Offset = offset
+        Me.Surface = surface
     End Sub
 
-    Public Function intersect(ray As Ray) As Intersection Implements Thing.intersect
-        Dim denom = Vector.dot(Me._normal, ray.dir)
+    Public Function Intersect(ray As Ray) As Intersection Implements IThing.Intersect
+        Dim denom = Me.Normal.Dot(ray.Dir)
         If (denom > 0) Then Return Nothing
 
-        Dim dist = (Vector.dot(Me._normal, ray.start) + Me._offset) / (-denom)
+        Dim dist = (Me.Normal.Dot(ray.Start) + Me.Offset) / (-denom)
         Return New Intersection(Me, ray, dist)
     End Function
 
-    Public Function normal(pos As Vector) As Vector Implements Thing.normal
-        Return Me._normal
+    Public Function GetNormal(pos As Vector) As Vector Implements IThing.Normal
+        Return Me.Normal
     End Function
 
-    Public Property surface As Surface Implements Thing.surface
+    Public Property Surface As ISurface Implements IThing.Surface
 End Class
 
 Class ShinySurface
-    Implements Surface
+    Implements ISurface
 
-    Public Function diffuse(pos As Vector) As Color Implements Surface.diffuse
+    Public Function Diffuse(pos As Vector) As Color Implements ISurface.Diffuse
         Return Color.white
     End Function
 
-    Public Function reflect(pos As Vector) As Double Implements Surface.reflect
+    Public Function Reflect(pos As Vector) As Double Implements ISurface.Reflect
         Return 0.7
     End Function
 
-    Public Property roughness As Double = 250 Implements Surface.roughness
+    Public Property Roughness As Double = 250 Implements ISurface.Roughness
 
-    Public Function specular(pos As Vector) As Color Implements Surface.specular
+    Public Function Specular(pos As Vector) As Color Implements ISurface.Specular
         Return Color.grey
     End Function
+
 End Class
 
 Class CheckerboardSurface
-    Implements Surface
+    Implements ISurface
 
-    Public Function diffuse(pos As Vector) As Color Implements Surface.diffuse
-        If (Math.Floor(pos.z) + Math.Floor(pos.x)) Mod 2 <> 0 Then
+    Public Function Diffuse(pos As Vector) As Color Implements ISurface.Diffuse
+        If (Math.Floor(pos.Z) + Math.Floor(pos.X)) Mod 2 <> 0 Then
             Return Color.white
         Else
             Return Color.black
         End If
     End Function
 
-    Public Function reflect(pos As Vector) As Double Implements Surface.reflect
-        If (Math.Floor(pos.z) + Math.Floor(pos.x)) Mod 2 <> 0 Then
+    Public Function Reflect(pos As Vector) As Double Implements ISurface.Reflect
+        If (Math.Floor(pos.Z) + Math.Floor(pos.X)) Mod 2 <> 0 Then
             Return 0.1
         Else
             Return 0.7
         End If
     End Function
 
-    Public Property roughness As Double = 150 Implements Surface.roughness
+    Public Property Roughness As Double = 150 Implements ISurface.Roughness
 
-    Public Function specular(pos As Vector) As Color Implements Surface.specular
+    Public Function Specular(pos As Vector) As Color Implements ISurface.Specular
         Return Color.white
     End Function
+
 End Class
 
 Class Surfaces
-    Public Shared shiny As Surface = New ShinySurface()
-    Public Shared checkerboard As Surface = New CheckerboardSurface()
+    Public Shared Shiny As ISurface = New ShinySurface()
+    Public Shared CheckerBoard As ISurface = New CheckerboardSurface()
 End Class
 
-Class DefaultScene
-    Implements Scene
-    Public Property camera As Camera Implements Scene.camera
-
-    Private _lights As List(Of Light) = New List(Of Light)
-    Private _things As List(Of Thing) = New List(Of Thing)
+Class Scene
+    Public Camera As Camera
+    Public Lights As List(Of Light) = New List(Of Light)
+    Public Things As List(Of IThing) = New List(Of IThing)
 
     Public Sub New()
-        Me.camera = New Camera(New Vector(3.0, 2.0, 4.0), New Vector(-1.0, 0.5, 0.0))
+        Camera = New Camera(New Vector(3.0, 2.0, 4.0), New Vector(-1.0, 0.5, 0.0))
 
-        _things.Add(New Plane(New Vector(0.0, 1.0, 0.0), 0.0, Surfaces.checkerboard))
-        _things.Add(New Sphere(New Vector(0.0, 1.0, -0.25), 1.0, Surfaces.shiny))
-        _things.Add(New Sphere(New Vector(-1.0, 0.5, 1.5), 0.5, Surfaces.shiny))
+        Things.Add(New Plane(New Vector(0.0, 1.0, 0.0), 0.0, Surfaces.CheckerBoard))
+        Things.Add(New Sphere(New Vector(0.0, 1.0, -0.25), 1.0, Surfaces.Shiny))
+        Things.Add(New Sphere(New Vector(-1.0, 0.5, 1.5), 0.5, Surfaces.Shiny))
 
-        _lights.Add(New Light(New Vector(-2.0, 2.5, 0.0), New Color(0.49, 0.07, 0.07)))
-        _lights.Add(New Light(New Vector(1.5, 2.5, 1.5), New Color(0.07, 0.07, 0.49)))
-        _lights.Add(New Light(New Vector(1.5, 2.5, -1.5), New Color(0.07, 0.49, 0.071)))
-        _lights.Add(New Light(New Vector(0.0, 3.5, 0.0), New Color(0.21, 0.21, 0.35)))
+        Lights.Add(New Light(New Vector(-2.0, 2.5, 0.0), New Color(0.49, 0.07, 0.07)))
+        Lights.Add(New Light(New Vector(1.5, 2.5, 1.5), New Color(0.07, 0.07, 0.49)))
+        Lights.Add(New Light(New Vector(1.5, 2.5, -1.5), New Color(0.07, 0.49, 0.071)))
+        Lights.Add(New Light(New Vector(0.0, 3.5, 0.0), New Color(0.21, 0.21, 0.35)))
     End Sub
 
-    Public Function lights() As List(Of Light) Implements Scene.lights
-        Return _lights
-    End Function
-
-    Public Function things() As List(Of Thing) Implements Scene.things
-        Return _things
-    End Function
 End Class
 
 Class RayTracerEngine
     Private maxDepth As Integer = 5
+    Private Scene As Scene
 
-    Private Function intersections(ray As Ray, scene As Scene) As Intersection
+    Private Function Intersections(ray As Ray) As Intersection
         Dim closest = Double.PositiveInfinity
         Dim closestInter As Intersection = Nothing
 
-        For Each item As Thing In scene.things
-            Dim inter = item.intersect(ray)
-            If (inter IsNot Nothing AndAlso inter.dist < closest) Then
+        For Each item As IThing In Scene.Things
+            Dim inter = item.Intersect(ray)
+            If (inter IsNot Nothing AndAlso inter.Dist < closest) Then
                 closestInter = inter
-                closest = inter.dist
+                closest = inter.Dist
             End If
         Next
         Return closestInter
 
     End Function
 
-    Private Function testRay(ray As Ray, scene As Scene) As Double
-        Dim isect As Intersection = Me.intersections(ray, scene)
+    Private Function TestRay(ray As Ray) As Double
+        Dim isect As Intersection = Me.Intersections(ray)
         If (isect IsNot Nothing) Then
-            Return isect.dist
+            Return isect.Dist
         Else
             Return Double.NaN
         End If
     End Function
 
-    Private Function traceRay(ray As Ray, scene As Scene, depth As Integer) As Color
-        Dim isect As Intersection = Me.intersections(ray, scene)
+    Private Function TraceRay(ray As Ray, depth As Integer) As Color
+        Dim isect As Intersection = Me.Intersections(ray)
         If (isect Is Nothing) Then Return Color.background
-        Return Me.shade(isect, scene, depth)
+        Return Me.Shade(isect, depth)
     End Function
 
-    Private Function shade(isect As Intersection, scene As Scene, depth As Integer) As Color
-        Dim d As Vector = isect.ray.dir
+    Private Function Shade(isect As Intersection, depth As Integer) As Color
+        Dim d As Vector = isect.Ray.Dir
 
-        Dim pos = (isect.dist * d) + isect.ray.start
-        Dim normal = isect.thing.normal(pos)
-        Dim reflectDir = d - (2 * Vector.dot(normal, d) * normal)
+        Dim pos = (isect.Dist * d) + isect.Ray.Start
+        Dim normal = isect.Thing.Normal(pos)
+        Dim reflectDir = d - (2 * normal.Dot(d) * normal)
 
-        Dim naturalColor = Color.background + Me.getNaturalColor(isect.thing, pos, normal, reflectDir, scene)
-
-
-        Dim reflectedColor = If(depth >= Me.maxDepth, Color.grey, Me.getReflectionColor(isect.thing, pos, normal, reflectDir, scene, depth))
+        Dim naturalColor = Color.background + Me.GetNaturalColor(isect.Thing, pos, normal, reflectDir)
+        Dim reflectedColor = If(depth >= Me.maxDepth, Color.grey, Me.GetReflectionColor(isect.Thing, pos, normal, reflectDir, depth))
 
         Return naturalColor + reflectedColor
     End Function
 
-    Private Function getReflectionColor(thing As Thing, pos As Vector, normal As Vector, rd As Vector, scene As Scene, depth As Integer) As Color
-        Return thing.surface.reflect(pos) * Me.traceRay(New Ray(pos, rd), scene, depth + 1)
+    Private Function GetReflectionColor(thing As IThing, pos As Vector, normal As Vector, rd As Vector, depth As Integer) As Color
+        Return thing.Surface.Reflect(pos) * Me.TraceRay(New Ray(pos, rd), depth + 1)
     End Function
 
-
-    Private Function getNaturalColor(thing As Thing, pos As Vector, norm As Vector, rd As Vector, scene As Scene) As Color
+    Private Function GetNaturalColor(thing As IThing, pos As Vector, norm As Vector, rd As Vector) As Color
 
         Dim resultColor As Color = Color.defaultcolor
 
-        For Each light As Light In scene.lights()
-            Dim ldis = light.pos - pos
-            Dim livec = Vector.norm(ldis)
-            Dim neatIsect = Me.testRay(New Ray(pos, livec), scene)
+        For Each light As Light In Scene.Lights
+            Dim ldis = light.Pos - pos
+            Dim livec = ldis.Norm
+            Dim neatIsect = Me.TestRay(New Ray(pos, livec))
 
-            Dim isInShadow = If(Double.IsNaN(neatIsect), False, (neatIsect <= Vector.mag(ldis)))
+            Dim isInShadow = If(Double.IsNaN(neatIsect), False, (neatIsect <= ldis.Length))
             If (Not isInShadow) Then
 
-                Dim illum = Vector.dot(livec, norm)
-                Dim lcolor = If((illum > 0), illum * light.color, Color.defaultcolor)
+                Dim illum = livec.Dot(norm)
+                Dim lcolor = If((illum > 0), illum * light.Color, Color.defaultcolor)
 
-                Dim specular = Vector.dot(livec, Vector.norm(rd))
-                Dim scolor = If(specular > 0, (Math.Pow(specular, thing.surface().roughness) * light.color), Color.defaultcolor)
+                Dim specular = livec.Dot(rd.Norm)
+                Dim scolor = If(specular > 0, (Math.Pow(specular, thing.Surface().Roughness) * light.Color), Color.defaultcolor)
 
-                resultColor = resultColor + (thing.surface.diffuse(pos) * lcolor) + (thing.surface.specular(pos) * scolor)
+                resultColor = resultColor + (thing.Surface.Diffuse(pos) * lcolor) + (thing.Surface.Specular(pos) * scolor)
             End If
         Next
         Return resultColor
 
     End Function
 
-    Private Delegate Function GetPointDelegate(x As Integer, y As Integer, camera As Camera) As Vector
-
-    Public Sub render(scene As Scene, bmp As System.Drawing.Bitmap)
+    Public Sub Render(scene As Scene, bmp As System.Drawing.Bitmap)
         Dim w As Integer = bmp.Width
         Dim h As Integer = bmp.Height
-        Dim getPoint As GetPointDelegate = Function(x As Integer, y As Integer, camera As Camera) As Vector
-                                               Dim recenterX = (x - (w / 2.0)) / 2.0 / w
-                                               Dim recenterY = -(y - (h / 2.0)) / 2.0 / h
-                                               Return Vector.norm(camera.forward + (recenterX * camera.right) + (recenterY * camera.up))
-                                           End Function
+        Me.Scene = scene
+
+        Dim GetPoint = Function(x As Integer, y As Integer, Camera As Camera) As Vector
+                           Dim recenterX = (x - (w / 2.0)) / 2.0 / w
+                           Dim recenterY = -(y - (h / 2.0)) / 2.0 / h
+                           Return (Camera.Forward + (recenterX * Camera.Right) + (recenterY * Camera.Up)).Norm
+                       End Function
 
         Dim bitmapData As Drawing.Imaging.BitmapData = bmp.LockBits(New Drawing.Rectangle(0, 0, w, h), Drawing.Imaging.ImageLockMode.ReadWrite, bmp.PixelFormat)
         Dim stride As Integer = bitmapData.Stride
@@ -411,20 +409,16 @@ Class RayTracerEngine
 
         System.Runtime.InteropServices.Marshal.Copy(bitmapData.Scan0, rgbData, 0, size)
 
-        Dim ray = New Ray(scene.camera.pos, New Vector(0, 0, 0))
+        Dim ray = New Ray(scene.Camera.Pos, New Vector(0, 0, 0))
 
         For y = 0 To h - 1
             For x = 0 To w - 1
-
-                ray.dir = getPoint(x, y, scene.camera)
-                Dim color As Color = Me.traceRay(ray, scene, 0)
-                Dim c As Drawing.Color = color.toDrawingColor(color)
-
+                ray.Dir = GetPoint(x, y, scene.Camera)
+                Dim color = Me.TraceRay(ray, 0).ToDrawingColor()
                 Dim pos = y * stride + x * 4
-
-                rgbData(pos) = c.B
-                rgbData(pos + 1) = c.G
-                rgbData(pos + 2) = c.R
+                rgbData(pos + 0) = color.B
+                rgbData(pos + 1) = color.G
+                rgbData(pos + 2) = color.R
                 rgbData(pos + 3) = 255
             Next
         Next
@@ -432,4 +426,5 @@ Class RayTracerEngine
         System.Runtime.InteropServices.Marshal.Copy(rgbData, 0, bitmapData.Scan0, size)
         bmp.UnlockBits(bitmapData)
     End Sub
+
 End Class
