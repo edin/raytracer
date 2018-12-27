@@ -1,11 +1,8 @@
-__author__ = 'Edin'
-
 import math
 import time
 from PIL import Image
 
-FAR_AWAY = math.pow(10,6)
-
+FarAway = 1000000
 
 class Vector:
     def __init__(self, x,y,z):
@@ -13,116 +10,99 @@ class Vector:
         self.y = y
         self.z = z
 
-    @staticmethod
-    def times(k:float, v):
-        return Vector(k * v.x, k * v.y, k * v.z)
+    def times(self, k):
+        return Vector(self.x * k, self.y  * k, self.z * k)
 
-    @staticmethod
-    def times(k:float, v):
-        return Vector(k * v.x, k * v.y, k * v.z)
+    def minus(self, v):
+        return Vector(self.x - v.x, self.y - v.y, self.z - v.z)
 
-    @staticmethod
-    def minus(v1, v2):
-        return Vector(v1.x - v2.x, v1.y - v2.y, v1.z - v2.z)
+    def plus(self, v):
+        return Vector(self.x + v.x, self.y + v.y, self.z + v.z)
 
-    @staticmethod
-    def plus(v1, v2):
-        return Vector(v1.x + v2.x, v1.y + v2.y, v1.z + v2.z)
+    def dot(self, v):
+        return self.x * v.x + self.y * v.y + self.z * v.z
 
-    @staticmethod
-    def dot(v1, v2):
-        return v1.x * v2.x + v1.y * v2.y + v1.z * v2.z
+    def mag(self):
+        return math.sqrt(self.x * self.x + self.y * self.y + self.z * self.z)
 
-    @staticmethod
-    def mag(v):
-        return math.sqrt(v.x * v.x + v.y * v.y + v.z * v.z)
+    def norm(self):
+        mag = self.mag()
+        div = FarAway if (mag == 0) else  1.0 / mag
+        return self.times(div)
 
-    @staticmethod
-    def norm(v):
-        mag = Vector.mag(v)
-        div =  FAR_AWAY if (mag == 0) else  1.0 / mag
-        return Vector.times(div, v)
-
-    @staticmethod
-    def cross(v1, v2):
-        return Vector(v1.y * v2.z - v1.z * v2.y, v1.z * v2.x - v1.x * v2.z, v1.x * v2.y - v1.y * v2.x)
-
+    def cross(self, v):
+        return Vector(self.y * v.z - self.z * v.y, self.z * v.x - self.x * v.z, self.x * v.y - self.y * v.x)
 
 class Color:
     def __init__(self,r: float, g: float, b: float):
-        self.r = r;
-        self.g = g;
-        self.b = b;
+        self.r = r
+        self.g = g
+        self.b = b
 
-    @staticmethod
-    def scale(k: float, v):
-        return Color(k * v.r, k * v.g, k * v.b)
+    def scale(self, k: float):
+        return Color(self.r * k, self.g * k, self.b * k)
 
-    @staticmethod
-    def plus(v1, v2):
-        return Color(v1.r + v2.r, v1.g + v2.g, v1.b + v2.b)
+    def plus(self, v):
+        return Color(self.r + v.r, self.g + v.g, self.b + v.b)
 
-    @staticmethod
-    def times(v1, v2):
-        return Color(v1.r * v2.r, v1.g * v2.g, v1.b * v2.b)
+    def times(self, v):
+        return Color(self.r * v.r, self.g * v.g, self.b * v.b)
 
-    @staticmethod
-    def toDrawingColor(c):
+    def toDrawingColor(self):
         legalize = lambda  d: 1 if(d > 1) else d
-        r = math.floor(legalize(c.r)*255)
-        g = math.floor(legalize(c.g)*255)
-        b = math.floor(legalize(c.b)*255)
+        r = math.floor(legalize(self.r)*255)
+        g = math.floor(legalize(self.g)*255)
+        b = math.floor(legalize(self.b)*255)
         return (r, g ,b)
 
-Color_white     = Color(1.0, 1.0, 1.0)
-Color_grey      = Color(0.5, 0.5, 0.5)
-Color_black     = Color(0.0, 0.0, 0.0)
-Color_background   = Color_black
-Color_defaultColor = Color_black
-
+ColorWhite = Color(1.0, 1.0, 1.0)
+ColorGrey  = Color(0.5, 0.5, 0.5)
+ColorBlack = Color(0.0, 0.0, 0.0)
+ColorBackground   = ColorBlack
+ColorDefaultColor = ColorBlack
 
 class Camera:
-    def __init__(self,pos: Vector, lookAt: Vector):
+    def __init__(self, pos: Vector, lookAt: Vector):
         down         = Vector(0.0, -1.0, 0.0)
         self.pos     = pos
-        self.forward = Vector.norm(Vector.minus(lookAt, self.pos))
-        self.right   = Vector.times(1.5, Vector.norm(Vector.cross(self.forward, down)))
-        self.up      = Vector.times(1.5, Vector.norm(Vector.cross(self.forward, self.right)))
+        self.forward = lookAt.minus(self.pos).norm()
+        self.right   = self.forward.cross(down).norm().times(1.5)
+        self.up      = self.forward.cross(self.right).norm().times(1.5)
 
 class Ray:
-    def __init__(self,start:Vector, dir:Vector):
+    def __init__(self, start: Vector, dir: Vector):
         self.start = start
         self.dir = dir
 
 class Intersection:
-    def __init__(self,thing, ray: Ray, dist: float):
+    def __init__(self, thing, ray: Ray, dist: float):
         self.thing = thing
         self.ray =  ray
         self.dist = dist
 
 class Light:
-    def __init__(self,pos: Vector, color: Color):
+    def __init__(self, pos: Vector, color: Color):
         self.pos = pos
         self.color = color
 
 class Sphere:
-    def __init__(self,center: Vector,radius:float, surface):
+    def __init__(self, center: Vector, radius: float, surface):
         self.radius2 = radius*radius
         self._surface = surface
         self.center  = center
 
     def normal(self, pos: Vector):
-        return Vector.norm(Vector.minus(pos, self.center))
+        return pos.minus(self.center).norm()
 
     def surface(self):
         return self._surface
 
     def intersect(self, ray: Ray):
-        eo = Vector.minus(self.center, ray.start)
-        v = Vector.dot(eo, ray.dir)
-        dist = 0;
+        eo = self.center.minus(ray.start)
+        v = eo.dot(ray.dir)
+        dist = 0
         if (v >= 0):
-            disc = self.radius2 - (Vector.dot(eo, eo) - v * v)
+            disc = self.radius2 - (eo.dot(eo) - v * v)
             if (disc >= 0):
                 dist = v - math.sqrt(disc)
         if (dist == 0):
@@ -130,7 +110,7 @@ class Sphere:
         return Intersection(self, ray, dist)
 
 class Plane:
-    def __init__(self,norm: Vector, offset:float, surface):
+    def __init__(self, norm: Vector, offset: float, surface):
         self._norm    = norm
         self._surface = surface
         self.offset   = offset
@@ -139,34 +119,38 @@ class Plane:
         return self._norm
 
     def intersect(self, ray: Ray):
-        denom = Vector.dot(self._norm, ray.dir)
+        denom = self._norm.dot(ray.dir)
         if (denom > 0):
             return None
-        dist = (Vector.dot(self._norm, ray.start) + self.offset) / (-denom);
+        dist = (self._norm.dot(ray.start) + self.offset) / (-denom)
         return Intersection(self, ray, dist)
 
     def surface(self):
         return self._surface
 
 class ShinySurface:
-    def diffuse(self,pos: Vector):
-        return Color_white
-    def specular(self,pos: Vector):
-        return Color_grey
-    def reflect(self,pos: Vector):
+    def diffuse(self, pos: Vector):
+        return ColorWhite
+
+    def specular(self, pos: Vector):
+        return ColorGrey
+
+    def reflect(self, pos: Vector):
         return 0.7
+
     def roughness(self):
         return 250
 
 class CheckerboardSurface:
-    def diffuse(self,pos: Vector):
+    def diffuse(self, pos: Vector):
         if (math.floor(pos.z) + math.floor(pos.x)) % 2 != 0:
-            return Color_white;
-        return Color_black;
-    def specular(self,pos: Vector):
-        return Color_white
+            return ColorWhite
+        return ColorBlack
 
-    def reflect(self,pos: Vector):
+    def specular(self, pos: Vector):
+        return ColorWhite
+
+    def reflect(self, pos: Vector):
         if (math.floor(pos.z) + math.floor(pos.x)) % 2 != 0:
             return 0.1
         return 0.7
@@ -174,124 +158,117 @@ class CheckerboardSurface:
     def roughness(self):
         return 250
 
-Surface_shiny        = ShinySurface()
-Surface_checkerboard = CheckerboardSurface()
-
+SurfaceShiny        = ShinySurface()
+SurfaceCheckerboard = CheckerboardSurface()
 
 class RayTracer:
     maxDepth = 5
 
-    def intersections(self, ray: Ray, scene):
-        closest = FAR_AWAY
+    def intersections(self, ray: Ray):
+        closest = FarAway
         closestInter = None
-        for item in scene.things():
+        for item in self.scene.things:
             inter = item.intersect(ray)
             if inter != None and inter.dist < closest:
                 closestInter = inter
                 closest = inter.dist
         return closestInter
 
-    def testRay(self, ray: Ray, scene):
-        isect = self.intersections(ray, scene)
+    def testRay(self, ray: Ray):
+        isect = self.intersections(ray)
         if isect != None:
             return isect.dist
         return None
 
-    def traceRay(self, ray: Ray, scene, depth: int):
-        isect = self.intersections(ray, scene)
+    def traceRay(self, ray: Ray, depth: int):
+        isect = self.intersections(ray)
         if (isect == None):
-            return Color_background
-        return self.shade(isect, scene, depth)
+            return ColorBackground
+        return self.shade(isect, depth)
 
-    def shade(self,isect: Intersection, scene, depth: int):
+    def shade(self, isect: Intersection, depth: int):
         d = isect.ray.dir
-        pos = Vector.plus(Vector.times(isect.dist, d), isect.ray.start)
+        pos = d.times(isect.dist).plus(isect.ray.start)
         normal = isect.thing.normal(pos)
-        reflectDir = Vector.minus(d, Vector.times(2, Vector.times(Vector.dot(normal, d), normal)))
-        naturalColor = Color.plus(Color_background,self.getNaturalColor(isect.thing, pos, normal, reflectDir, scene))
+        reflectDir = d.minus(normal.times(normal.dot(d)).times(2))
 
-        reflectedColor = Color_grey if (depth >= self.maxDepth) else self.getReflectionColor(isect.thing, pos, normal, reflectDir, scene, depth)
-        return Color.plus(naturalColor, reflectedColor)
+        naturalColor = ColorBackground.plus(self.getNaturalColor(isect.thing, pos, normal, reflectDir))
+        reflectedColor = ColorGrey if (depth >= self.maxDepth) else self.getReflectionColor(isect.thing, pos, normal, reflectDir, depth)
+        return naturalColor.plus(reflectedColor)
 
-    def getReflectionColor(self, thing, pos: Vector, normal: Vector, rd: Vector, scene, depth: int):
-        return Color.scale(thing.surface().reflect(pos), self.traceRay(Ray(pos, rd), scene, depth + 1))
+    def getReflectionColor(self, thing, pos: Vector, normal: Vector, rd: Vector, depth: int):
+        return self.traceRay(Ray(pos, rd), depth + 1).scale(thing.surface().reflect(pos))
 
-    def getNaturalColor(self, thing, pos: Vector, norm: Vector, rd: Vector, scene):
-        color = Color_defaultColor
-        for light in scene.lights():
-            color = self.addLight(color, light,pos, norm,scene,thing,rd)
-
+    def getNaturalColor(self, thing, pos: Vector, norm: Vector, rd: Vector):
+        color = ColorDefaultColor
+        for light in self.scene.lights:
+            color = self.addLight(color, light, pos, norm, thing, rd)
         return color
 
-    def addLight(self, col, light, pos, norm, scene, thing, rd):
-        ldis  = Vector.minus(light.pos, pos)
-        livec = Vector.norm(ldis)
-        neatIsect = self.testRay(Ray( pos, livec), scene)
-        isInShadow = False if(neatIsect == None ) else (neatIsect <= Vector.mag(ldis))
+    def addLight(self, col, light, pos, norm, thing, rd):
+        ldis  = light.pos.minus(pos)
+        livec = ldis.norm()
+        ray = Ray(pos, livec)
+
+        neatIsect = self.testRay(ray)
+
+        isInShadow = False if(neatIsect == None) else (neatIsect <= ldis.mag())
         if (isInShadow):
             return col
-        illum    = Vector.dot(livec, norm)
-        lcolor   = Color.scale(illum, light.color) if (illum > 0) else Color_defaultColor
-        specular = Vector.dot(livec, Vector.norm(rd))
 
-        scolor = Color.scale(math.pow(specular, thing.surface().roughness()), light.color) if (specular > 0) else Color_defaultColor
+        illum    = livec.dot(norm)
+        specular = livec.dot(rd.norm())
 
-        return Color.plus(col, Color.plus(Color.times(thing.surface().diffuse(pos), lcolor), Color.times(thing.surface().specular(pos), scolor)))
+        surface = thing.surface()
 
-    def getPoint(self, x, y, camera,screenWidth,screenHeight):
-            recenterX = lambda x:  (x - (screenWidth  / 2.0)) / 2.0 / screenWidth
-            recenterY = lambda y: -(y - (screenHeight / 2.0)) / 2.0 / screenHeight
-            return Vector.norm(Vector.plus(camera.forward, Vector.plus(Vector.times(recenterX(x), camera.right), Vector.times(recenterY(y), camera.up))))
+        lcolor = light.color.scale(illum) if (illum > 0) else ColorDefaultColor
+        scolor = light.color.scale(math.pow(specular, surface.roughness())) if (specular > 0) else ColorDefaultColor
+
+        surfaceDiffuse  = surface.diffuse(pos)
+        surfaceSpecular = surface.specular(pos)
+
+        return col.plus(lcolor.times(surfaceDiffuse)).plus(scolor.times(surfaceSpecular))
+
+    def getPoint(self, x, y, camera, screenWidth, screenHeight):
+        cx =  (x - (screenWidth  / 2.0)) / 2.0 / screenWidth
+        cy = -(y - (screenHeight / 2.0)) / 2.0 / screenHeight
+        return camera.right.times(cx).plus(camera.up.times(cy)).plus(camera.forward).norm()
 
     def render(self, scene, image, screenWidth, screenHeight):
+        self.scene = scene
         for y in range(0,screenHeight):
             for x in range(0,screenWidth):
-                color = self.traceRay(Ray(scene.camera().pos, self.getPoint(x, y, scene.camera(),screenWidth, screenHeight )) , scene, 0)
-                c = Color.toDrawingColor(color)
-                image.putpixel((x,y), c )
-
-
-class DefaultScene:
-
+                ray = Ray(self.scene.camera.pos, self.getPoint(x, y, self.scene.camera, screenWidth, screenHeight))
+                color = self.traceRay(ray, 0)
+                image.putpixel((x,y), color.toDrawingColor())
+class Scene:
     def __init__(self):
-        self._things = [
-            Plane (Vector(0.0, 1.0, 0.0)  ,0.0, Surface_checkerboard),
-            Sphere(Vector(0.0, 1.0, -0.25),1.0, Surface_shiny),
-            Sphere(Vector(-1.0, 0.5, 1.5) ,0.5, Surface_shiny)
+        self.things = [
+            Plane (Vector(0.0, 1.0, 0.0)  ,0.0, SurfaceCheckerboard),
+            Sphere(Vector(0.0, 1.0,-0.25),1.0, SurfaceShiny),
+            Sphere(Vector(-1.0, 0.5, 1.5) ,0.5, SurfaceShiny)
         ]
-        self._lights = [
-             Light(Vector(-2.0, 2.5, 0.0), Color(0.49, 0.07, 0.07)),
-             Light(Vector(1.5, 2.5, 1.5),  Color(0.07, 0.07, 0.49)),
-             Light(Vector(1.5, 2.5, -1.5), Color(0.07, 0.49, 0.071)),
-             Light(Vector(0.0, 3.5, 0.0),  Color(0.21, 0.21, 0.35))
+        self.lights = [
+            Light(Vector(-2.0, 2.5, 0.0), Color(0.49, 0.07, 0.07)),
+            Light(Vector(1.5, 2.5, 1.5),  Color(0.07, 0.07, 0.49)),
+            Light(Vector(1.5, 2.5, -1.5), Color(0.07, 0.49, 0.071)),
+            Light(Vector(0.0, 3.5, 0.0),  Color(0.21, 0.21, 0.35))
         ]
-        self._camera = Camera(Vector(3.0, 2.0, 4.0), Vector(-1.0, 0.5, 0.0))
-
-    def things(self):
-        return self._things
-
-    def lights(self):
-        return self._lights
-
-    def camera(self):
-        return self._camera
-
+        self.camera = Camera(Vector(3.0, 2.0, 4.0), Vector(-1.0, 0.5, 0.0))
 
 def run():
     width  = 500
     height = 500
-    
     image =  Image.new("RGB", (width, height), "white")
-    
+
     t1 = time.time()
     rayTracer = RayTracer()
-    scene     = DefaultScene()
+    scene     = Scene()
     rayTracer.render(scene, image, width, height)
     t2 = time.time()
     t = t2 -t1
-    
+
     image.save("py-ray-tracer.png","png")
     print ("Completed in %d sec" % t)
 
-    
 run()
