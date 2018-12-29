@@ -388,33 +388,34 @@ class RayTracerEngine
         Vector normal = isect.thing->GetNormal(pos);
         Vector reflectDir = d - ((normal * (normal * d)) * 2);
 
-        Color naturalColor = Color::Background + GetNaturalColor(isect.thing, pos, normal, reflectDir);
+        auto &surface = isect.thing->GetSurface().GetSurfaceProperties(pos);
+
+        Color naturalColor = Color::Background + GetNaturalColor(surface, pos, normal, reflectDir);
         Color reflectedColor = (depth >= maxDepth)
             ? Color::Grey
-            : GetReflectionColor(isect.thing, pos, normal, reflectDir, depth);
+            : GetReflectionColor(surface, pos, normal, reflectDir, depth);
 
         return naturalColor + reflectedColor;
     }
 
-    Color GetReflectionColor(const Thing* thing, const Vector& pos, const Vector& normal, const Vector& rd, int depth)
+    Color GetReflectionColor(const SurfacePropreties& surface, const Vector& pos, const Vector& normal, const Vector& rd, int depth)
     {
         Ray    ray(pos, rd);
         Color  color = TraceRay(ray, depth + 1);
-        double factor = thing->GetSurface().GetSurfaceProperties(pos).Reflect;
-        return color.Scale(factor);
+        return color.Scale(surface.Reflect);
     }
 
-    Color GetNaturalColor(const Thing* thing, const Vector& pos, const Vector& norm, const Vector& rd)
+    Color GetNaturalColor(const SurfacePropreties& surface, const Vector& pos, const Vector& norm, const Vector& rd)
     {
         Color result = Color::Black;
         for (auto& item : scene.lights)
         {
-            AddLight(result, item, pos, thing, rd, norm);
+            AddLight(result, item, pos, surface, rd, norm);
         }
         return result;
     }
 
-    void AddLight(Color& resultColor, const Light& light, const Vector& pos, const Thing* thing, const Vector& rd, const Vector& norm)
+    void AddLight(Color& resultColor, const Light& light, const Vector& pos, const SurfacePropreties& surface, const Vector& rd, const Vector& norm)
     {
         Vector ldis = light.pos - pos;
         Vector livec = ldis.Norm();
@@ -428,8 +429,6 @@ class RayTracerEngine
         }
         double illum = livec * norm;
         double specular = livec * rd.Norm();
-
-        auto& surface = thing->GetSurface().GetSurfaceProperties(pos);
 
         Color lcolor = (illum > 0) ? (light.color * illum) : Color::DefaultColor;
         Color scolor = (specular > 0) ? (light.color * pow(specular, surface.Roughness)) : Color::DefaultColor;
