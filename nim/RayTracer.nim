@@ -1,6 +1,6 @@
 import math
 
-let INFINITY: float = 1000000.0;
+let FarAway: float = 1000000.0;
 
 type
   SurfaceType = enum
@@ -264,12 +264,6 @@ proc CreateScene(): Scene =
   scene.camera = CreateCamera(CreateVector(3.0, 2.0, 4.0), CreateVector(-1.0, 0.5, 0.0));
   return scene;
 
-# void ReleaseScene(Scene *scene)
-# {
-#     free((void *)scene->things);
-#     free((void *)scene->lights);
-# }
-
 proc Intersections(Ray *ray, Scene *scene): Intersection
   double closest = INFINITY;
   Intersection closestInter;
@@ -289,34 +283,25 @@ proc Intersections(Ray *ray, Scene *scene): Intersection
       closest = inter.dist;
   return closestInter;
 
-double TestRay(Ray *ray, Scene *scene)
-{
-    Intersection isect = Intersections(ray, scene);
-    if (isect.thing != NULL)
-    {
+method TestRay(scene: Scene, ray: Ray): float =
+    Intersection isect = scene.Intersections(ray);
+    if (isect.thing != NULL):
         return isect.dist;
-    }
     return NAN;
-}
 
-Color TraceRay(Ray *ray, Scene *scene, int depth)
+method TraceRay(scene: Scene, ray: Ray, depth: int): Color =
   Intersection isect = Intersections(ray, scene);
-  if (isect.thing != NULL)
-  {
-      return Shade(&isect, scene, depth);
-  }
+  if (isect.thing != NULL):
+      return scene.Shade(&isect, depth);
   return background;
 
-Color GetReflectionColor(Thing* thing, Vector *pos, Vector *normal, Vector *rd, Scene *scene, int depth)
-  Ray ray = CreateRay(*pos, *rd);
-  Color color = TraceRay(&ray, scene, depth + 1);
+method GetReflectionColor(scene: Scene, thing: Thing, pos: Vector, normal: Vector, rd: Vector, depth: int) =
+  let ray = Ray(pos, rd);
+  let color = scene.TraceRay(ray, depth + 1);
+  let properties = GetSurfaceProperties(thing.surface, pos);
+  return color.Scale(properties.reflect);
 
-  SurfaceProperties properties;
-  GetSurfaceProperties(thing->surface, pos, &properties);
-
-  return ScaleColor(&color, properties.reflect);
-
-Color GetNaturalColor(Thing* thing, Vector *pos, Vector *norm, Vector *rd, Scene *scene)
+method GetNaturalColor(scene: Scene, Thing* thing, Vector *pos, Vector *norm, Vector *rd, Scene *scene)
   Color resultColor = black;
 
   SurfaceProperties sp;
