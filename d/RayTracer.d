@@ -6,7 +6,7 @@ import std.math;
 import std.conv;
 import core.sys.windows.windows;
 
-struct RGBColor 
+struct RGBColor
 {
     ubyte b, g, r, a;
 }
@@ -14,13 +14,6 @@ struct RGBColor
 struct Vector
 {
     double x, y, z;
-
-    this(double x, double y, double z)
-    {
-        this.x = x;
-        this.y = y;
-        this.z = z;
-    }
 
     Vector opBinaryRight(string op)(double k) const if(op == "*")
     {
@@ -72,13 +65,6 @@ struct Color
     static immutable Color background   = black;
     static immutable Color defaultColor = black;
 
-    this(double r, double g, double b)
-    {
-        this.r = r;
-        this.g = g;
-        this.b = b;
-    }
-
     Color opBinaryRight(string op)(double k) if(op == "*")
     {
         return Color(k * r, k * g, k * b);
@@ -107,20 +93,15 @@ struct Color
 
     RGBColor toDrawingColor()
     {
-        RGBColor color;
-        color.r = to!ubyte(legalize(r));
-        color.g = to!ubyte(legalize(g));
-        color.b = to!ubyte(legalize(b));
-        color.a = 255;
-        return color;
+        return RGBColor(clamp(r), clamp(g), clamp(b), 255);
     }
 
-    static int legalize(double c)
+    static ubyte clamp(double c)
     {
         int x = to!int(c * 255.0);
         if (x < 0) x = 0;
         if (x > 255) x = 255;
-        return x;
+        return to!ubyte(x);
     }
 }
 
@@ -148,12 +129,6 @@ struct Ray
 {
     Vector start;
     Vector dir;
-
-    public this(Vector start, Vector dir)
-    {
-        this.start = start;
-        this.dir   = dir;
-    }
 }
 
 struct Intersection
@@ -161,13 +136,6 @@ struct Intersection
     Thing thing;
     Ray ray;
     double dist;
-
-    this(Thing thing, Ray ray, double dist)
-    {
-        this.thing = thing;
-        this.ray = ray;
-        this.dist = dist;
-    }
 }
 
 class Surface
@@ -189,12 +157,6 @@ struct Light
 {
     public Vector pos;
     public Color color;
-
-    public this(Vector pos, Color color)
-    {
-        this.pos = pos;
-        this.color = color;
-    }
 }
 
 class Sphere : Thing
@@ -388,7 +350,7 @@ class RayTracerEngine
 
     private double testRay(ref Ray ray, Scene scene)
     {
-        Nullable!Intersection isect = this.intersections(ray, scene);
+        Nullable!Intersection isect = intersections(ray, scene);
         if (!isect.isNull) {
             return isect.dist;
         }
@@ -397,7 +359,7 @@ class RayTracerEngine
 
     private Color traceRay(ref Ray ray, Scene scene, int depth)
     {
-        Nullable!Intersection isect = this.intersections(ray, scene);
+        Nullable!Intersection isect = intersections(ray, scene);
         if (isect.isNull) {
             return Color.background;
         }
@@ -413,11 +375,11 @@ class RayTracerEngine
         Vector vec         = 2.0 * (normal.dot(d) * normal);
         Vector reflectDir  = d - vec;
 
-        Color naturalColor = this.getNaturalColor(isect.thing, pos, normal, reflectDir, scene) + Color.background;
+        Color naturalColor = getNaturalColor(isect.thing, pos, normal, reflectDir, scene) + Color.background;
 
         Color getReflectionColor() {
             Ray ray = Ray(pos, reflectDir);
-            return isect.thing.surface.reflect(pos) * this.traceRay(ray, scene, depth + 1);
+            return isect.thing.surface.reflect(pos) * traceRay(ray, scene, depth + 1);
         }
 
         Color reflectedColor;

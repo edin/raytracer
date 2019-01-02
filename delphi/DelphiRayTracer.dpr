@@ -3,7 +3,7 @@ program DelphiRayTracer;
 {$APPTYPE CONSOLE}
 
 uses
-  Vcl.Graphics, Windows,
+  Graphics, Windows,
   SysUtils, Diagnostics,
   RayTracer in 'RayTracer.pas';
 
