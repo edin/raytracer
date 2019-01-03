@@ -99,22 +99,22 @@ const Color = struct {
 		return self;
 	}
 
-    pub fn toDrawingColor(self: Color) ColorRGB
+    pub fn toDrawingColor(self: Color) RGBColor
     {
-        // RGBColor color;
-        // color.r = to!ubyte(legalize(r));
-        // color.g = to!ubyte(legalize(g));
-        // color.b = to!ubyte(legalize(b));
-        // color.a = 255;
-        // return color;
+        return RGBColor {
+            .r = clamp(r));
+            .g = clamp(g));
+            .b = clamp(b));
+            .a = 255;
+        }
     }
 
-    pub fn legalize(c: f32) u8
+    pub fn clamp(c: f32) u8
     {
         const x = i32(c * 255.0);
         if (x < 0) x = 0;
         if (x > 255) x = 255;
-        return x;
+        return u8(x);
     }
 }
 
@@ -129,7 +129,7 @@ const Camera = struct {
         const down    = Vector.init(0.0, -1.0, 0.0);
         const forward = lookAt.sub(pos);
 
-        return Camera{
+        return Camera {
             .pos = pos,
             .forward = forward.norm(),
             .right   = forward.cross(down).norm.scale(1.5);

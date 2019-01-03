@@ -3,27 +3,36 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.Drawing.Imaging;
 
-internal class Program
+class Program
 {
     private static void Main(string[] args)
     {
-        var bmp = new System.Drawing.Bitmap(2000, 2000, PixelFormat.Format32bppArgb);
+        var bmp = new System.Drawing.Bitmap(500, 500, PixelFormat.Format32bppArgb);
         Stopwatch sw = new Stopwatch();
         Console.WriteLine("C# RayTracer Test");
 
-        sw.Start();
-        var rayTracer = new RayTracerEngine();
-        var scene = new Scene();
-        rayTracer.Render(scene, bmp);
-        sw.Stop();
+        long t = 0;
+
+        for (var i = 0; i < 5; i++)
+        {
+            sw.Reset();
+            sw.Start();
+            var rayTracer = new RayTracerEngine();
+            var scene = new Scene();
+            rayTracer.Render(scene, bmp);
+            sw.Stop();
+            t = t + sw.ElapsedMilliseconds;
+        }
+
         bmp.Save("csharp-ray-tracer.png");
 
         Console.WriteLine("");
-        Console.WriteLine("Total time: " + sw.ElapsedMilliseconds.ToString() + " ms");
+        Console.WriteLine("Total time: " + (t / 5).ToString() + " ms");
+        Console.ReadLine();
     }
 }
 
-internal struct Vector
+struct Vector
 {
     public double X;
     public double Y;
@@ -63,7 +72,7 @@ internal struct Vector
     }
 }
 
-internal struct Color
+struct Color
 {
     public double R;
     public double G;
@@ -98,7 +107,7 @@ internal struct Color
     }
 }
 
-internal class Camera
+class Camera
 {
     public Vector Forward;
     public Vector Right;
@@ -115,7 +124,7 @@ internal class Camera
     }
 }
 
-internal struct Ray
+class Ray
 {
     public Vector Start;
     public Vector Dir;
@@ -127,7 +136,7 @@ internal struct Ray
     }
 }
 
-internal class Intersection
+class Intersection
 {
     public IThing Thing;
     public Ray Ray;
@@ -141,18 +150,20 @@ internal class Intersection
     }
 }
 
-internal interface ISurface
+struct SurfaceProperties
 {
-    Color Diffuse(Vector pos);
-
-    Color Specular(Vector pos);
-
-    double Reflect(Vector pos);
-
-    double Roughness { get; set; }
+    public Color Diffuse;
+    public Color Specular;
+    public double Reflect;
+    public double Roughness;
 }
 
-internal interface IThing
+interface ISurface
+{
+    SurfaceProperties GetSurfaceProperties(Vector pos);
+}
+
+interface IThing
 {
     Intersection Intersect(Ray ray);
 
@@ -161,7 +172,7 @@ internal interface IThing
     ISurface Surface { get; set; }
 }
 
-internal struct Light
+struct Light
 {
     public Vector Pos;
     public Color Color;
@@ -173,7 +184,7 @@ internal struct Light
     }
 }
 
-internal class Sphere : IThing
+class Sphere : IThing
 {
     private readonly double m_Radius2;
     private readonly Vector m_Center;
@@ -200,7 +211,7 @@ internal class Sphere : IThing
             }
         }
 
-        return dist == 0 ? default : new Intersection(this, ray, dist);
+        return dist == 0.0 ? null : new Intersection(this, ray, dist);
     }
 
     public Vector Normal(Vector pos) => (pos - m_Center).Norm();
@@ -208,7 +219,7 @@ internal class Sphere : IThing
     public ISurface Surface { get; set; }
 }
 
-internal class Plane : IThing
+class Plane : IThing
 {
     private readonly Vector m_Normal;
     private readonly double m_Offset;
@@ -224,7 +235,9 @@ internal class Plane : IThing
     {
         var denom = m_Normal.Dot(ray.Dir);
         if (denom > 0)
+        {
             return null;
+        }
 
         var dist = (m_Normal.Dot(ray.Start) + m_Offset) / (-denom);
         return new Intersection(this, ray, dist);
@@ -235,59 +248,68 @@ internal class Plane : IThing
     public ISurface Surface { get; set; }
 }
 
-internal class ShinySurface : ISurface
+class ShinySurface : ISurface
 {
-    public Color Diffuse(Vector pos) => Color.White;
-
-    public double Reflect(Vector pos) => 0.7;
-
-    public double Roughness { get; set; } = 250.0;
-
-    public Color Specular(Vector pos) => Color.Grey;
+    public SurfaceProperties GetSurfaceProperties(Vector pos)
+    {
+        return new SurfaceProperties() {
+            Diffuse = Color.White,
+            Specular = Color.Grey,
+            Reflect = 0.7,
+            Roughness = 250
+        };
+    }
 }
 
-internal class CheckerboardSurface : ISurface
+class CheckerboardSurface : ISurface
 {
-    public Color Diffuse(Vector pos) => (Math.Floor(pos.Z) + Math.Floor(pos.X)) % 2 != 0 ? Color.White : Color.Black;
+    public SurfaceProperties GetSurfaceProperties(Vector pos)
+    {
+        var condition = (Math.Floor(pos.Z) + Math.Floor(pos.X)) % 2 != 0;
+        var color = condition ? Color.White : Color.Black;
+        var reflect = condition ? 0.1 : 0.7;
 
-    public double Reflect(Vector pos) => (Math.Floor(pos.Z) + Math.Floor(pos.X)) % 2 != 0 ? 0.1 : 0.7;
-
-    public double Roughness { get; set; } = 150.0;
-
-    public Color Specular(Vector pos) => Color.White;
+        return new SurfaceProperties()
+        {
+            Diffuse = color,
+            Specular = Color.White,
+            Reflect = reflect,
+            Roughness = 250
+        };
+    }
 }
 
-internal class Surfaces
-{
-    public static ISurface Shiny = new ShinySurface();
-    public static ISurface Checkerboard = new CheckerboardSurface();
-}
-
-internal class Scene
+class Scene
 {
     public Camera Camera { get; set; }
+    public readonly Light[] Lights;
+    public readonly IThing[] Things;
 
-    public readonly List<Light> Lights = new List<Light>();
-    public readonly List<IThing> Things = new List<IThing>();
+    public static ISurface Shiny = new ShinySurface();
+    public static ISurface Checkerboard = new CheckerboardSurface();
 
     public Scene()
     {
         Camera = new Camera(new Vector(3.0, 2.0, 4.0), new Vector(-1.0, 0.5, 0.0));
 
-        Things.Add(new Plane(new Vector(0.0, 1.0, 0.0), 0.0, Surfaces.Checkerboard));
-        Things.Add(new Sphere(new Vector(0.0, 1.0, -0.25), 1.0, Surfaces.Shiny));
-        Things.Add(new Sphere(new Vector(-1.0, 0.5, 1.5), 0.5, Surfaces.Shiny));
+        Things = new IThing[] {
+            new Plane(new Vector(0.0, 1.0, 0.0), 0.0, Checkerboard),
+            new Sphere(new Vector(0.0, 1.0, -0.25), 1.0, Shiny),
+            new Sphere(new Vector(-1.0, 0.5, 1.5), 0.5, Shiny)
+        };
 
-        Lights.Add(new Light(new Vector(-2.0, 2.5, 0.0), new Color(0.49, 0.07, 0.07)));
-        Lights.Add(new Light(new Vector(1.5, 2.5, 1.5), new Color(0.07, 0.07, 0.49)));
-        Lights.Add(new Light(new Vector(1.5, 2.5, -1.5), new Color(0.07, 0.49, 0.071)));
-        Lights.Add(new Light(new Vector(0.0, 3.5, 0.0), new Color(0.21, 0.21, 0.35)));
+        Lights = new Light[] {
+            new Light(new Vector(-2.0, 2.5, 0.0), new Color(0.49, 0.07, 0.07)),
+            new Light(new Vector(1.5, 2.5, 1.5), new Color(0.07, 0.07, 0.49)),
+            new Light(new Vector(1.5, 2.5, -1.5), new Color(0.07, 0.49, 0.071)),
+            new Light(new Vector(0.0, 3.5, 0.0), new Color(0.21, 0.21, 0.35))
+        };
     }
 }
 
-internal class RayTracerEngine
+class RayTracerEngine
 {
-    private readonly int m_MaxDepth = 5;
+    private readonly int maxDepth = 5;
     private Scene scene;
 
     private Intersection Intersections(Ray ray)
@@ -295,12 +317,14 @@ internal class RayTracerEngine
         var closest = double.PositiveInfinity;
         Intersection closestInter = null;
 
-        foreach (var item in scene.Things)
+        for (int i = 0; i < scene.Things.Length; ++i)
         {
-            var inter = item.Intersect(ray);
-            if (inter == null || !(inter.Dist < closest)) continue;
-            closestInter = inter;
-            closest = inter.Dist;
+            var inter = scene.Things[i].Intersect(ray);
+            if (inter != null && inter.Dist < closest)
+            {
+                closestInter = inter;
+                closest = inter.Dist;
+            }
         }
 
         return closestInter;
@@ -308,14 +332,18 @@ internal class RayTracerEngine
 
     private double TestRay(Ray ray)
     {
-        Intersection isect = Intersections(ray);
-        return isect?.Dist ?? double.NaN;
+        var isect = Intersections(ray);
+        if (isect != null)
+        {
+            return isect.Dist;
+        }
+        return double.NaN;
     }
 
     private Color TraceRay(Ray ray, int depth)
     {
         var isect = Intersections(ray);
-        return isect == null ? Color.Background : Shade(isect, depth);
+        return isect != null ? Shade(isect, depth) : Color.Background;
     }
 
     private Color Shade(Intersection isect, int depth)
@@ -325,45 +353,47 @@ internal class RayTracerEngine
         var pos = (isect.Dist * d) + isect.Ray.Start;
         var normal = isect.Thing.Normal(pos);
         var reflectDir = d - (2 * normal.Dot(d) * normal);
-        var naturalColor = Color.Background + GetNaturalColor(isect.Thing, pos, normal, reflectDir);
 
-        var reflectedColor = depth >= m_MaxDepth ? Color.Grey : GetReflectionColor(isect.Thing, pos, normal, reflectDir, depth);
+        var surface = isect.Thing.Surface.GetSurfaceProperties(pos);
+        var naturalColor = Color.Background + GetNaturalColor();
+
+        var reflectedColor = depth >= maxDepth ? Color.Grey : GetReflectionColor();
         return naturalColor + reflectedColor;
-    }
 
-    private Color GetReflectionColor(IThing thing, Vector pos, Vector normal, Vector rd, int depth)
-    {
-        return thing.Surface.Reflect(pos) * TraceRay(new Ray(pos, rd), depth + 1);
-    }
-
-    private Color GetNaturalColor(IThing thing, Vector pos, Vector norm, Vector rd)
-    {
-        var result = Color.Defaultcolor;
-        foreach (var item in scene.Lights)
+        Color GetReflectionColor()
         {
-            result = AddLight(result, item, pos, norm, rd, thing);
+            return surface.Reflect * TraceRay(new Ray(pos, reflectDir), depth + 1);
         }
-        return result;
-    }
 
-    private Color AddLight(Color col, Light light, Vector pos, Vector norm, Vector rd, IThing thing)
-    {
-        var ldis = light.Pos - pos;
-        var livec = ldis.Norm();
-        var neatIsect = TestRay(new Ray(pos, livec));
-
-        var isInShadow = !double.IsNaN(neatIsect) && (neatIsect <= ldis.Length());
-        if (isInShadow)
+        Color GetNaturalColor()
         {
-            return col;
+            var result = Color.Defaultcolor;
+            for (int i = 0; i < scene.Lights.Length; ++i)
+            {
+                result = AddLight(result, scene.Lights[i]);
+            }
+            return result;
         }
-        var illum = livec.Dot(norm);
-        var lcolor = (illum > 0) ? illum * light.Color : Color.Defaultcolor;
 
-        var specular = livec.Dot(rd.Norm());
-        var scolor = specular > 0 ? (Math.Pow(specular, thing.Surface.Roughness) * light.Color) : Color.Defaultcolor;
+        Color AddLight(Color col, Light light)
+        {
+            var ldis = light.Pos - pos;
+            var livec = ldis.Norm();
+            var neatIsect = TestRay(new Ray(pos, livec));
 
-        return col + (thing.Surface.Diffuse(pos) * lcolor) + (thing.Surface.Specular(pos) * scolor);
+            var isInShadow = !double.IsNaN(neatIsect) && (neatIsect <= ldis.Length());
+            if (isInShadow)
+            {
+                return col;
+            }
+            var illum = livec.Dot(normal);
+            var lcolor = (illum > 0) ? illum * light.Color : Color.Defaultcolor;
+
+            var specular = livec.Dot(reflectDir.Norm());
+            var scolor = specular > 0 ? (Math.Pow(specular, surface.Roughness) * light.Color) : Color.Defaultcolor;
+
+            return col + (surface.Diffuse * lcolor) + (surface.Specular * scolor);
+        }
     }
 
     public void Render(Scene scene, System.Drawing.Bitmap bmp)
@@ -372,15 +402,13 @@ internal class RayTracerEngine
         int w = bmp.Width;
         int h = bmp.Height;
 
-        Vector GetPoint(int x, int y, Camera camera)
-        {
+        Vector GetPoint(int x, int y, Camera camera) {
             var recenterX = (x - (w / 2.0)) / 2.0 / w;
             var recenterY = -(y - (h / 2.0)) / 2.0 / h;
             return (camera.Forward + (recenterX * camera.Right) + (recenterY * camera.Up)).Norm();
         };
 
         BitmapData bitmapData = bmp.LockBits(new System.Drawing.Rectangle(0, 0, w, h), ImageLockMode.ReadWrite, bmp.PixelFormat);
-
         unsafe
         {
             for (var y = 0; y < h; ++y)
