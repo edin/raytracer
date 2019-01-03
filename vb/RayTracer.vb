@@ -1,5 +1,6 @@
-﻿Module RayTracer
+﻿Imports VBRayTracer
 
+Module RayTracer
     Sub Main()
         Dim bmp As Drawing.Bitmap = New Drawing.Bitmap(500, 500, Drawing.Imaging.PixelFormat.Format32bppArgb)
         Dim sw As New Stopwatch()
@@ -17,10 +18,9 @@
         Console.WriteLine("")
         Console.WriteLine("Total time: " + sw.ElapsedMilliseconds.ToString() + " ms")
     End Sub
-
 End Module
 
-Class Vector
+Structure Vector
     Public X As Double
     Public Y As Double
     Public Z As Double
@@ -35,14 +35,6 @@ Class Vector
         Return New Vector(a.X - b.X, a.Y - b.Y, a.Z - b.Z)
     End Operator
 
-    Public Function Dot(v As Vector) As Double
-        Return X * v.X + Y * v.Y + Z * v.Z
-    End Function
-
-    Public Function Length() As Double
-        Return Math.Sqrt(X * X + Y * Y + Z * Z)
-    End Function
-
     Public Shared Operator +(a As Vector, b As Vector) As Vector
         Return New Vector(a.X + b.X, a.Y + b.Y, a.Z + b.Z)
     End Operator
@@ -50,6 +42,14 @@ Class Vector
     Public Shared Operator *(k As Double, v As Vector) As Vector
         Return New Vector(k * v.X, k * v.Y, k * v.Z)
     End Operator
+
+    Public Function Dot(v As Vector) As Double
+        Return X * v.X + Y * v.Y + Z * v.Z
+    End Function
+
+    Public Function Length() As Double
+        Return Math.Sqrt(X * X + Y * Y + Z * Z)
+    End Function
 
     Public Function Norm() As Vector
         Dim mag = Me.Length
@@ -62,19 +62,18 @@ Class Vector
                           Z * v.X - X * v.Z,
                           X * v.Y - Y * v.X)
     End Function
+End Structure
 
-End Class
-
-Class Color
+Structure Color
     Public R As Double
     Public G As Double
     Public B As Double
 
-    Public Shared white As Color = New Color(1.0, 1.0, 1.0)
-    Public Shared grey As Color = New Color(0.5, 0.5, 0.5)
-    Public Shared black As Color = New Color(0.0, 0.0, 0.0)
-    Public Shared background As Color = Color.black
-    Public Shared defaultcolor As Color = Color.black
+    Public Shared White As Color = New Color(1.0, 1.0, 1.0)
+    Public Shared Grey As Color = New Color(0.5, 0.5, 0.5)
+    Public Shared Black As Color = New Color(0.0, 0.0, 0.0)
+    Public Shared Background As Color = Color.Black
+    Public Shared DefaultColor As Color = Color.Black
 
     Public Sub New(r As Double, g As Double, b As Double)
         Me.R = r
@@ -104,8 +103,7 @@ Class Color
         If (v < 0) Then Return 0
         Return CType(v, Byte)
     End Function
-
-End Class
+End Structure
 
 Class Camera
     Public Forward As Vector
@@ -121,7 +119,6 @@ Class Camera
         Right = 1.5 * Forward.Cross(down).Norm
         Up = 1.5 * Forward.Cross(Right).Norm
     End Sub
-
 End Class
 
 Class Ray
@@ -132,7 +129,6 @@ Class Ray
         Me.Start = start
         Me.Dir = dir
     End Sub
-
 End Class
 
 Class Intersection
@@ -145,26 +141,22 @@ Class Intersection
         Me.Ray = ray
         Me.Dist = dist
     End Sub
-
 End Class
 
+Structure SurfaceProperties
+    Public Diffuse As Color
+    Public Specular As Color
+    Public Reflect As Double
+    Public Roughness As Double
+End Structure
+
 Interface ISurface
-
-    Function Diffuse(pos As Vector) As Color
-
-    Function Specular(pos As Vector) As Color
-
-    Function Reflect(pos As Vector) As Double
-
-    Property Roughness As Double
+    Function GetSurfaceProperties(pos As Vector) As SurfaceProperties
 End Interface
 
 Interface IThing
-
     Function Intersect(ray As Ray) As Intersection
-
     Function Normal(pos As Vector) As Vector
-
     Property Surface As ISurface
 End Interface
 
@@ -176,7 +168,6 @@ Class Light
         Me.Pos = pos
         Me.Color = color
     End Sub
-
 End Class
 
 Class Sphere
@@ -246,47 +237,35 @@ End Class
 Class ShinySurface
     Implements ISurface
 
-    Public Function Diffuse(pos As Vector) As Color Implements ISurface.Diffuse
-        Return Color.white
+    Public Function GetSurfaceProperties(pos As Vector) As SurfaceProperties Implements ISurface.GetSurfaceProperties
+        Return New SurfaceProperties With {
+            .Specular = Color.Grey,
+            .Diffuse = Color.White,
+            .Reflect = 0.7,
+            .Roughness = 250
+        }
     End Function
-
-    Public Function Reflect(pos As Vector) As Double Implements ISurface.Reflect
-        Return 0.7
-    End Function
-
-    Public Property Roughness As Double = 250 Implements ISurface.Roughness
-
-    Public Function Specular(pos As Vector) As Color Implements ISurface.Specular
-        Return Color.grey
-    End Function
-
 End Class
 
 Class CheckerboardSurface
     Implements ISurface
 
-    Public Function Diffuse(pos As Vector) As Color Implements ISurface.Diffuse
+    Public Function GetSurfaceProperties(pos As Vector) As SurfaceProperties Implements ISurface.GetSurfaceProperties
+        Dim diffuse = Color.Black
+        Dim reflect = 0.7
+
         If (Math.Floor(pos.Z) + Math.Floor(pos.X)) Mod 2 <> 0 Then
-            Return Color.white
-        Else
-            Return Color.black
+            diffuse = Color.White
+            reflect = 0.1
         End If
+
+        Return New SurfaceProperties With {
+            .Specular = Color.White,
+            .Diffuse = diffuse,
+            .Reflect = reflect,
+            .Roughness = 150
+        }
     End Function
-
-    Public Function Reflect(pos As Vector) As Double Implements ISurface.Reflect
-        If (Math.Floor(pos.Z) + Math.Floor(pos.X)) Mod 2 <> 0 Then
-            Return 0.1
-        Else
-            Return 0.7
-        End If
-    End Function
-
-    Public Property Roughness As Double = 150 Implements ISurface.Roughness
-
-    Public Function Specular(pos As Vector) As Color Implements ISurface.Specular
-        Return Color.white
-    End Function
-
 End Class
 
 Class Surfaces
@@ -311,7 +290,6 @@ Class Scene
         Lights.Add(New Light(New Vector(1.5, 2.5, -1.5), New Color(0.07, 0.49, 0.071)))
         Lights.Add(New Light(New Vector(0.0, 3.5, 0.0), New Color(0.21, 0.21, 0.35)))
     End Sub
-
 End Class
 
 Class RayTracerEngine
@@ -322,8 +300,8 @@ Class RayTracerEngine
         Dim closest = Double.PositiveInfinity
         Dim closestInter As Intersection = Nothing
 
-        For Each item As IThing In Scene.Things
-            Dim inter = item.Intersect(ray)
+        For i = 0 To Scene.Things.Count - 1
+            Dim inter = Scene.Things(i).Intersect(ray)
             If (inter IsNot Nothing AndAlso inter.Dist < closest) Then
                 closestInter = inter
                 closest = inter.Dist
@@ -344,7 +322,7 @@ Class RayTracerEngine
 
     Private Function TraceRay(ray As Ray, depth As Integer) As Color
         Dim isect As Intersection = Me.Intersections(ray)
-        If (isect Is Nothing) Then Return Color.background
+        If (isect Is Nothing) Then Return Color.Background
         Return Me.Shade(isect, depth)
     End Function
 
@@ -354,22 +332,24 @@ Class RayTracerEngine
         Dim pos = (isect.Dist * d) + isect.Ray.Start
         Dim normal = isect.Thing.Normal(pos)
         Dim reflectDir = d - (2 * normal.Dot(d) * normal)
+        Dim surface = isect.Thing.Surface.GetSurfaceProperties(pos)
 
-        Dim naturalColor = Color.background + Me.GetNaturalColor(isect.Thing, pos, normal, reflectDir)
-        Dim reflectedColor = If(depth >= Me.maxDepth, Color.grey, Me.GetReflectionColor(isect.Thing, pos, normal, reflectDir, depth))
+        Dim naturalColor = Color.Background + Me.GetNaturalColor(surface, pos, normal, reflectDir)
+        Dim reflectedColor = If(depth >= Me.maxDepth, Color.Grey, Me.GetReflectionColor(surface, pos, normal, reflectDir, depth))
 
         Return naturalColor + reflectedColor
     End Function
 
-    Private Function GetReflectionColor(thing As IThing, pos As Vector, normal As Vector, rd As Vector, depth As Integer) As Color
-        Return thing.Surface.Reflect(pos) * Me.TraceRay(New Ray(pos, rd), depth + 1)
+    Private Function GetReflectionColor(surface As SurfaceProperties, pos As Vector, normal As Vector, rd As Vector, depth As Integer) As Color
+        Return surface.Reflect * Me.TraceRay(New Ray(pos, rd), depth + 1)
     End Function
 
-    Private Function GetNaturalColor(thing As IThing, pos As Vector, norm As Vector, rd As Vector) As Color
+    Private Function GetNaturalColor(surface As SurfaceProperties, pos As Vector, norm As Vector, rd As Vector) As Color
 
-        Dim resultColor As Color = Color.defaultcolor
+        Dim resultColor As Color = Color.DefaultColor
 
-        For Each light As Light In Scene.Lights
+        For i = 0 To Scene.Lights.Count - 1
+            Dim light = Scene.Lights(i)
             Dim ldis = light.Pos - pos
             Dim livec = ldis.Norm
             Dim neatIsect = Me.TestRay(New Ray(pos, livec))
@@ -378,12 +358,12 @@ Class RayTracerEngine
             If (Not isInShadow) Then
 
                 Dim illum = livec.Dot(norm)
-                Dim lcolor = If((illum > 0), illum * light.Color, Color.defaultcolor)
+                Dim lcolor = If((illum > 0), illum * light.Color, Color.DefaultColor)
 
                 Dim specular = livec.Dot(rd.Norm)
-                Dim scolor = If(specular > 0, (Math.Pow(specular, thing.Surface().Roughness) * light.Color), Color.defaultcolor)
+                Dim scolor = If(specular > 0, (Math.Pow(specular, surface.Roughness) * light.Color), Color.DefaultColor)
 
-                resultColor = resultColor + (thing.Surface.Diffuse(pos) * lcolor) + (thing.Surface.Specular(pos) * scolor)
+                resultColor = resultColor + (surface.Diffuse * lcolor) + (surface.Specular * scolor)
             End If
         Next
         Return resultColor
@@ -426,5 +406,4 @@ Class RayTracerEngine
         System.Runtime.InteropServices.Marshal.Copy(rgbData, 0, bitmapData.Scan0, size)
         bmp.UnlockBits(bitmapData)
     End Sub
-
 End Class
