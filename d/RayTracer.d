@@ -5,6 +5,8 @@ import std.container;
 import std.math;
 import std.conv;
 import core.sys.windows.windows;
+import std.algorithm.comparison;
+import std.algorithm;
 
 struct RGBColor
 {
@@ -20,17 +22,17 @@ struct Vector
         return Vector(k * x, k * y, k * z);
     }
 
-    Vector opBinary(string op)(ref const Vector v) if (op == "+")
+    Vector opBinary(string op)(const ref Vector v) if (op == "+")
     {
         return Vector(x + v.x, y + v.y, z + v.z);
     }
 
-    Vector opBinary(string op)(ref const Vector v) if (op == "-")
+    Vector opBinary(string op)(const ref Vector v) if (op == "-")
     {
         return Vector(x - v.x, y - v.y, z - v.z);
     }
 
-    double dot(ref const Vector v)
+    double dot(const ref Vector v)
     {
         return x * v.x + y * v.y + z * v.z;
     }
@@ -47,7 +49,7 @@ struct Vector
         return div * this;
     }
 
-    Vector cross(ref const Vector v)
+    Vector cross(const ref Vector v)
     {
         return Vector(y * v.z - z * v.y,
                       z * v.x - x * v.z,
@@ -70,38 +72,25 @@ struct Color
         return Color(k * r, k * g, k * b);
     }
 
-    Color opBinary(string op)(ref const Color color) if (op == "+")
+    Color opBinary(string op)(Color c) if (op == "+")
     {
-        return Color(r + color.r, g + color.g, b + color.b);
+        return Color(r + c.r, g + c.g, b + c.b);
     }
 
-    ref Color scale(ref const Color c)
+    Color times(const ref Color c)
     {
-        r = r * c.r;
-        g = g * c.g;
-        b = b * c.b;
-        return this;
-    }
-
-    ref Color add(ref const Color c)
-    {
-        r = r + c.r;
-        g = g + c.g;
-        b = b + c.b;
-        return this;
+        return Color(r * c.r, g * c.g, b * c.b);
     }
 
     RGBColor toDrawingColor()
     {
-        return RGBColor(clamp(r), clamp(g), clamp(b), 255);
+        return RGBColor(Clamp(b), Clamp(g), Clamp(r), 255);
     }
 
-    static ubyte clamp(double c)
+    private static ubyte Clamp(double c)
     {
-        int x = to!int(c * 255.0);
-        if (x < 0) x = 0;
-        if (x > 255) x = 255;
-        return to!ubyte(x);
+        double value = std.algorithm.comparison.clamp(c*255.0, 0.0, 255.0);
+        return to!ubyte(value);
     }
 }
 
@@ -111,8 +100,6 @@ class Camera
     public Vector right;
     public Vector up;
     public Vector pos;
-
-    public this() {}
 
     public this(Vector pos, Vector lookAt)
     {
@@ -138,12 +125,17 @@ struct Intersection
     double dist;
 }
 
-class Surface
+struct SurfaceProperties 
 {
-    public Color  diffuse(ref Vector pos)  { return Color.black; };
-    public Color  specular(ref Vector pos) { return Color.black; };
-    public double reflect(ref Vector pos)  { return 0; };
-    public double roughness()              { return 0; };
+    Color diffuse;
+    Color specular;
+    double reflect;
+    double roughness;
+}
+
+interface Surface
+{
+    public SurfaceProperties getSurfaceProperties(ref Vector pos);
 }
 
 interface Thing
@@ -247,55 +239,23 @@ class Plane: Thing
 
 class ShinySurface: Surface
 {
-    public override Color diffuse(ref Vector pos)
-    {
-        return Color.white;
-    }
-
-    public override Color specular(ref Vector pos)
-    {
-        return Color.grey;
-    }
-
-    public override double reflect(ref Vector pos)
-    {
-        return 0.7;
-    }
-
-    public override double roughness()
-    {
-        return 250.0;
+    public override SurfaceProperties getSurfaceProperties(ref Vector pos) {
+        return SurfaceProperties(Color.white, Color.grey, 0.7, 250.0);
     }
 }
 
 class CheckerboardSurface : Surface
 {
-    public override Color diffuse(ref Vector pos)
+    public override SurfaceProperties getSurfaceProperties(ref Vector pos) 
     {
-        if (to!int(floor(pos.z) + floor(pos.x))  % 2 != 0)
-        {
-            return Color.white;
+        Color diffuse = Color.black;
+        double reflect = 0.7;
+
+        if (to!int(floor(pos.z) + floor(pos.x))  % 2 != 0) {
+            diffuse = Color.white;
+            reflect = 0.1;
         }
-        return Color.black;
-    }
-
-    public override Color specular(ref Vector pos)
-    {
-        return Color.white;
-    }
-
-    public override double reflect(ref Vector pos)
-    {
-        if (to!int(floor(pos.z) + floor(pos.x)) % 2 != 0)
-        {
-            return 0.1;
-        }
-        return 0.7;
-    }
-
-    public override double roughness()
-    {
-        return 150.0;
+        return SurfaceProperties(diffuse, Color.white, reflect, 150.0);
     }
 }
 
@@ -330,8 +290,9 @@ class Scene
 class RayTracerEngine
 {
     private static const int maxDepth = 5;
+    private Scene scene;
 
-    private Nullable!Intersection intersections(ref Ray ray, Scene scene)
+    private Nullable!Intersection intersections(ref Ray ray)
     {
         double closest = double.infinity;
         Nullable!Intersection closestInter;
@@ -348,89 +309,75 @@ class RayTracerEngine
         return closestInter;
     }
 
-    private double testRay(ref Ray ray, Scene scene)
+    private double testRay(ref Ray ray)
     {
-        Nullable!Intersection isect = intersections(ray, scene);
+        Nullable!Intersection isect = intersections(ray);
         if (!isect.isNull) {
             return isect.dist;
         }
         return double.nan;
     }
 
-    private Color traceRay(ref Ray ray, Scene scene, int depth)
+    private Color traceRay(ref Ray ray, int depth)
     {
-        Nullable!Intersection isect = intersections(ray, scene);
+        Nullable!Intersection isect = intersections(ray);
         if (isect.isNull) {
             return Color.background;
         }
-        return this.shade(isect, scene, depth);
+        return this.shade(isect, depth);
     }
 
-    private Color shade(ref Intersection isect, Scene scene, int depth)
+    private Color shade(ref Intersection isect, int depth)
     {
         Vector d      = isect.ray.dir;
         Vector pos    = isect.dist * d + isect.ray.start;
         Vector normal = isect.thing.normal(pos);
 
         Vector vec         = 2.0 * (normal.dot(d) * normal);
-        Vector reflectDir  = d - vec;
-
-        Color naturalColor = getNaturalColor(isect.thing, pos, normal, reflectDir, scene) + Color.background;
+        Vector reflectDir  = (d - vec);
+        auto  surface = isect.thing.surface.getSurfaceProperties(pos);
 
         Color getReflectionColor() {
             Ray ray = Ray(pos, reflectDir);
-            return isect.thing.surface.reflect(pos) * traceRay(ray, scene, depth + 1);
+            return surface.reflect * traceRay(ray, depth + 1);
         }
 
-        Color reflectedColor;
-        if (depth >= this.maxDepth) {
-            reflectedColor = Color.grey;
-        } else {
-            reflectedColor = getReflectionColor();
-        }
-        return naturalColor + reflectedColor;
-    }
-
-    private Color getNaturalColor(Thing thing, ref Vector pos, ref Vector norm, ref Vector rd, Scene scene)
-    {
-        Color   resultColor = Color.black;
-        Surface surface = thing.surface;
-        Vector  rayDirNormal = rd.norm();
-
-        Color colDiffuse  = surface.diffuse(pos);
-        Color colSpecular = surface.specular(pos);
-
-        Color lcolor;
-        Color scolor;
-        Ray ray = Ray(pos, Vector(0,0,0));
-
-        void addLight(ref Light light)
+        Color getNaturalColor()
         {
-            Vector ldis    = light.pos - pos;
-            Vector livec   = ldis.norm;
-            ray.dir = livec;
+            Color   resultColor = Color.black;
+            Vector  rayDirNormal = reflectDir.norm();
+            Color colDiffuse  = surface.diffuse;
+            Color colSpecular = surface.specular;
+            Ray ray = Ray(pos, Vector(0,0,0));
 
-            double neatIsect  = testRay(ray, scene);
-            bool   isInShadow = (neatIsect == double.nan) ? false : (neatIsect <= ldis.mag);
+            void addLight(ref Light light)
+            {
+                Vector ldis    = light.pos - pos;
+                Vector livec   = ldis.norm;
+                ray.dir = livec;
 
-            if (!isInShadow) {
-                double illum    = livec.dot(norm);
-                double specular = livec.dot(rayDirNormal);
+                double neatIsect  = testRay(ray);
+                bool   isInShadow = (neatIsect == double.nan) ? false : (neatIsect <= ldis.mag);
 
-                lcolor = (illum > 0) ? illum * light.color : Color.defaultColor;
-                scolor = (specular > 0) ? pow(specular, surface.roughness) * light.color : Color.defaultColor;
-
-                lcolor.scale(colDiffuse);
-                scolor.scale(colSpecular);
-
-                resultColor.add(lcolor).add(scolor);
+                if (!isInShadow) {
+                    double illum    = livec.dot(normal);
+                    double specular = livec.dot(rayDirNormal);
+                    Color lcolor = (illum > 0) ? illum * light.color : Color.defaultColor;
+                    Color scolor = (specular > 0) ? pow(specular, surface.roughness) * light.color : Color.defaultColor;
+                    resultColor = resultColor + lcolor.times(colDiffuse) + scolor.times(colSpecular);
+                }
             }
+
+            foreach (item; scene.lights) 
+            {
+                addLight(item);
+            }
+            return resultColor;
         }
 
-        foreach (item; scene.lights) {
-            addLight(item);
-        }
-        return resultColor;
+        Color naturalColor = getNaturalColor() + Color.background;
+        Color reflectedColor = (depth >= this.maxDepth) ? Color.grey : getReflectionColor();
+        return naturalColor + reflectedColor;
     }
 
     private Vector getPoint(int x, int y, Camera camera, int screenWidth, int screenHeight, int scale)
@@ -445,7 +392,9 @@ class RayTracerEngine
 
     public void render(Scene scene, ubyte[] bitmapData, int stride, int w, int h)
     {
+        this.scene = scene;
         import std.algorithm.comparison;
+
         Camera camera = scene.camera;
         Ray ray = Ray(camera.pos, Vector(0,0,0));
         int scale = min(w,h);
@@ -456,7 +405,7 @@ class RayTracerEngine
 
             for (int x = 0; x < w; ++x) {
                 ray.dir = this.getPoint(x, y, camera, w, h, scale);
-                *ptrColor++  = this.traceRay(ray, scene, 0).toDrawingColor;
+                *ptrColor++  = this.traceRay(ray, 0).toDrawingColor;
             }
         }
     }
@@ -515,4 +464,5 @@ void main(string[] argv)
     sw.stop();
     SaveRGBBitmap(bitmapData, width,height, 32, "d-raytracer.bmp");
     writeln("Completed in: ", sw.peek.msecs, " [ms]");
+    readln();
 }
