@@ -1,3 +1,5 @@
+use std::option;
+
 struct RgbColor
 {
     b: u8,
@@ -24,7 +26,7 @@ impl Vector
     fn mag(&self) -> f32
     {
         let value = self.x * self.x + self.y * self.y + self.z * self.z;
-        value.sqrt()
+        return value.sqrt()
     }
 
     fn norm(&self) -> Vector
@@ -86,32 +88,32 @@ impl Color
 {
     fn new(r: f32, g: f32, b: f32) -> Color
     {
-        Color{ r: r, g: g, b: b }
+        return Color{ r: r, g: g, b: b }
     }
 
     fn scale(&self, k: f32) -> Color
     {
-        Color::new(k * self.r, k * self.g, k * self.b)
+        return Color::new(k * self.r, k * self.g, k * self.b)
     }
 
     fn times(&self, c: Color) -> Color
     {
-        Color::new(self.r * c.r, self.g * c.g, self.b * c.b)
+        return Color::new(self.r * c.r, self.g * c.g, self.b * c.b)
     }
 
-    fn mul(&self, c: Color) -> Color
-    {
-        Color::new(self.r * c.r, self.g * c.g, self.b * c.b)
-    }
+    // fn mul(&self, c: Color) -> Color
+    // {
+    //     return Color::new(self.r * c.r, self.g * c.g, self.b * c.b)
+    // }
 
     fn add(&self, c: Color) -> Color
     {
-        Color::new(self.r + c.r, self.g + c.g, self.b + c.b)
+        return Color::new(self.r + c.r, self.g + c.g, self.b + c.b)
     }
 
     fn to_drawing_color(&self) -> RgbColor
     {
-        RgbColor{
+        return RgbColor{
             r: Color::legalize(self.r),
             g: Color::legalize(self.g),
             b: Color::legalize(self.b),
@@ -143,11 +145,11 @@ impl Camera
         let down = Vector::new(0.0, -1.0, 0.0);
         let forward = lookAt.sub(pos).norm();
 
-        Camera {
+        return Camera {
             pos: pos,
             forward: forward,
-            right: forward.cross(down).norm() * 1.5,
-            up: forward.cross(self.right).norm() * 1.5
+            right: forward.cross(down).norm().scale(1.5),
+            up: forward.cross(self.right).norm().scale(1.5)
         }
     }
 }
@@ -158,7 +160,7 @@ struct Ray {
 }
 
 struct Intersection {
-    thing: Thing,
+    thing: *const Thing,
     ray: Ray,
     dist: f32,
 }
@@ -171,9 +173,9 @@ trait Surface {
 }
 
 trait Thing {
-   fn intersect(&self, ray: Vector) -> Intersection;
+   fn intersect(&self, ray: Vector) -> Option<Intersection>;
    fn normal(&self, pos: Vector) -> Vector;
-   fn surface(&self) -> Surface;
+   fn surface(&self) -> *const Surface;
 }
 
 struct Light {
@@ -183,13 +185,13 @@ struct Light {
 
 struct Sphere
 {
-    surface: Surface,
+    surface: *const Surface,
     radius2: f32,
     center: Vector,
 }
 
 impl Sphere {
-    fn new(center: Vector, radius: f32, surface: Surface)
+    fn new(center: Vector, radius: f32, surface: *const Surface)
     {
         Sphere {
             surface: surface,
@@ -201,7 +203,7 @@ impl Sphere {
 
 impl Thing for Sphere
 {
-   fn intersect(&self, ray: Vector) -> Intersection
+   fn intersect(&self, ray: Vector) -> Option<Intersection>
    {
         let eo = self.center.sub(ray.start);
         let v = eo * ray.dir;
@@ -215,9 +217,9 @@ impl Thing for Sphere
         }
 
         if dist == 0.0 {
-            return Intersection();
+            return None();
         }
-        return Intersection(this, ray, dist);
+        return Some(Intersection(this, ray, dist));
    }
 
    fn normal(&self, pos: Vector) -> Vector
@@ -225,106 +227,109 @@ impl Thing for Sphere
        self.center.sub(pos).norm()
    }
 
-   fn surface(&self) -> Surface
+   fn surface(&self) -> *const Surface
    {
        self.surface
    }
 }
 
-impl Thing for Plane
+struct Plane
 {
-    norm: Vector;
-    offset: f32
-    surface: Surface
+    norm: Vector,
+    offset: f32,
+    surface: *const Surface,
 }
 
-impl Thing {
-    fn new(&self, norm: Vector, offset: f32, surface: Surface)
+impl Plane {
+    fn new(&self, norm: Vector, offset: f32, surface: *const Surface)
     {
-        self.norm = norm;
-        self.offset = offset;
-        self.surface = surface;
+        Plane {
+            norm: norm,
+            offset: offset,
+            surface: surface
+        }
     }
 }
 
 impl Thing for Plane
 {
-    Vector normal(const Vector& pos) const override
+    fn intersect(&self, ray: Vector) -> Option<Intersection>
+    {
+        let denom = norm.dot(ray.dir);
+        if (denom > 0) {
+            return None;
+        }
+        let dist = ((norm * ray.start) + offset) / (-denom);
+        return Some(Intersection(this, ray, dist));
+    }
+
+    fn normal(&self, pos: Vector) -> Vector
     {
         return self.norm;
     }
 
-    Intersection intersect(const Ray& ray) const override
+    fn surface(&self) -> *const Surface
     {
-        double denom = norm * ray.dir;
-        if (denom > 0) {
-            return Intersection();
-        }
-        double dist = ((norm * ray.start) + offset) / (-denom);
-        return Intersection(this, ray, dist);
-    }
-
-    Surface& surface() const override
-    {
-        return m_surface;
+        return self.surface;
     }
 }
 
-class ShinySurface : public Surface
+struct ShinySurface{}
+struct CheckerboardSurface{}
+
+impl Surface for ShinySurface
 {
-public:
-    Color diffuse(const Vector& pos) const
+    fn diffuse(&self, pos: Vector) -> Color
     {
-        return Color::white;
+        return ColorWhite
     }
 
-    Color specular(const Vector& pos) const
+    fn specular(&self, pos: Vector) -> Color
     {
-        return Color::grey;
+        return ColorGrey
     }
 
-    double reflect(const Vector& pos) const
+    fn reflect(&self, pos: Vector) -> f32
     {
         return 0.7;
     }
 
-    double roughness() const
+    fn roughness(&self) -> f32
     {
         return 250.0;
     }
-};
+}
 
-class CheckerboardSurface : public Surface
+impl Surface for CheckerboardSurface
 {
-public:
-    Color diffuse(const Vector& pos) const
+    fn diffuse(&self, pos: Vector) -> Color
     {
-        if (((int)(floor(pos.z) + floor(pos.x))) % 2 != 0)
+        if (floor(pos.z) + floor(pos.x)) % 2 != 0
         {
-            return Color::white;
+            return ColorWhite;
         }
-        return Color::black;
+        return ColorBlack;
     }
 
-    Color specular(const Vector& pos) const
+    fn specular(&self, pos: Vector) -> Color
     {
-        return Color::white;
+        return ColorWhite;
     }
 
-    double reflect(const Vector& pos) const
+    fn reflect(&self, pos: Vector) -> f32
     {
-        if (((int)(floor(pos.z) + floor(pos.x))) % 2 != 0)
+        if (floor(pos.z) + floor(pos.x)) % 2 != 0
         {
             return 0.1;
         }
         return 0.7;
     }
 
-    double roughness() const
+    fn roughness(&self) -> f32
     {
         return 150.0;
     }
-};
+}
 
 fn main()
 {
