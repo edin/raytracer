@@ -1,9 +1,9 @@
 module ModRaytracer
     implicit none
 
-    real, parameter :: INF = 1000000.0d+0
+    real, parameter :: FarAway = 1000000.0d+0
 
-    integer, parameter :: Red =1
+    integer, parameter :: Red = 1
     integer, parameter :: Green = 2
     integer, parameter :: Magenta = 3
     integer, parameter :: Blue = 4
@@ -15,76 +15,97 @@ module ModRaytracer
     integer, parameter :: SPHERE = 1
     integer, parameter :: PLANE = 2
 
-    type Vector
+    type TVector
         real(8) x
         real(8) y
         real(8) z
     end type
 
-    type Color
-        real r
-        real g
-        real b
+    type TColor
+        real(8) r
+        real(8) g
+        real(8) b
     end type
 
-    type ColorRGB
-        integer r
-        integer g
-        integer b
+    type TColorRGB
+        integer(1)  b
+        integer(1)  g
+        integer(1)  r
+        integer(1)  a
     end type
 
-    type(Color), parameter :: white        = Color(1.0, 1.0, 1.0)
-    type(Color), parameter :: grey         = Color(0.5, 0.5, 0.5)
-    type(Color), parameter :: black        = Color(0.0, 0.0, 0.0)
-    type(Color), parameter :: background   = Color(0.0, 0.0, 0.0)
-    type(Color), parameter :: defaultColor = Color(0.0, 0.0, 0.0)
+    type(TColor), parameter :: white        = TColor(1.0, 1.0, 1.0)
+    type(TColor), parameter :: grey         = TColor(0.5, 0.5, 0.5)
+    type(TColor), parameter :: black        = TColor(0.0, 0.0, 0.0)
+    type(TColor), parameter :: background   = TColor(0.0, 0.0, 0.0)
+    type(TColor), parameter :: defaultColor = TColor(0.0, 0.0, 0.0)
 
-    type Camera
-        type(Vector) forward, right, up, pos;
+    type TCamera
+        type(TVector) forward, right, up, pos
     end type
 
-    type Ray
-        type(Vector) start, dir;
+    type TRay
+        type(TVector) :: start, dir
     end type
 
-    type Surface
-        integer type;
-        type(Color) :: diffuse, specular;
-        real(8)     :: reflect, roughness;
+    type TSurface
+        integer type
+        type(TColor) :: diffuse, specular
+        real(8)      :: reflect, roughness
     end type
 
-    type Thing
-        integer type;
-        type(Surface), pointer :: surface
-        type(Vector)  :: centerOrNorm
+    type TThing
+        integer type
+        integer surfaceType
+        type(TVector) :: centerOrNormal
         real(8)       :: radiusOrOffset
     end type
 
-    type Intersection
-        type(Thing), pointer :: thing
-        type(Ray) :: ray
-        real(8)   :: dist
+    type TIntersection
+        type(TThing) :: thing
+        type(TRay)   :: ray
+        real(8)      :: dist
+        logical      :: isValid
     end type
 
-    type Light
-        type(Vector) :: pos
-        type(Color)  :: color
+    type TLight
+        type(TVector) :: pos
+        type(TColor)  :: color
     end type
 
-    type Scene
+    type TScene
         integer    maxDepth
-        integer    thingCount
-        integer    lightCount
-        type(Thing), ALLOCATABLE  :: things(:)
-        type(Light), ALLOCATABLE  :: lights(:)
-        type(Camera) camera
+        type(TThing), ALLOCATABLE :: things(:)
+        type(TLight), ALLOCATABLE :: lights(:)
+        type(TCamera) camera
     end type
 
-    type SurfaceProperties
+    type BmpFileHeader
+        character(2) bfType
+        integer(4) bfSize
+        integer(4) bfReserved ! actually Reserved1 & 2
+        integer(4) bfOffBits
+    end type
+
+    type BmpInfoHeader
+        integer*4 biSize
+        integer*4 biWidth
+        integer*4 biHeight
+        integer*2 biPlanes
+        integer*2 biBitCount
+        integer*4 biCompression
+        integer*4 biSizeImage
+        integer*4 biXPelsPerMeter
+        integer*4 biYPelsPerMeter
+        integer*4 biClrUsed
+        integer*4 biClrImportant
+    end type
+
+    type TSurfaceProperties
         real(8)  reflect
         real(8)  roughness
-        type(Color) :: diffuse
-        type(Color) :: specular
+        type(TColor) :: diffuse
+        type(TColor) :: specular
     end type
 
     interface operator (+)
@@ -94,12 +115,11 @@ module ModRaytracer
 
     interface operator (-)
         module procedure VectorSub
-        module procedure ColorSub
     end interface
 
     interface operator (*)
-        module procedure VectorMul
-        module procedure ColorMul
+        module procedure VectorScale
+        module procedure ColorScale
     end interface
 
     interface operator (.dot.)
@@ -111,16 +131,15 @@ module ModRaytracer
     end interface
 
 contains
-    ! Vector type
     function VectorDot(a, b)
-        type(Vector), intent(in)  :: a, b
+        type(TVector), intent(in)  :: a, b
         real(8) VectorDot
         VectorDot = a%x * b%x + a%y * b%y + a%z * b%z
     end function
 
     function VectorCross(a, b)
-        type(Vector), intent(in)  :: a, b
-        type(Vector) :: VectorCross
+        type(TVector), intent(in)  :: a, b
+        type(TVector) :: VectorCross
 
         VectorCross%x =  a%y * b%z - a%z * b%y
         VectorCross%y =  a%z * b%x - a%x * b%z
@@ -128,62 +147,60 @@ contains
     end function
 
     function VectorAdd(a, b)
-        type(Vector), intent(in)  :: a, b
-        type(Vector) :: VectorAdd
+        type(TVector), intent(in)  :: a, b
+        type(TVector) :: VectorAdd
 
-        VectorAdd%x = a%x + b%x;
-        VectorAdd%y = a%y + b%y;
-        VectorAdd%z = a%z + b%z;
+        VectorAdd%x = a%x + b%x
+        VectorAdd%y = a%y + b%y
+        VectorAdd%z = a%z + b%z
     end function
 
     function VectorSub(a, b)
-        type(Vector), intent(in)  :: a, b
-        type(Vector) :: VectorSub
+        type(TVector), intent(in)  :: a, b
+        type(TVector) :: VectorSub
 
-        VectorSub%x = a%x - b%x;
-        VectorSub%y = a%y - b%y;
-        VectorSub%z = a%z - b%z;
+        VectorSub%x = a%x - b%x
+        VectorSub%y = a%y - b%y
+        VectorSub%z = a%z - b%z
     end function
 
-    function VectorMul(a, k)
-        type(Vector), intent(in) :: a
-        type(Vector) :: VectorMul
+    function VectorScale(a, k)
+        type(TVector), intent(in) :: a
+        type(TVector) :: VectorScale
         real(8), intent(in) :: k
 
-        VectorMul%x = a%x * k;
-        VectorMul%y = a%y * k;
-        VectorMul%z = a%z * k;
+        VectorScale%x = a%x * k
+        VectorScale%y = a%y * k
+        VectorScale%z = a%z * k
     end function
 
-    pure function Length(vec) result(value)
-        type(Vector), intent(in) :: vec
+    pure function VectorLength(vec) result(value)
+        type(TVector), intent(in) :: vec
         real(8) :: value
         value = sqrt(vec%x ** 2 + vec%y ** 2 + vec%z ** 2 )
     end function
 
-    pure function Norm(vec)
-        type(Vector), intent(in)  :: vec
-        type(Vector):: Norm
+    pure function VectorNorm(vec)
+        type(TVector), intent(in)  :: vec
+        type(TVector):: VectorNorm
         real(8) :: mag, div
 
-        mag   = Length(vec)
+        mag   = VectorLength(vec)
 
         if(mag == 0.0) then
-            div = INF
+            div = FarAway
         else
             div = 1.0d+0 / mag
         endif
 
-        Norm%x = vec%x / div
-        Norm%y = vec%y / div
-        Norm%z = vec%z / div
+        VectorNorm%x = vec%x / div
+        VectorNorm%y = vec%y / div
+        VectorNorm%z = vec%z / div
     end function
 
-
-    ! Color type
     pure function clamp(color)
-        real, intent(in) :: color
-        real :: clamp, v
+        real(8), intent(in) :: color
+        real(8) :: clamp, v
         v = int(color)
         if (v > 1.0) then
             clamp = 1.0
@@ -208,285 +225,386 @@ contains
     end function
 
     function ColorAdd(a, b)
-        type(Color), intent(in)  :: a, b
-        type(Color) :: ColorAdd
-        ColorAdd%r = a%r + b%r;
-        ColorAdd%g = a%g + b%g;
-        ColorAdd%b = a%b + b%b;
+        type(TColor), intent(in)  :: a, b
+        type(TColor) :: ColorAdd
+        ColorAdd%r = a%r + b%r
+        ColorAdd%g = a%g + b%g
+        ColorAdd%b = a%b + b%b
     end function
 
-    function ColorSub(a, b)
-        type(Color), intent(in)  :: a, b
-        type(Color) :: ColorSub
+    function ColorScale(a, k)
+        type(TColor), intent(in) :: a
+        type(TColor) :: ColorScale
+        real(8), intent(in) :: k
 
-        ColorSub%r = clamp(a%r - b%r);
-        ColorSub%g = clamp(a%g - b%g);
-        ColorSub%b = clamp(a%b - b%b);
+        ColorScale%r = clamp(a%r * k)
+        ColorScale%g = clamp(a%g * k)
+        ColorScale%b = clamp(a%b * k)
     end function
 
-    function ColorMul(a, k)
-        type(Color), intent(in) :: a
-        type(Color) :: ColorMul
-        real, intent(in) :: k
+    function ColorMul(a, b)
+        type(TColor), intent(in) :: a, b
+        type(TColor) :: ColorMul
 
-        ColorMul%r = clamp(a%r * k);
-        ColorMul%g = clamp(a%g * k);
-        ColorMul%b = clamp(a%b * k);
+        ColorMul%r = clamp(a%r * b%r)
+        ColorMul%g = clamp(a%g * b%g)
+        ColorMul%b = clamp(a%b * b%b)
     end function
 
-    function ObjectIntersect(object, rayDir, result)
-        type(Thing), intent(in) :: object
-        type(Ray), intent(in) :: rayDir
-        type(Intersection), intent(inout) :: result
-        integer :: ObjectIntersect;
+    function ObjectIntersect(object, rayDir) result(value)
+        type(TThing), intent(in) :: object
+        type(TRay), intent(in) :: rayDir
+        type(TIntersection) :: value
         real(8) :: v, dist, disc, denom
-        type(Vector) :: eo
+        type(TVector) :: eo
 
-        ObjectIntersect = 0
+        value%isValid = .false.
 
         select case (object%type)
             case (SPHERE)
-                eo = VectorSub(object%centerOrNorm, rayDir%start)
+                eo = VectorSub(object%centerOrNormal, rayDir%start)
                 v = VectorDot(eo, rayDir%dir)
                 dist = 0
 
                 if (v >= 0) then
-                    disc = object%radiusOrOffset - (VectorDot(eo, eo) - (v * v));
+                    disc = object%radiusOrOffset - (VectorDot(eo, eo) - (v * v))
                     if (disc >= 0) then
                         dist = v - sqrt(disc)
                     end if
                 end if
                 if (dist /= 0.0) then
-                    result%thing = object;
-                    result%ray   = rayDir;
-                    result%dist  = dist;
-                    ObjectIntersect = 1
+                    value%thing = object
+                    value%ray   = rayDir
+                    value%dist  = dist
                 end if
             case (PLANE)
-                denom = VectorDot(object%centerOrNorm, rayDir%dir);
+                denom = VectorDot(object%centerOrNormal, rayDir%dir)
                 if (denom <= 0) then
-                    result%dist = (VectorDot(object%centerOrNorm, rayDir%start) + object%radiusOrOffset) / (-denom);
-                    result%thing = object;
-                    result%ray = rayDir;
-                    ObjectIntersect = 1
+                    value%dist = (VectorDot(object%centerOrNormal, rayDir%start) + object%radiusOrOffset) / (-denom)
+                    value%thing = object
+                    value%ray = rayDir
                 end if
         end select
     end function
 
-    ! Thing CreateSphere(Vector center, double radius, Surface *surface)
-    ! {
-    !     Thing sphere;
-    !     sphere.type    = SPHERE;
-    !     sphere.radius2 = radius * radius;
-    !     sphere.center  = center;
-    !     sphere.surface = surface;
-    !     return sphere;
-    ! }
+    function CreateSphere(center, radius, surface) result(value)
+        type(TVector), intent(in) :: center
+        real(8), intent(in) :: radius
+        integer surface
+        type(TThing) :: value
 
-    ! Thing CreatePlane(Vector norm, double offset, Surface *surface)
-    ! {
-    !     Thing plane;
-    !     plane.type = PLANE;
-    !     plane.surface = surface;
-    !     plane.norm    = norm;
-    !     plane.offset  = offset;
-    !     return plane;
-    ! }
+        value%type = SPHERE
+        value%surfaceType = surface
+        value%centerOrNormal = center
+        value%radiusOrOffset  = radius * radius
+    end function
 
-    ! double TestRay(Ray *ray, Scene *scene)
-    ! {
-    !     Intersection isect = Intersections(ray, scene);
-    !     if (isect.thing != NULL)
-    !     {
-    !         return isect.dist;
-    !     }
-    !     return NAN;
-    ! }
+    function CreatePlane(normal, offset, surface) result(value)
+        type(TVector), intent(in) :: normal
+        real(8), intent(in) :: offset
+        integer surface
+        type(TThing) :: value
 
-    ! Color TraceRay(Ray *ray, Scene *scene, int depth)
-    ! {
-    !     Intersection isect = Intersections(ray, scene);
-    !     if (isect.thing != NULL)
-    !     {
-    !         return Shade(&isect, scene, depth);
-    !     }
-    !     return background;
-    ! }
+        value%type = PLANE
+        value%surfaceType = surface
+        value%centerOrNormal = normal
+        value%radiusOrOffset  = offset
+    end function
 
-    ! Color GetReflectionColor(Thing* thing, Vector *pos, Vector *normal, Vector *rd, Scene *scene, int depth)
-    ! {
-    !     Ray ray = CreateRay(*pos, *rd);
-    !     Color color = TraceRay(&ray, scene, depth + 1);
+    function Intersections(ray, scene) result(value)
+        type(TRay) :: ray
+        type(TScene) :: scene
+        type(TIntersection) :: inter, value
+        real(8) closest
+        integer i
 
-    !     SurfaceProperties properties;
-    !     GetSurfaceProperties(thing->surface, pos, &properties);
+        closest = FarAway
+        value%isValid = .false.
 
-    !     return ScaleColor(&color, properties.reflect);
-    ! }
+        do i = 1, ubound(scene%things, 1)
+            inter = ObjectIntersect(scene%things(i) , ray)
+            if (inter%isValid .and. inter%dist < closest) then
+                value = inter
+                closest = inter%dist
+            end if
+        end do
+    end function
 
-    ! Color GetNaturalColor(Thing* thing, Vector *pos, Vector *norm, Vector *rd, Scene *scene)
-    ! {
-    !     Color resultColor = black;
+    function TestRay(ray, scene) result(value)
+        type(TRay), intent(in) :: ray
+        type(TScene), intent(in) :: scene
+        real(8) :: value
+        type(TIntersection) :: isect
 
-    !     SurfaceProperties sp;
-    !     GetSurfaceProperties(thing->surface, pos, &sp);
+        value = 0
 
-    !     int lightCount = scene->lightCount;
+        isect = Intersections(ray, scene)
+        if (isect%isValid) then
+            value = isect%dist
+        end if
 
-    !     Light *first = &scene->lights[0];
-    !     Light *last  = &scene->lights[lightCount - 1];
+    end function
 
-    !     for (Light *light = first; light <= last; ++light)
-    !     {
-    !         Vector ldis  = VectorSub(&light->pos, pos);
-    !         Vector livec = VectorNorm(ldis);
+    function TraceRay(ray, scene, depth) result(value)
+        type(TRay), intent(in) :: ray
+        type(TScene), intent(in) :: scene
+        type(TIntersection) :: isect
+        integer, intent(in) :: depth
+        type (TColor)  :: value
 
-    !         double ldisLen = VectorLength(&ldis);
-    !         Ray ray = { *pos, livec };
+        isect = Intersections(ray, scene)
+        if (isect%isValid) then
+            value = Shade(isect, scene, depth)
+        else
+            value = background
+        end if
+    end function
 
-    !         double neatIsect = TestRay(&ray, scene);
+    function GetSurfaceProperties(surface, pos) result(properties)
+        type(TSurfaceProperties) :: properties
+        type(TVector) :: pos
+        integer val, surface
 
-    !         int isInShadow = (neatIsect == NAN) ? 0 : (neatIsect <= ldisLen);
-    !         if (!isInShadow) {
-    !             Vector rdNorm = VectorNorm(*rd);
+        if (surface .eq. SHINY_SURFACE) then
+            properties%diffuse   = white
+            properties%specular  = grey
+            properties%reflect   = 0.7
+            properties%roughness = 150.0
+        else
+            val = (floor(pos%z) + floor(pos%x))
+            if (mod(val,2) /= 0) then
+                properties%reflect   = 0.1
+                properties%diffuse   = white
+            else
+                properties%reflect   = 0.7
+                properties%diffuse   = black
+            end if
+            properties%specular  = white
+            properties%roughness = 250.0
+        end if
+    end function
 
-    !             double illum   =  VectorDot(&livec, norm);
-    !             double specular = VectorDot(&livec, &rdNorm);
+    function GetReflectionColor(thing, pos, rd, scene, depth) result(value)
+        type (TColor)  :: color, value
+        type (TThing), intent (in) ::thing
+        type (TVector) :: rd, pos
+        type (TScene) :: scene
+        type (TSurfaceProperties) :: surface
+        integer depth
 
-    !             Color lcolor = (illum > 0) ?    ScaleColor(&light->color, illum) : defaultColor;
-    !             Color scolor = (specular > 0) ? ScaleColor(&light->color, pow(specular, sp.roughness)) : defaultColor;
+        color = TraceRay(TRay(pos, rd), scene, depth + 1)
+        surface = GetSurfaceProperties(thing%surfaceType, pos)
 
-    !             ColorMultiplySelf(&lcolor, &sp.diffuse);
-    !             ColorMultiplySelf(&scolor, &sp.specular);
+        value = ColorScale(color, surface%reflect)
+    end function
 
-    !             Color result = ColorAdd(&lcolor, &scolor);
+    function GetNaturalColor(thing, pos, normal, rd, scene) result(value)
+        type (TColor)  :: value, lcolor, scolor
+        type (TThing), intent (in) ::thing
+        type (TVector) :: normal, rd, pos, ldis, livec, rdNorm
+        type (TScene) :: scene
+        type (TRay) :: ray
+        type (TLight) :: light
+        type (TSurfaceProperties) :: surface
+        integer :: i
+        real(8) :: neatIsect, ldisLen, illum, specular
+        logical :: isInShadow
 
-    !             resultColor.r += result.r;
-    !             resultColor.g += result.g;
-    !             resultColor.b += result.b;
-    !         }
-    !     }
-    !     return resultColor;
-    ! }
+        value = black
+        surface = GetSurfaceProperties(thing%surfaceType, pos)
 
-    ! Color Shade(Intersection  *isect, Scene *scene, int depth)
-    ! {
-    !     Vector d = isect->ray.dir;
-    !     Vector scaled = VectorScale(&d, isect->dist);
+        rdNorm = VectorNorm(rd)
 
-    !     Vector pos = VectorAdd(&scaled, &isect->ray.start);
-    !     Vector normal = ObjectNormal(isect->thing, &pos);
-    !     double nodmalDotD = VectorDot(&normal, &d);
-    !     Vector normalScaled = VectorScale(&normal, nodmalDotD * 2);
+        do i = 1, ubound(scene%lights, 1)
+            light = scene%lights(i)
+            ldis  = VectorSub(light%pos, pos)
+            livec = VectorNorm(ldis)
 
-    !     Vector reflectDir = VectorSub(&d, &normalScaled);
+            ldisLen = VectorLength(ldis)
+            ray = TRay(pos, livec)
 
-    !     Color naturalColor = GetNaturalColor(isect->thing, &pos, &normal, &reflectDir, scene);
-    !     naturalColor = ColorAdd(&background, &naturalColor);
+            neatIsect = TestRay(ray, scene)
 
-    !     Color reflectedColor = (depth >= scene->maxDepth) ? grey : GetReflectionColor(isect->thing, &pos, &normal, &reflectDir, scene, depth);
+            if (isnan(neatIsect)) then
+                isInShadow = .false.
+            else
+                isInShadow = (neatIsect <= ldisLen)
+            end if
 
-    !     return ColorAdd(&naturalColor, &reflectedColor);
-    ! }
+            if (isInShadow .eqv. .false. ) then
 
-    ! Vector GetPoint(int x, int y, Camera *camera, int screenWidth, int screenHeight)
-    ! {
-    !     double recenterX = (x - (screenWidth / 2.0)) / 2.0 / screenWidth;
-    !     double recenterY = -(y - (screenHeight / 2.0)) / 2.0 / screenHeight;
+                illum   =  VectorDot(livec, normal)
+                specular = VectorDot(livec, rdNorm)
 
-    !     Vector vx = VectorScale(&camera->right, recenterX);
-    !     Vector vy = VectorScale(&camera->up, recenterY);
+                lcolor = defaultColor
+                scolor = defaultColor
 
-    !     Vector v = VectorAdd(&vx, &vy);
-    !     Vector z = VectorAdd(&camera->forward, &v);
+                if (illum .gt. 0) then
+                    lcolor = ColorScale(light%color, illum)
+                end if
+                if (specular .gt. 0) then
+                    scolor = ColorScale(light%color, specular ** surface%roughness)
+                end if
 
-    !     z  = VectorNorm(z);
-    !     return z;
-    ! }
+                lcolor = ColorMul(lcolor, surface%diffuse)
+                scolor = ColorMul(scolor, surface%specular)
+                value = value + ColorAdd(lcolor, scolor)
+            end if
+        end do
+    end function
 
-    ! void RenderScene(Scene *scene, byte* bitmapData, int stride, int w, int h)
-    ! {
-    !     Ray ray;
-    !     ray.start = scene->camera.pos;
-    !     for (int y = 0; y < h; ++y)
-    !     {
-    !         RgbColor* pColor = (RgbColor*)(&bitmapData[y * stride]);
-    !         for (int x = 0; x < w; ++x)
-    !         {
-    !             ray.dir = GetPoint(x, y, &scene->camera, h, w);
-    !             Color color = TraceRay(&ray, scene, 0);
-    !             *pColor = ToDrawingColor(&color);
-    !            ++pColor;
-    !         }
-    !     }
-    ! }
+    function ObjectNormal(thing, pos) result (value)
+        type(TVector) value
+        type(TThing) thing
+        type(TVector) pos
 
-    ! void SaveRGBBitmap(byte* pBitmapBits, int lWidth, int lHeight, int wBitsPerPixel, const char* lpszFileName)
-    ! {
-    !     BITMAPINFOHEADER bmpInfoHeader = {0};
-    !     bmpInfoHeader.biSize = sizeof(BITMAPINFOHEADER);
-    !     bmpInfoHeader.biBitCount = wBitsPerPixel;
-    !     bmpInfoHeader.biClrImportant = 0;
-    !     bmpInfoHeader.biClrUsed = 0;
-    !     bmpInfoHeader.biCompression = BI_RGB;
-    !     bmpInfoHeader.biHeight = -lHeight;
-    !     bmpInfoHeader.biWidth  = lWidth;
-    !     bmpInfoHeader.biPlanes = 1;
-    !     bmpInfoHeader.biSizeImage = lWidth* lHeight * (wBitsPerPixel/8);
+        if (thing%type .eq. SPHERE ) then
+            value = VectorNorm(VectorSub(pos, thing%centerOrNormal))
+        else
+            value = thing%centerOrNormal
+        end if
+    end function
 
-    !     BITMAPFILEHEADER bfh = {0};
-    !     bfh.bfType = 'B' + ('M' << 8);
-    !     bfh.bfOffBits = sizeof(BITMAPINFOHEADER) + sizeof(BITMAPFILEHEADER);
-    !     bfh.bfSize    = bfh.bfOffBits + bmpInfoHeader.biSizeImage;
+    function Shade(isect, scene, depth) result(value)
+        type(TIntersection) :: isect
+        type(TScene)  :: scene
+        type(TVector) :: d, scaled, pos, normal, normalScaled, reflectDir
+        type(TColor)  :: value, naturalColor, reflectedColor
+        integer       :: depth
+        real(8) :: nodmalDotD
 
-    !     FILE *hFile;
-    !     hFile = fopen(lpszFileName, "wb");
-    !     fwrite(&bfh, sizeof(char), sizeof(bfh), hFile);
-    !     fwrite(&bmpInfoHeader, sizeof(char), sizeof(bmpInfoHeader), hFile);
-    !     fwrite(pBitmapBits, sizeof(char), bmpInfoHeader.biSizeImage, hFile);
-    !     fclose(hFile);
-    ! }
+        d = isect%ray%dir
+        scaled = VectorScale(d, isect%dist)
 
+        pos = VectorAdd(scaled, isect%ray%start)
+        normal = ObjectNormal(isect%thing, pos)
+        nodmalDotD = VectorDot(normal, d)
+        normalScaled = VectorScale(normal, nodmalDotD * 2)
+
+        reflectDir = VectorSub(d, normalScaled)
+
+        naturalColor = GetNaturalColor(isect%thing, pos, normal, reflectDir, scene)
+        naturalColor = ColorAdd(background, naturalColor)
+
+        if (depth .ge. scene%maxDepth) then
+            reflectedColor = grey
+        else
+            reflectedColor = GetReflectionColor(isect%thing, pos, reflectDir, scene, depth)
+        end if
+
+        value = ColorAdd(naturalColor, reflectedColor)
+    end function
+
+    function GetPoint(x, y, camera, screenWidth, screenHeight) result (value)
+        integer       :: x, y, screenWidth, screenHeight
+        type(TCamera) :: camera
+        type(TVector) :: vx, vy, v, value
+        real(8)       :: recenterX, recenterY
+
+        recenterX =  (x - (screenWidth  / 2.0)) / 2.0 / screenWidth
+        recenterY = -(y - (screenHeight / 2.0)) / 2.0 / screenHeight
+
+        vx = camera%right * recenterX
+        vy = camera%up * recenterY
+
+        v = VectorAdd(vx, vy)
+        value = VectorAdd(camera%forward, v)
+        value = VectorNorm(value)
+    end function
+
+    subroutine RenderScene(scene, bitmapData, stride, w, h)
+        type(TScene) :: scene
+        integer stride, w, h, x, y, index
+        type(TColor) :: color
+        type(TColorRGB), dimension(:), intent(inout) :: bitmapData(:)
+        type(TRay) :: ray;
+
+        ray = TRay(scene%camera%pos, TVector(0.0, 0.0, 0.0))
+
+        do y = 0 , h -1
+            index = y * stride
+            do  x = 1 , w
+                ray%dir = GetPoint(x, y, scene%camera, h, w)
+                color = TraceRay(ray, scene, 0)
+                bitmapData(y + stride + x) =TColorRGB(0,0,0,0)
+            end do
+        end do
+    end subroutine
+
+    function CreateCamera(pos, lookAt) result (camera)
+        type (TCamera) camera
+        type (TVector) pos, lookAt, down, forward, rightNorm, upNorm
+
+        camera%pos = pos
+        down       = TVector(0.0, -1.0, 0.0)
+        forward    = VectorSub(lookAt, pos)
+
+        camera%forward  = VectorNorm(forward)
+        camera%right    = VectorCross(camera%forward, down)
+        camera%up       = VectorCross(camera%forward, camera%right)
+
+        rightNorm = VectorNorm(camera%right)
+        upNorm    = VectorNorm(camera%up)
+
+        camera%right = VectorScale(rightNorm, 1.5d+0)
+        camera%up = VectorScale(upNorm, 1.5d+0)
+    end function
+
+    subroutine SaveRGBBitmap(pBitmapBits, lWidth, lHeight)
+        type(BmpInfoHeader) :: infoHeader
+        type(BmpFileHeader) :: fileHeader
+        integer :: lWidth, lHeight
+        type(TColorRGB), dimension(:), intent(in) :: pBitmapBits
+
+        infoHeader%biSize = 40
+        infoHeader%biBitCount = 32
+        infoHeader%biClrImportant = 0
+        infoHeader%biClrUsed = 0
+        infoHeader%biCompression = 0
+        infoHeader%biHeight = -lHeight
+        infoHeader%biWidth  = lWidth
+        infoHeader%biPlanes = 1
+        infoHeader%biSizeImage = lWidth * lHeight * 4
+
+        fileHeader%bfType    = 'BM'
+        fileHeader%bfOffBits = 54
+        fileHeader%bfSize    = fileHeader%bfOffBits + infoHeader%biSizeImage
+
+        ! open (unit = 1, file = 'RayTracer.bmp', status = 'UNKNOWN', access = 'STREAM', form = 'UNFORMATTED')
+        ! write(1) fileHeader
+        ! write(1) infoHeader
+        ! write(1) pBitmapBits
+        ! write(1), 'Hello World'
+        ! close(1)
+    end subroutine
 end module
 
-
-program hello
+program RayTracerProgram
     use ModRaytracer
     implicit none
 
-    type(Vector) :: a, b, c
-    type(Scene)  :: s
-    type(Surface) :: checkerboard, shiny
+    type(TScene)   :: scene
+    type(TColorRGB), dimension(:) :: bitmap(500 * 500)
 
-    allocate(s%things(3))
-    allocate(s%lights(4))
+    allocate(scene%things(3))
+    allocate(scene%lights(4))
 
-    shiny%diffuse   = white;
-    shiny%specular  = grey;
-    shiny%reflect   = 0.7;
-    shiny%roughness = 250.0;
+    scene%things(1) = CreatePlane (TVector( 0.0, 1.0,  0.0 ), 0.0d+0, CHECKERBOARD_SURFACE)
+    scene%things(2) = CreateSphere(TVector( 0.0, 1.0, -0.25), 1.0d+0, SHINY_SURFACE)
+    scene%things(3) = CreateSphere(TVector(-1.0, 0.5,  1.5 ), 0.5d+0, SHINY_SURFACE)
 
-    checkerboard%diffuse   = black;
-    checkerboard%specular  = white;
-    checkerboard%reflect   = 0.7;
-    checkerboard%roughness = 150.0;
+    scene%lights(1) = TLight(TVector(-2.0, 2.5, 0.0), TColor(0.49, 0.07, 0.07))
+    scene%lights(2) = TLight(TVector(1.5, 2.5, 1.5),  TColor(0.07, 0.07, 0.49))
+    scene%lights(3) = TLight(TVector(1.5, 2.5, -1.5), TColor(0.07, 0.49, 0.071))
+    scene%lights(4) = TLight(TVector(0.0, 3.5, 0.0),  TColor(0.21, 0.21, 0.35))
 
-    !--------------------------------------------------------------------------------
-    ! s%things(0) = CreatePlane (Vector( 0.0, 1.0,  0.0 ), 0.0, checkerboard);
-    ! s%things(1) = CreateSphere(Vector( 0.0, 1.0, -0.25), 1.0, shiny);
-    ! s%things(2) = CreateSphere(Vector(-1.0, 0.5,  1.5 ), 0.5, shiny);
-    !
-    ! scene%lights(0) = Light(Vector(-2.0, 2.5, 0.0), Color(0.49, 0.07, 0.07));
-    ! scene%lights(1) = Light(Vector(1.5, 2.5, 1.5),  Color(0.07, 0.07, 0.49));
-    ! scene%lights(2) = Light(Vector(1.5, 2.5, -1.5), Color(0.07, 0.49, 0.071));
-    ! scene%lights(3) = Light(Vector(0.0, 3.5, 0.0),  Color(0.21, 0.21, 0.35));
-    !--------------------------------------------------------------------------------
+    scene%camera    = CreateCamera(TVector(3.0, 2.0, 4.0), TVector(-1.0, 0.5, 0.0))
 
-    a = Vector(5.0d+0, 8.0d+0, 2.0d+0)
-    b = Vector(2.0d+0, 4.0d+0, 2.0d+0)
+    call RenderScene(scene, bitmap, 500, 500, 500)
 
-    c = a .cross. b
+    deallocate(scene%things)
+    deallocate(scene%lights)
 
-    print *, c%x, c%y, c%z
+    call SaveRGBBitmap(bitmap, 500, 500)
 
 end program
