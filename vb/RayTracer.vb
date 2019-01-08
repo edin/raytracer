@@ -121,7 +121,7 @@ Class Camera
     End Sub
 End Class
 
-Class Ray
+Structure Ray
     Public Start As Vector
     Public Dir As Vector
 
@@ -129,7 +129,7 @@ Class Ray
         Me.Start = start
         Me.Dir = dir
     End Sub
-End Class
+End Structure
 
 Class Intersection
     Public Thing As IThing
@@ -151,12 +151,12 @@ Structure SurfaceProperties
 End Structure
 
 Interface ISurface
-    Function GetSurfaceProperties(pos As Vector) As SurfaceProperties
+    Function GetSurfaceProperties(ByRef pos As Vector) As SurfaceProperties
 End Interface
 
 Interface IThing
-    Function Intersect(ray As Ray) As Intersection
-    Function Normal(pos As Vector) As Vector
+    Function Intersect(ByRef ray As Ray) As Intersection
+    Function Normal(ByRef pos As Vector) As Vector
     Property Surface As ISurface
 End Interface
 
@@ -182,25 +182,20 @@ Class Sphere
         Me.Center = center
     End Sub
 
-    Public Function Intersect(ray As Ray) As Intersection Implements IThing.Intersect
-
+    Public Function Intersect(ByRef ray As Ray) As Intersection Implements IThing.Intersect
         Dim eo = (Me.Center - ray.Start)
         Dim v = eo.Dot(ray.Dir)
-        Dim dist = 0.0
-
         If (v >= 0) Then
             Dim disc = Me.Radius2 - (eo.Dot(eo) - v * v)
             If (disc >= 0) Then
-                dist = v - Math.Sqrt(disc)
+                Dim dist = v - Math.Sqrt(disc)
+                Return New Intersection(Me, ray, dist)
             End If
         End If
-
-        If (dist = 0) Then Return Nothing
-
-        Return New Intersection(Me, ray, dist)
+        Return Nothing
     End Function
 
-    Public Function Normal(pos As Vector) As Vector Implements IThing.Normal
+    Public Function Normal(ByRef pos As Vector) As Vector Implements IThing.Normal
         Return (pos - Me.Center).Norm
     End Function
 
@@ -219,7 +214,7 @@ Class Plane
         Me.Surface = surface
     End Sub
 
-    Public Function Intersect(ray As Ray) As Intersection Implements IThing.Intersect
+    Public Function Intersect(ByRef ray As Ray) As Intersection Implements IThing.Intersect
         Dim denom = Me.Normal.Dot(ray.Dir)
         If (denom > 0) Then Return Nothing
 
@@ -227,7 +222,7 @@ Class Plane
         Return New Intersection(Me, ray, dist)
     End Function
 
-    Public Function GetNormal(pos As Vector) As Vector Implements IThing.Normal
+    Public Function GetNormal(ByRef pos As Vector) As Vector Implements IThing.Normal
         Return Me.Normal
     End Function
 
@@ -237,7 +232,7 @@ End Class
 Class ShinySurface
     Implements ISurface
 
-    Public Function GetSurfaceProperties(pos As Vector) As SurfaceProperties Implements ISurface.GetSurfaceProperties
+    Public Function GetSurfaceProperties(ByRef pos As Vector) As SurfaceProperties Implements ISurface.GetSurfaceProperties
         Return New SurfaceProperties With {
             .Specular = Color.Grey,
             .Diffuse = Color.White,
@@ -250,7 +245,7 @@ End Class
 Class CheckerboardSurface
     Implements ISurface
 
-    Public Function GetSurfaceProperties(pos As Vector) As SurfaceProperties Implements ISurface.GetSurfaceProperties
+    Public Function GetSurfaceProperties(ByRef pos As Vector) As SurfaceProperties Implements ISurface.GetSurfaceProperties
         Dim diffuse = Color.Black
         Dim reflect = 0.7
 
@@ -296,7 +291,7 @@ Class RayTracerEngine
     Private maxDepth As Integer = 5
     Private Scene As Scene
 
-    Private Function Intersections(ray As Ray) As Intersection
+    Private Function Intersections(ByRef ray As Ray) As Intersection
         Dim closest = Double.PositiveInfinity
         Dim closestInter As Intersection = Nothing
 
@@ -308,21 +303,22 @@ Class RayTracerEngine
             End If
         Next
         Return closestInter
-
     End Function
 
-    Private Function TestRay(ray As Ray) As Double
+    Private Function TestRay(ByRef ray As Ray) As Double?
         Dim isect As Intersection = Me.Intersections(ray)
         If (isect IsNot Nothing) Then
             Return isect.Dist
-        Else
-            Return Double.NaN
         End If
+
+        Return Nothing
     End Function
 
-    Private Function TraceRay(ray As Ray, depth As Integer) As Color
+    Private Function TraceRay(ByRef ray As Ray, depth As Integer) As Color
         Dim isect As Intersection = Me.Intersections(ray)
-        If (isect Is Nothing) Then Return Color.Background
+        If (isect Is Nothing) Then
+            Return Color.Background
+        End If
         Return Me.Shade(isect, depth)
     End Function
 
@@ -335,18 +331,19 @@ Class RayTracerEngine
         Dim surface = isect.Thing.Surface.GetSurfaceProperties(pos)
 
         Dim naturalColor = Color.Background + Me.GetNaturalColor(surface, pos, normal, reflectDir)
-        Dim reflectedColor = If(depth >= Me.maxDepth, Color.Grey, Me.GetReflectionColor(surface, pos, normal, reflectDir, depth))
+        Dim reflectedColor = If(depth >= Me.maxDepth, Color.Grey, Me.GetReflectionColor(surface, pos, reflectDir, depth))
 
         Return naturalColor + reflectedColor
     End Function
 
-    Private Function GetReflectionColor(surface As SurfaceProperties, pos As Vector, normal As Vector, rd As Vector, depth As Integer) As Color
+    Private Function GetReflectionColor(surface As SurfaceProperties, pos As Vector, rd As Vector, depth As Integer) As Color
         Return surface.Reflect * Me.TraceRay(New Ray(pos, rd), depth + 1)
     End Function
 
     Private Function GetNaturalColor(surface As SurfaceProperties, pos As Vector, norm As Vector, rd As Vector) As Color
 
         Dim resultColor As Color = Color.DefaultColor
+        Dim reflectDir = rd.Norm
 
         For i = 0 To Scene.Lights.Count - 1
             Dim light = Scene.Lights(i)
@@ -354,13 +351,13 @@ Class RayTracerEngine
             Dim livec = ldis.Norm
             Dim neatIsect = Me.TestRay(New Ray(pos, livec))
 
-            Dim isInShadow = If(Double.IsNaN(neatIsect), False, (neatIsect <= ldis.Length))
+            Dim isInShadow = If(neatIsect.HasValue, (neatIsect <= ldis.Length), False)
             If (Not isInShadow) Then
 
                 Dim illum = livec.Dot(norm)
                 Dim lcolor = If((illum > 0), illum * light.Color, Color.DefaultColor)
 
-                Dim specular = livec.Dot(rd.Norm)
+                Dim specular = livec.Dot(reflectDir)
                 Dim scolor = If(specular > 0, (Math.Pow(specular, surface.Roughness) * light.Color), Color.DefaultColor)
 
                 resultColor = resultColor + (surface.Diffuse * lcolor) + (surface.Specular * scolor)

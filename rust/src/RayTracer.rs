@@ -1,20 +1,13 @@
-use std::option;
+
+const FarAway: f32 = 1000000.0;
 
 struct RgbColor
 {
-    b: u8,
-    g: u8,
-    r: u8,
-    a: u8,
+    b: u8, g: u8, r: u8, a: u8,
 }
 
-#[derive(Debug)]
-struct Vector
-{
-    x: f32,
-    y: f32,
-    z: f32,
-}
+#[derive(Debug, Copy, Clone)]
+struct Vector { x: f32, y: f32, z: f32 }
 
 impl Vector
 {
@@ -32,12 +25,7 @@ impl Vector
     fn norm(&self) -> Vector
     {
         let mag = self.mag();
-        let mut div = 0.0;
-        if mag == 0.0 {
-            div = 1000000.0
-        } else {
-            div = 1.0 / mag
-        }
+        let div = if mag == 0.0 { 1000000.0 } else { 1.0 / mag };
         return self.scale(div)
     }
 
@@ -60,6 +48,11 @@ impl Vector
         Vector::new(self.x * v.x, self.y * v.y, self.z * v.z)
     }
 
+    fn dot(&self, v: Vector) -> f32
+    {
+        self.x * v.x + self.y * v.y + self.z * v.z
+    }
+
     fn add(&self, v: Vector) -> Vector
     {
         Vector::new(self.x + v.x, self.y + v.y, self.z + v.z)
@@ -71,11 +64,8 @@ impl Vector
     }
 }
 
-struct Color
-{
-    r: f32,
-    g: f32,
-    b: f32,
+struct Color {
+    r: f32, g: f32, b: f32,
 }
 
 const ColorWhite: Color = Color{r:1.0, g:1.0, b:1.0};
@@ -100,11 +90,6 @@ impl Color
     {
         return Color::new(self.r * c.r, self.g * c.g, self.b * c.b)
     }
-
-    // fn mul(&self, c: Color) -> Color
-    // {
-    //     return Color::new(self.r * c.r, self.g * c.g, self.b * c.b)
-    // }
 
     fn add(&self, c: Color) -> Color
     {
@@ -138,18 +123,18 @@ struct Camera
     pos: Vector,
 }
 
-impl Camera
-{
+impl Camera  {
     fn new(pos: Vector, lookAt: Vector) -> Camera
     {
         let down = Vector::new(0.0, -1.0, 0.0);
         let forward = lookAt.sub(pos).norm();
+        let right = forward.cross(down).norm().scale(1.5);
 
         return Camera {
             pos: pos,
             forward: forward,
-            right: forward.cross(down).norm().scale(1.5),
-            up: forward.cross(self.right).norm().scale(1.5)
+            right: right,
+            up: forward.cross(right).norm().scale(1.5)
         }
     }
 }
@@ -165,6 +150,17 @@ struct Intersection {
     dist: f32,
 }
 
+impl Intersection {
+    fn new(thing: *const Thing, ray: Ray, dist: f32) -> Intersection
+    {
+        Intersection {
+            thing: thing,
+            ray: ray,
+            dist: dist,
+        }
+    }
+}
+
 trait Surface {
     fn diffuse(&self, pos: Vector) -> Color;
     fn specular(&self, pos: Vector) -> Color;
@@ -173,9 +169,9 @@ trait Surface {
 }
 
 trait Thing {
-   fn intersect(&self, ray: Vector) -> Option<Intersection>;
+   fn intersect(&self, ray: Ray) -> Option<Intersection>;
    fn normal(&self, pos: Vector) -> Vector;
-   fn surface(&self) -> *const Surface;
+   fn surface(&self) -> Box<Surface>;
 }
 
 struct Light {
@@ -183,43 +179,38 @@ struct Light {
     color: Color
 }
 
-struct Sphere
-{
-    surface: *const Surface,
+struct Sphere {
+    surface: Box<Surface>,
     radius2: f32,
     center: Vector,
 }
 
 impl Sphere {
-    fn new(center: Vector, radius: f32, surface: *const Surface)
+    fn new(center: Vector, radius: f32, surface: Box<Surface>) -> Sphere
     {
         Sphere {
             surface: surface,
             radius2: radius * radius,
-            center: center
+            center: center,
         }
     }
 }
 
 impl Thing for Sphere
 {
-   fn intersect(&self, ray: Vector) -> Option<Intersection>
+   fn intersect(&self, ray: Ray) -> Option<Intersection>
    {
         let eo = self.center.sub(ray.start);
-        let v = eo * ray.dir;
-        let mut dist = 0.0;
+        let v = eo.dot(ray.dir);
 
         if v >= 0.0 {
             let disc = self.radius2 - ((eo.dot(eo)) - (v * v));
             if disc >= 0.0 {
-                dist = v - sqrt(disc);
+                let dist = v - disc.sqrt();
+                Some(Intersection::new(self, ray, dist));
             }
         }
-
-        if dist == 0.0 {
-            return None();
-        }
-        return Some(Intersection(this, ray, dist));
+        return None;
    }
 
    fn normal(&self, pos: Vector) -> Vector
@@ -227,7 +218,7 @@ impl Thing for Sphere
        self.center.sub(pos).norm()
    }
 
-   fn surface(&self) -> *const Surface
+   fn surface(&self) -> Box<Surface>
    {
        self.surface
    }
@@ -237,13 +228,13 @@ struct Plane
 {
     norm: Vector,
     offset: f32,
-    surface: *const Surface,
+    surface: Box<Surface>,
 }
 
 impl Plane {
-    fn new(&self, norm: Vector, offset: f32, surface: *const Surface)
+    fn new(norm: Vector, offset: f32, surface: Box<Surface>) -> Plane
     {
-        Plane {
+        return Plane {
             norm: norm,
             offset: offset,
             surface: surface
@@ -253,22 +244,22 @@ impl Plane {
 
 impl Thing for Plane
 {
-    fn intersect(&self, ray: Vector) -> Option<Intersection>
+    fn intersect(&self, ray: Ray) -> Option<Intersection>
     {
-        let denom = norm.dot(ray.dir);
-        if (denom > 0) {
+        let denom = self.norm.dot(ray.dir);
+        if denom > 0.0 {
             return None;
         }
-        let dist = ((norm * ray.start) + offset) / (-denom);
-        return Some(Intersection(this, ray, dist));
+        let dist = (self.norm.dot(ray.start) + self.offset) / (-denom);
+        return Some(Intersection::new(self, ray, dist));
     }
 
-    fn normal(&self, pos: Vector) -> Vector
+    fn normal(&self, _pos: Vector) -> Vector
     {
         return self.norm;
     }
 
-    fn surface(&self) -> *const Surface
+    fn surface(&self) -> Box<Surface>
     {
         return self.surface;
     }
@@ -279,17 +270,17 @@ struct CheckerboardSurface{}
 
 impl Surface for ShinySurface
 {
-    fn diffuse(&self, pos: Vector) -> Color
+    fn diffuse(&self, _pos: Vector) -> Color
     {
         return ColorWhite
     }
 
-    fn specular(&self, pos: Vector) -> Color
+    fn specular(&self, _pos: Vector) -> Color
     {
         return ColorGrey
     }
 
-    fn reflect(&self, pos: Vector) -> f32
+    fn reflect(&self, _pos: Vector) -> f32
     {
         return 0.7;
     }
@@ -304,21 +295,21 @@ impl Surface for CheckerboardSurface
 {
     fn diffuse(&self, pos: Vector) -> Color
     {
-        if (floor(pos.z) + floor(pos.x)) % 2 != 0
+        if (pos.z.floor() + pos.x.floor()) as i32 % 2 != 0
         {
             return ColorWhite;
         }
         return ColorBlack;
     }
 
-    fn specular(&self, pos: Vector) -> Color
+    fn specular(&self, _pos: Vector) -> Color
     {
         return ColorWhite;
     }
 
     fn reflect(&self, pos: Vector) -> f32
     {
-        if (floor(pos.z) + floor(pos.x)) % 2 != 0
+        if (pos.z.floor() + pos.x.floor()) as i32 % 2 != 0
         {
             return 0.1;
         }
@@ -331,248 +322,154 @@ impl Surface for CheckerboardSurface
     }
 }
 
-fn main()
-{
-    let v = Vector::new(0.0, 0.0, 0.0);
-
-    println!("Result {:?}", v);
+struct Scene {
+    things: Vec<Box<Thing>>,
+    lights: Vec<Light>,
+    camera: Camera,
 }
 
+impl Scene
+{
+    fn new() -> Scene
+    {
+        return Scene {
+            things: vec![
+                Box::new(Plane::new(Vector::new(0.0, 1.0, 0.0), 0.0, Box::new(CheckerboardSurface{}))),
+                Box::new(Sphere::new(Vector::new(0.0, 1.0, -0.25), 1.0, Box::new(ShinySurface{}))),
+                Box::new(Sphere::new(Vector::new(-1.0, 0.5, 1.5), 0.5, Box::new(ShinySurface{})))
+            ],
+            lights: vec![
+                Light{pos: Vector::new(-2.0, 2.5, 0.0), color: Color::new(0.49, 0.07, 0.07)},
+                Light{pos: Vector::new(1.5, 2.5, 1.5),  color: Color::new(0.07, 0.07, 0.49)},
+                Light{pos: Vector::new(1.5, 2.5, -1.5), color: Color::new(0.07, 0.49, 0.071)},
+                Light{pos: Vector::new(0.0, 3.5, 0.0),  color: Color::new(0.21, 0.21, 0.35)}
+            ],
+            camera: Camera::new(Vector::new(3.0, 2.0, 4.0), Vector::new(-1.0, 0.5, 0.0))
+        }
+    }
+}
 
+struct RayTracerEngine {
+    maxDepth: i32,
+    scene: Scene
+}
 
+impl RayTracerEngine
+{
+    fn intersections(&self, ray: Ray) -> Option<Intersection>
+    {
+        let closest = FarAway;
+        let mut closestInter: Option<Intersection>;
 
+        for thing in self.scene.things
+        {
+            let inter = thing.intersect(ray);
+            match inter {
+                Some(result) => {
+                    if result.dist < closest {
+                        closestInter = inter;
+                        closest = result.dist;
+                    }
+                }
+            }
+        }
+        return closestInter;
+    }
 
+    fn testRay(&self, ray: Ray) -> Option<f32>
+    {
+        let isect = self.intersections(ray);
+        return match isect {
+            Some(result) => Some(result.dist),
+            None => None
+        }
+    }
 
-// using ThingList = std::vector<std::unique_ptr<Thing>>;
-// using LightList = std::vector<Light>;
+    fn traceRay(&self, ray: Ray, depth: i32) -> Color
+    {
+        let isect = self.intersections(ray);
+        return match isect {
+            Some(result) => self.shade(result, depth),
+            None => ColorBackground
+        }
+    }
 
-// class Scene
-// {
-// public:
-//     virtual ThingList const& things() const = 0;
-//     virtual LightList const& lights() const = 0;
-//     virtual Camera const& camera() const = 0;
-// };
+    fn shade(&self, isect: Intersection, depth: i32) -> Color
+    {
+        let d: Vector = isect.ray.dir;
+        let pos: Vector = d.scale(isect.dist).add(isect.ray.start);
+        let normal: Vector = isect.thing.normal(pos);
+        let reflectDir: Vector = d.sub((normal * (normal * d)) * 2);
 
-// class DefaultScene : public  Scene
-// {
-// private:
-//     ThingList m_things;
-//     LightList m_lights;
-//     Camera    m_camera;
+        let naturalColor = ColorBackground.add(self.getNaturalColor(isect.thing, pos, normal, reflectDir));
+        let reflectedColor = if depth >= self.maxDepth { ColorGrey } else { self.getReflectionColor(isect.thing, pos, normal, reflectDir, depth) };
 
-//     ShinySurface        shiny;
-//     CheckerboardSurface checkerboard;
+        return naturalColor.add(reflectedColor);
+    }
 
-// public:
-//     DefaultScene()
-//     {
-//         m_things.push_back(std::make_unique<Plane>(Vector(0.0, 1.0, 0.0), 0.0, checkerboard));
-//         m_things.push_back(std::make_unique<Sphere>(Vector(0.0, 1.0, -0.25), 1.0, shiny));
-//         m_things.push_back(std::make_unique<Sphere>(Vector(-1.0, 0.5, 1.5), 0.5, shiny));
+    fn getReflectionColor(&self, thing: &Thing, pos: Vector, normal: Vector, rd: Vector, depth: i32) -> Color
+    {
+        let ray  = Ray{start: pos, dir: rd};
+        let color = self.traceRay(ray, depth + 1);
+        let factor = thing.surface().reflect(pos);
+        return color.scale(factor);
+    }
 
-//         m_lights.push_back(Light(Vector(-2.0, 2.5, 0.0), Color(0.49, 0.07, 0.07)));
-//         m_lights.push_back(Light(Vector(1.5, 2.5, 1.5), Color(0.07, 0.07, 0.49)));
-//         m_lights.push_back(Light(Vector(1.5, 2.5, -1.5), Color(0.07, 0.49, 0.071)));
-//         m_lights.push_back(Light(Vector(0.0, 3.5, 0.0), Color(0.21, 0.21, 0.35)));
+    fn getNaturalColor(&self, thing: *const Thing, pos: Vector, norm: Vector, rd: Vector) -> Color
+    {
+        let mut result = ColorBlack;
 
-//         self.m_camera = Camera(Vector(3.0, 2.0, 4.0), Vector(-1.0, 0.5, 0.0));
-//     }
+        for light in self.scene.lights
+        {
+            let ldis = light.pos.sub(pos);
+            let livec = ldis.norm();
+            let ray = Ray{start: pos, dir: livec };
 
-//     ThingList const& things() const override
-//     {
-//         return m_things;
-//     }
+            let neatIsect = self.testRay(ray);
 
-//     LightList const& lights() const override
-//     {
-//         return m_lights;
-//     }
+            let isInShadow = if neatIsect == NAN {false} else { neatIsect <= ldis.mag() };
+            if !isInShadow {
+                let illum    = livec * norm;
+                let specular = livec * rd.norm();
 
-//     Camera const& camera() const override
-//     {
-//         return m_camera;
-//     }
-// };
+                let surface = thing.surface();
 
-// class RayTracerEngine
-// {
-// private:
-//     static const int maxDepth = 5;
-//     Scene &scene;
+                let lcolor = if illum > 0    {(light.color * illum)} else { DefaultColor };
+                let scolor = if specular > 0 {(light.color * pow(specular, surface.roughness())) } else { DefaultColor };
+                result = result + lcolor * surface.diffuse(pos) + scolor * surface.specular(pos);
+            }
+        }
+        return result;
+    }
 
-//     Intersection intersections(const Ray& ray)
-//     {
-//         double closest = INFINITY;
-//         Intersection closestInter;
+    fn getPoint(x: i32, y: i32, camera: Camera, screenWidth: i32, screenHeight: i32) -> Vector
+    {
+        let recenterX =  (x as f32 - (screenWidth as f32  / 2.0)) / 2.0 / screenWidth as f32;
+        let recenterY = -(y as f32 - (screenHeight as f32 / 2.0)) / 2.0 / screenHeight as f32;
+        return (camera.forward.add(camera.right.scale(recenterX)).add(camera.up.scale(recenterY))).norm();
+    }
 
-//         auto& things = scene.things();
+    pub fn render(&self, bitmapData: *mut u8, stride: i32, w: i32, h: i32)
+    {
+        let ray = Ray{start: self.scene.camera.pos, dir: Vector::new(0.0, 0.0, 0.0)};
+        let camera = self.scene.camera;
 
-//         for (auto& thing : things)
-//         {
-//             auto inter = thing->intersect(ray);
-//             if (inter.IsValid() && inter.dist < closest)
-//             {
-//                 closestInter = inter;
-//                 closest = inter.dist;
-//             }
-//         }
-//         return closestInter;
-//     }
+        for y in 0 .. h
+        {
+            RgbColor* pColor = (RgbColor*)(&bitmapData[y * stride]);
+            for  x in 0 .. x
+            {
+                ray.dir = self.getPoint(x, y, camera, h, w);
+                *pColor = self.traceRay(ray, 0).toDrawingColor();
+                pColor++;
+            }
+        }
+    }
+}
 
-//     double testRay(const Ray& ray)
-//     {
-//         auto isect = self.intersections(ray);
-//         if (isect.IsValid())
-//         {
-//             return isect.dist;
-//         }
-//         return NAN;
-//     }
-
-//     Color traceRay(const Ray& ray, int depth)
-//     {
-//         auto isect = self.intersections(ray);
-//         if (isect.IsValid())
-//         {
-//             return self.shade(isect, depth);
-//         }
-//         return Color::background;
-//     }
-
-//     Color shade(const Intersection& isect, int depth)
-//     {
-//         Vector d = isect.ray.dir;
-//         Vector pos = (d * isect.dist) + isect.ray.start;
-//         Vector normal = isect.thing->normal(pos);
-//         Vector reflectDir = d - ((normal * (normal * d)) * 2);
-
-//         Color naturalColor = Color::background + self.getNaturalColor(isect.thing, pos, normal, reflectDir);
-//         Color reflectedColor = (depth >= self.maxDepth)
-//             ? Color::grey
-//             : self.getReflectionColor(isect.thing, pos, normal, reflectDir, depth);
-
-//         return naturalColor + reflectedColor;
-//     }
-
-//     Color getReflectionColor(const Thing* thing, const Vector& pos, const Vector& normal, const Vector& rd, int depth)
-//     {
-//         Ray    ray(pos, rd);
-//         Color  color = self.traceRay(ray, depth + 1);
-//         double factor = thing->surface().reflect(pos);
-//         return color.scale(factor);
-//     }
-
-//     Color getNaturalColor(const Thing* thing, const Vector& pos, const Vector& norm, const Vector& rd)
-//     {
-//         Color result = Color::black;
-//         auto& items = scene.lights();
-
-//         for (auto& item : items)
-//         {
-//             addLight(result, item, pos, thing, rd, norm);
-//         }
-//         return result;
-//     }
-
-//     void addLight(Color& resultColor, const Light& light, const Vector& pos, const Thing* thing, const Vector& rd, const Vector& norm)
-//     {
-//         Vector ldis = light.pos - pos;
-//         Vector livec = ldis.norm();
-//         Ray ray{ pos, livec };
-
-//         double neatIsect = self.testRay(ray);
-
-//         bool isInShadow = (neatIsect == NAN) ? false : (neatIsect <= ldis.mag());
-//         if (isInShadow) {
-//             return;
-//         }
-//         double illum    = livec * norm;
-//         double specular = livec * rd.norm();
-
-//         auto& surface = thing->surface();
-
-//         Color lcolor = (illum > 0) ? (light.color * illum) : Color::defaultColor;
-//         Color scolor = (specular > 0) ? (light.color * pow(specular, surface.roughness())) : Color::defaultColor;
-//         resultColor = resultColor + lcolor * surface.diffuse(pos) + scolor * surface.specular(pos);
-//     }
-
-//     Vector getPoint(int x, int y, const Camera& camera, int screenWidth, int screenHeight)
-//     {
-//         double recenterX = (x - (screenWidth / 2.0)) / 2.0 / screenWidth;
-//         double recenterY = -(y - (screenHeight / 2.0)) / 2.0 / screenHeight;
-//         return (camera.forward + ((camera.right * recenterX) + (camera.up * recenterY))).norm();
-//     }
-
-// public:
-
-//     RayTracerEngine(Scene &scene) : scene{ scene } {}
-
-//     void render(byte* bitmapData, int stride, int w, int h)
-//     {
-//         Ray ray;
-//         ray.start = scene.camera().pos;
-//         auto& camera = scene.camera();
-
-//         for (int y = 0; y < h; ++y)
-//         {
-//             RgbColor* pColor = (RgbColor*)(&bitmapData[y * stride]);
-//             for (int x = 0; x < w; ++x)
-//             {
-//                 ray.dir = self.getPoint(x, y, camera, h, w);
-//                 *pColor = self.traceRay(ray, 0).toDrawingColor();
-//                 pColor++;
-//             }
-//         }
-//     }
-// };
-
-// void SaveRGBBitmap(byte* pBitmapBits, LONG lWidth, LONG lHeight, WORD wBitsPerPixel, LPCSTR lpszFileName)
-// {
-//     BITMAPINFOHEADER bmpInfoHeader = { 0 };
-//     bmpInfoHeader.biSize = sizeof(BITMAPINFOHEADER);
-//     bmpInfoHeader.biBitCount = wBitsPerPixel;
-//     bmpInfoHeader.biClrImportant = 0;
-//     bmpInfoHeader.biClrUsed = 0;
-//     bmpInfoHeader.biCompression = BI_RGB;
-//     bmpInfoHeader.biHeight = -lHeight;
-//     bmpInfoHeader.biWidth = lWidth;
-//     bmpInfoHeader.biPlanes = 1;
-//     bmpInfoHeader.biSizeImage = lWidth* lHeight * (wBitsPerPixel / 8);
-
-//     BITMAPFILEHEADER bfh = { 0 };
-//     bfh.bfType = 'B' + ('M' << 8);
-//     bfh.bfOffBits = sizeof(BITMAPINFOHEADER) + sizeof(BITMAPFILEHEADER);
-//     bfh.bfSize = bfh.bfOffBits + bmpInfoHeader.biSizeImage;
-
-//     std::ofstream file(lpszFileName, std::ios::binary | std::ios::trunc);
-//     file.write((const char*)&bfh, sizeof(bfh));
-//     file.write((const char*)&bmpInfoHeader, sizeof(bmpInfoHeader));
-//     file.write((const char*)pBitmapBits, bmpInfoHeader.biSizeImage);
-//     file.close();
-// }
-
-// int main()
-// {
-//     std::cout << "Started " << std::endl;
-//     auto t1 = std::chrono::high_resolution_clock::now();
-
-//     DefaultScene    scene;
-//     RayTracerEngine rayTracer(scene);
-
-//     int width = 500;
-//     int height = 500;
-//     int stride = width * 4;
-
-//     std::vector<byte> bitmapData(stride * height);
-
-//     rayTracer.render(&bitmapData[0], stride, width, height);
-
-//     auto t2 = std::chrono::high_resolution_clock::now();
-//     auto diff = std::chrono::duration_cast<std::chrono::milliseconds>((t2 - t1));
-
-//     std::cout << "Completed in " << diff.count() << " ms" << std::endl;
-//     SaveRGBBitmap(&bitmapData[0], width, height, 32, "cpp-raytracer.bmp");
-
-//     return 0;
-// };
+fn main() {
+    let width  = 500;
+    let height = 500;
+    let rayTracer = RayTracerEngine{maxDepth: 5, scene: Scene::new() };
+    // rayTracer.render(image, width, height);
+}

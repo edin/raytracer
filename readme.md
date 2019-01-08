@@ -6,15 +6,15 @@ Raytracer benchmarks based on [Typescript](http://www.typescriptlang.org) sample
 
 Language / Compiler       | Time [ms]
 ------------------------- | -------------
-C                         | 210 ms
 D (LDC)                   | 210 ms
-C++ (Visual C++ 19.0)     | 300 ms
-C++ (GCC 6.3)             | 330 ms
+C (MSVC)                  | 250 ms
+C++ (MSVC)                | 250 ms
+C++ (GCC)                 | 330 ms
 C#                        | 360 ms
 VB.NET                    | 360 ms
 Delphi XE6                | 390 ms
+Go                        | 460 ms
 D (DMD)                   | 500 ms
-Go                        | 530 ms
 Java 9                    | 600 ms
 Delphi 2010 (32 bit)      | 720 ms
 Node                      | 4000 ms
