@@ -6,6 +6,7 @@ Raytracer benchmarks based on [Typescript](http://www.typescriptlang.org) sample
 
 Language / Compiler       | Time [ms]
 ------------------------- | -------------
+C (GCC)                   | 160 ms
 D (LDC)                   | 210 ms
 C (MSVC)                  | 250 ms
 C++ (MSVC)                | 250 ms

@@ -43,11 +43,6 @@ impl Vector
         Vector::new(k * self.x, k * self.y, k * self.z)
     }
 
-    fn mul(&self, v: Vector) -> Vector
-    {
-        Vector::new(self.x * v.x, self.y * v.y, self.z * v.z)
-    }
-
     fn dot(&self, v: Vector) -> f32
     {
         self.x * v.x + self.y * v.y + self.z * v.z
@@ -161,17 +156,41 @@ impl Intersection {
     }
 }
 
-trait Surface {
-    fn diffuse(&self, pos: Vector) -> Color;
-    fn specular(&self, pos: Vector) -> Color;
-    fn reflect(&self, pos: Vector) -> f32;
-    fn roughness(&self) -> f32;
+enum Surface {
+    CheckerboardSurface,
+    ShinySurface
 }
+
+struct SurfaceProperties {
+    diffuse: Color,
+    specular: Color,
+    reflect: f32,
+    roughness: f32
+}
+
+fn getProperties(surface: Surface, pos: Vector) -> SurfaceProperties {
+    match surface {
+        CheckerboardSurface => {
+            let mut diffuse = ColorWhite;
+            let mut specular = 0.7;
+
+            if (pos.z.floor() + pos.x.floor()) as i32 % 2 != 0 {
+                diffuse  = ColorWhite;
+                specular = 0.7;
+            }
+            return SurfaceProperties {diffuse: ColorBlack, specular: ColorBlack, reflect: 1.0, roughness: 150.0}
+        },
+        ShinySurface => {
+            return SurfaceProperties {diffuse: ColorBlack, specular: ColorBlack, reflect: 1.0, roughness: 150.0}
+        }
+    }
+}
+
 
 trait Thing {
    fn intersect(&self, ray: Ray) -> Option<Intersection>;
    fn normal(&self, pos: Vector) -> Vector;
-   fn surface(&self) -> Box<Surface>;
+   fn surface(&self) -> Surface;
 }
 
 struct Light {
@@ -180,13 +199,13 @@ struct Light {
 }
 
 struct Sphere {
-    surface: Box<Surface>,
+    surface: Surface,
     radius2: f32,
     center: Vector,
 }
 
 impl Sphere {
-    fn new(center: Vector, radius: f32, surface: Box<Surface>) -> Sphere
+    fn new(center: Vector, radius: f32, surface: Surface) -> Sphere
     {
         Sphere {
             surface: surface,
@@ -218,7 +237,7 @@ impl Thing for Sphere
        self.center.sub(pos).norm()
    }
 
-   fn surface(&self) -> Box<Surface>
+   fn surface(&self) -> Surface
    {
        self.surface
    }
@@ -228,11 +247,11 @@ struct Plane
 {
     norm: Vector,
     offset: f32,
-    surface: Box<Surface>,
+    surface: Surface,
 }
 
 impl Plane {
-    fn new(norm: Vector, offset: f32, surface: Box<Surface>) -> Plane
+    fn new(norm: Vector, offset: f32, surface: Surface) -> Plane
     {
         return Plane {
             norm: norm,
@@ -259,68 +278,12 @@ impl Thing for Plane
         return self.norm;
     }
 
-    fn surface(&self) -> Box<Surface>
+    fn surface(&self) -> Surface
     {
         return self.surface;
     }
 }
 
-struct ShinySurface{}
-struct CheckerboardSurface{}
-
-impl Surface for ShinySurface
-{
-    fn diffuse(&self, _pos: Vector) -> Color
-    {
-        return ColorWhite
-    }
-
-    fn specular(&self, _pos: Vector) -> Color
-    {
-        return ColorGrey
-    }
-
-    fn reflect(&self, _pos: Vector) -> f32
-    {
-        return 0.7;
-    }
-
-    fn roughness(&self) -> f32
-    {
-        return 250.0;
-    }
-}
-
-impl Surface for CheckerboardSurface
-{
-    fn diffuse(&self, pos: Vector) -> Color
-    {
-        if (pos.z.floor() + pos.x.floor()) as i32 % 2 != 0
-        {
-            return ColorWhite;
-        }
-        return ColorBlack;
-    }
-
-    fn specular(&self, _pos: Vector) -> Color
-    {
-        return ColorWhite;
-    }
-
-    fn reflect(&self, pos: Vector) -> f32
-    {
-        if (pos.z.floor() + pos.x.floor()) as i32 % 2 != 0
-        {
-            return 0.1;
-        }
-        return 0.7;
-    }
-
-    fn roughness(&self) -> f32
-    {
-        return 150.0;
-    }
-}
 
 struct Scene {
     things: Vec<Box<Thing>>,
@@ -334,9 +297,9 @@ impl Scene
     {
         return Scene {
             things: vec![
-                Box::new(Plane::new(Vector::new(0.0, 1.0, 0.0), 0.0, Box::new(CheckerboardSurface{}))),
-                Box::new(Sphere::new(Vector::new(0.0, 1.0, -0.25), 1.0, Box::new(ShinySurface{}))),
-                Box::new(Sphere::new(Vector::new(-1.0, 0.5, 1.5), 0.5, Box::new(ShinySurface{})))
+                Box::new(Plane::new(Vector::new(0.0, 1.0, 0.0), 0.0,     Surface::CheckerboardSurface)),
+                Box::new(Sphere::new(Vector::new(0.0, 1.0, -0.25), 1.0,  Surface::ShinySurface)),
+                Box::new(Sphere::new(Vector::new(-1.0, 0.5, 1.5), 0.5,   Surface::ShinySurface))
             ],
             lights: vec![
                 Light{pos: Vector::new(-2.0, 2.5, 0.0), color: Color::new(0.49, 0.07, 0.07)},
@@ -401,23 +364,26 @@ impl RayTracerEngine
         let normal: Vector = isect.thing.normal(pos);
         let reflectDir: Vector = d.sub((normal * (normal * d)) * 2);
 
-        let naturalColor = ColorBackground.add(self.getNaturalColor(isect.thing, pos, normal, reflectDir));
-        let reflectedColor = if depth >= self.maxDepth { ColorGrey } else { self.getReflectionColor(isect.thing, pos, normal, reflectDir, depth) };
+        let surface = isect.thing.surface().getSurfaceProperties(pos);
+
+        let naturalColor = ColorBackground.add(self.getNaturalColor(isect.thing, surface, pos, normal, reflectDir));
+        let reflectedColor = if depth >= self.maxDepth { ColorGrey } else { self.getReflectionColor(isect.thing, surface, pos, normal, reflectDir, depth) };
 
         return naturalColor.add(reflectedColor);
     }
 
-    fn getReflectionColor(&self, thing: &Thing, pos: Vector, normal: Vector, rd: Vector, depth: i32) -> Color
+    fn getReflectionColor(&self, thing: &Thing, surface: SurfaceProperties,  pos: Vector, normal: Vector, rd: Vector, depth: i32) -> Color
     {
         let ray  = Ray{start: pos, dir: rd};
         let color = self.traceRay(ray, depth + 1);
-        let factor = thing.surface().reflect(pos);
+        let factor = surface.reflect;
         return color.scale(factor);
     }
 
-    fn getNaturalColor(&self, thing: *const Thing, pos: Vector, norm: Vector, rd: Vector) -> Color
+    fn getNaturalColor(&self, thing: *const Thing, surface: SurfaceProperties, pos: Vector, norm: Vector, rd: Vector) -> Color
     {
         let mut result = ColorBlack;
+        let rdNorm = rd.norm();
 
         for light in self.scene.lights
         {
@@ -427,16 +393,18 @@ impl RayTracerEngine
 
             let neatIsect = self.testRay(ray);
 
-            let isInShadow = if neatIsect == NAN {false} else { neatIsect <= ldis.mag() };
+            let isInShadow = match neatIsect {
+                 Some(value) => { value <= ldis.mag() }
+                 None        => false
+            };
+
             if !isInShadow {
-                let illum    = livec * norm;
-                let specular = livec * rd.norm();
+                let illum    = livec.dot(norm);
+                let specular = livec.dot(rdNorm);
 
-                let surface = thing.surface();
-
-                let lcolor = if illum > 0    {(light.color * illum)} else { DefaultColor };
-                let scolor = if specular > 0 {(light.color * pow(specular, surface.roughness())) } else { DefaultColor };
-                result = result + lcolor * surface.diffuse(pos) + scolor * surface.specular(pos);
+                let lcolor = if illum > 0.0    {light.color.scale(illum)} else { ColorDefaultColor };
+                let scolor = if specular > 0.0 {light.color.scale(specular.pow(surface.roughness)) } else { ColorDefaultColor };
+                result = result.add(lcolor.times(surface.diffuse)).add(scolor.times(surface.specular));
             }
         }
         return result;
