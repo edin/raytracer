@@ -5,3 +5,6 @@ authors = ["Edin <edin.omeragic@gmail.com>"]
 
 [[bin]]
 name = "RayTracer"
+
+[dependencies]
+bmp = "*"
