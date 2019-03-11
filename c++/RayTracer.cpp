@@ -1,5 +1,4 @@
-#include <windows.h>
-#include <math.h>
+#include <cmath>
 #include <vector>
 #include <iostream>
 #include <memory>
@@ -379,7 +378,7 @@ class RayTracerEngine
 public:
     RayTracerEngine(Scene &scene) : scene(scene) {}
 
-    void render(byte* bitmapData, int stride, int w, int h)
+    void render(UInt8* bitmapData, int stride, int w, int h)
     {
         Ray ray(scene.camera.pos, Vector());
         auto& camera = scene.camera;
@@ -397,28 +396,55 @@ public:
     }
 };
 
-void SaveRGBBitmap(byte* pBitmapBits, LONG lWidth, LONG lHeight, WORD wBitsPerPixel, LPCSTR lpszFileName)
+void SaveRGBBitmap(UInt8* bitmapBits, int width, int height, int bitsPerPixel, const char* fileName)
 {
+    typedef unsigned long DWORD;
+    typedef long LONG;
+    typedef unsigned short WORD;
+    const int BI_RGB = 0;
+
+    struct BITMAPINFOHEADER {
+        DWORD biSize;
+        LONG  biWidth;
+        LONG  biHeight;
+        WORD  biPlanes;
+        WORD  biBitCount;
+        DWORD biCompression;
+        DWORD biSizeImage;
+        LONG  biXPelsPerMeter;
+        LONG  biYPelsPerMeter;
+        DWORD biClrUsed;
+        DWORD biClrImportant;
+    };
+
+    struct BITMAPFILEHEADER {
+        WORD  bfType;
+        DWORD bfSize;
+        WORD  bfReserved1;
+        WORD  bfReserved2;
+        DWORD bfOffBits;
+    };
+
     BITMAPINFOHEADER bmpInfoHeader = { 0 };
     bmpInfoHeader.biSize = sizeof(BITMAPINFOHEADER);
-    bmpInfoHeader.biBitCount = wBitsPerPixel;
+    bmpInfoHeader.biBitCount = bitsPerPixel;
     bmpInfoHeader.biClrImportant = 0;
     bmpInfoHeader.biClrUsed = 0;
     bmpInfoHeader.biCompression = BI_RGB;
-    bmpInfoHeader.biHeight = -lHeight;
-    bmpInfoHeader.biWidth = lWidth;
+    bmpInfoHeader.biHeight = -height;
+    bmpInfoHeader.biWidth = width;
     bmpInfoHeader.biPlanes = 1;
-    bmpInfoHeader.biSizeImage = lWidth * lHeight * (wBitsPerPixel / 8);
+    bmpInfoHeader.biSizeImage = width * height * (bitsPerPixel / 8);
 
     BITMAPFILEHEADER bfh = { 0 };
     bfh.bfType = 'B' + ('M' << 8);
     bfh.bfOffBits = sizeof(BITMAPINFOHEADER) + sizeof(BITMAPFILEHEADER);
     bfh.bfSize = bfh.bfOffBits + bmpInfoHeader.biSizeImage;
 
-    std::ofstream file(lpszFileName, std::ios::binary | std::ios::trunc);
+    std::ofstream file(fileName, std::ios::binary | std::ios::trunc);
     file.write((const char*)&bfh, sizeof(bfh));
     file.write((const char*)&bmpInfoHeader, sizeof(bmpInfoHeader));
-    file.write((const char*)pBitmapBits, bmpInfoHeader.biSizeImage);
+    file.write((const char*)bitmapBits, bmpInfoHeader.biSizeImage);
     file.close();
 }
 
@@ -434,7 +460,7 @@ int main()
     int height = 500;
     int stride = width * 4;
 
-    std::vector<byte> bitmapData(stride * height);
+    std::vector<UInt8> bitmapData(stride * height);
     rayTracer.render(&bitmapData[0], stride, width, height);
 
     auto t2 = std::chrono::high_resolution_clock::now();
