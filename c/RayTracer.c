@@ -1,7 +1,8 @@
 #define _CRT_SECURE_NO_DEPRECATE
-#include <windows.h>
 #include <math.h>
 #include <stdio.h>
+#include <stdlib.h>
+#include <time.h>
 
 #ifdef _MSC_VER
 #   ifndef INFINITY
@@ -9,6 +10,35 @@
 #       define NAN (INFINITY-INFINITY)
 #   endif
 #endif
+
+typedef unsigned char  UInt8;
+typedef unsigned long  DWORD;
+typedef unsigned short WORD;
+typedef long LONG;
+
+const int BI_RGB = 0;
+
+typedef struct {
+    DWORD biSize;
+    LONG  biWidth;
+    LONG  biHeight;
+    WORD  biPlanes;
+    WORD  biBitCount;
+    DWORD biCompression;
+    DWORD biSizeImage;
+    LONG  biXPelsPerMeter;
+    LONG  biYPelsPerMeter;
+    DWORD biClrUsed;
+    DWORD biClrImportant;
+} BITMAPINFOHEADER;
+
+typedef struct {
+    WORD  bfType;
+    DWORD bfSize;
+    WORD  bfReserved1;
+    WORD  bfReserved2;
+    DWORD bfOffBits;
+} BITMAPFILEHEADER;
 
 typedef enum SurfaceType {
     SHINY_SURFACE,
@@ -21,7 +51,7 @@ typedef enum ObjectType {
 } ObjectType;
 
 typedef struct RgbColor {
-    byte b, g, r ,a;
+    UInt8 b, g, r ,a;
 } RgbColor;
 
 typedef struct Vector{
@@ -193,9 +223,9 @@ Color ColorAdd(Color *v1, Color *v2) {
     return color;
 }
 
-byte Legalize(double c)
+UInt8 Legalize(double c)
 {
-    byte x = (byte)(c * 255);
+    UInt8 x = (UInt8)(c * 255);
     if (x < 0)   return 0;
     if (x > 255) return 255;
     return x;
@@ -204,9 +234,9 @@ byte Legalize(double c)
 RgbColor ToDrawingColor(Color *c)
 {
     RgbColor color;
-    color.r = (byte)Legalize(c->r);
-    color.g = (byte)Legalize(c->g);
-    color.b = (byte)Legalize(c->b);
+    color.r = (UInt8)Legalize(c->r);
+    color.g = (UInt8)Legalize(c->g);
+    color.b = (UInt8)Legalize(c->b);
     color.a = 255;
     return color;
 }
@@ -536,7 +566,7 @@ Vector GetPoint(int x, int y, Camera *camera, int screenWidth, int screenHeight)
     return z;
 }
 
-void RenderScene(Scene *scene, byte* bitmapData, int stride, int w, int h)
+void RenderScene(Scene *scene, UInt8* bitmapData, int stride, int w, int h)
 {
     Ray ray;
     ray.start = scene->camera.pos;
@@ -553,18 +583,18 @@ void RenderScene(Scene *scene, byte* bitmapData, int stride, int w, int h)
     }
 }
 
-void SaveRGBBitmap(byte* pBitmapBits, int lWidth, int lHeight, int wBitsPerPixel, const char* lpszFileName)
+void SaveRGBBitmap(UInt8* bitmapBits, int width, int height, int bitsPerPixel, const char* fileName)
 {
     BITMAPINFOHEADER bmpInfoHeader = {0};
     bmpInfoHeader.biSize = sizeof(BITMAPINFOHEADER);
-    bmpInfoHeader.biBitCount = wBitsPerPixel;
+    bmpInfoHeader.biBitCount = bitsPerPixel;
     bmpInfoHeader.biClrImportant = 0;
     bmpInfoHeader.biClrUsed = 0;
     bmpInfoHeader.biCompression = BI_RGB;
-    bmpInfoHeader.biHeight = -lHeight;
-    bmpInfoHeader.biWidth  = lWidth;
+    bmpInfoHeader.biHeight = -height;
+    bmpInfoHeader.biWidth  = width;
     bmpInfoHeader.biPlanes = 1;
-    bmpInfoHeader.biSizeImage = lWidth* lHeight * (wBitsPerPixel/8);
+    bmpInfoHeader.biSizeImage = width* height * (bitsPerPixel/8);
 
     BITMAPFILEHEADER bfh = {0};
     bfh.bfType = 'B' + ('M' << 8);
@@ -572,10 +602,10 @@ void SaveRGBBitmap(byte* pBitmapBits, int lWidth, int lHeight, int wBitsPerPixel
     bfh.bfSize    = bfh.bfOffBits + bmpInfoHeader.biSizeImage;
 
     FILE *hFile;
-    hFile = fopen(lpszFileName, "wb");
+    hFile = fopen(fileName, "wb");
     fwrite(&bfh, sizeof(char), sizeof(bfh), hFile);
     fwrite(&bmpInfoHeader, sizeof(char), sizeof(bmpInfoHeader), hFile);
-    fwrite(pBitmapBits, sizeof(char), bmpInfoHeader.biSizeImage, hFile);
+    fwrite(bitmapBits, sizeof(char), bmpInfoHeader.biSizeImage, hFile);
     fclose(hFile);
 }
 
@@ -585,26 +615,27 @@ int main()
     checkerboard = CreateSurface(CHECKERBOARD_SURFACE);
 
     printf("Started\n");
-    long t1 = GetTickCount();
+    clock_t t1 = clock();
     Scene scene  = CreateScene();
 
     int width  = 500;
     int height = 500;
     int stride = width * 4;
 
-    byte* bitmapData = (byte*)(malloc(stride * height));
+    UInt8* bitmapData = (UInt8*)(malloc(stride * height));
 
     RenderScene(&scene, &bitmapData[0], stride, width, height);
 
-    long t2 = GetTickCount();
-    long time = t2 - t1;
+    clock_t t2   = clock();
+    clock_t time = t2 - t1;
+    int time_ms = (int)((((double)time) / CLOCKS_PER_SEC) * 1000);
 
-    printf("Completed in %d ms\n", time);
-    SaveRGBBitmap(&bitmapData[0], width, height, 32, "cpp-raytracer.bmp");
+    printf("Completed in %d ms\n", time_ms);
+    SaveRGBBitmap(&bitmapData[0], width, height, 32, "c-raytracer.bmp");
 
     ReleaseScene(&scene);
     free(bitmapData);
-    system("pause");
+    //system("pause");
 
     return 0;
 };
