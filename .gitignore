@@ -20,3 +20,4 @@ delphi/DelphiRayTracer.identcache
 c++/RayTracer/RayTracer.sdf
 /zig/zig-cache
 /zig/RayTracer.lib
+*.mod

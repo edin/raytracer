@@ -1,6 +1,7 @@
 import math
+import times
 
-let FarAway: float = 1000000.0
+let FarAway: float64 = 1000000.0
 
 type
   SurfaceType = enum
@@ -13,10 +14,10 @@ type
     b, g, r, a: uint8
 
   Vector = object
-    x, y, z: float
+    x, y, z: float64
 
   Color = object
-    r, b, g: float
+    r, b, g: float64
 
   Camera = object
     forward, right, up, pos: Vector
@@ -29,21 +30,21 @@ type
     case objectType: ObjectType
     of Sphere:
       center: Vector
-      radius2: float
+      radius2: float64
     of Plane:
       normal: Vector
-      offset: float
+      offset: float64
 
   Intersection = object
     thing: Thing
     ray: Ray
-    dist: float
+    dist: float64
 
   Light = object
     pos: Vector
     color: Color
 
-  Scene = object
+  Scene = ref object
     maxDepth: int
     things: seq[Thing]
     lights: seq[Light]
@@ -51,7 +52,7 @@ type
 
   SurfaceProperties = object
     diffuse, specular: Color
-    reflect, roughness: float
+    reflect, roughness: float64
 
 let white        = Color(r: 1.0, g: 1.0, b: 1.0)
 let grey         = Color(r: 0.5, g: 0.5, b: 0.5)
@@ -59,17 +60,17 @@ let black        = Color(r: 0.0, g: 0.0, b: 0.0)
 let background   = Color(r: 0.0, g: 0.0, b: 0.0)
 let defaultColor = Color(r: 0.0, g: 0.0, b: 0.0)
 
-proc Cross(v1: Vector, v2: Vector): Vector =
+proc Cross(v1: var Vector, v2: var Vector): Vector =
   return Vector(
     x: v1.y * v2.z - v1.z * v2.y,
     y: v1.z * v2.x - v1.x * v2.z,
     z: v1.x * v2.y - v1.y * v2.x
   )
 
-proc Length(v: Vector): float =
+proc Length(v: Vector): float64 =
   return sqrt(v.x * v.x + v.y * v.y + v.z * v.z)
 
-proc Scale(v: Vector, k: float): Vector =
+proc Scale(v: Vector, k: float64): Vector =
   return Vector(
     x: k * v.x,
     y: k * v.y,
@@ -77,15 +78,15 @@ proc Scale(v: Vector, k: float): Vector =
   )
 
 proc Norm(v: Vector): Vector =
-  let mag: float = v.Length
-  var s:   float
+  let mag: float64 = v.Length
+  var s:   float64
   if mag == 0:
     s = FarAway
   else:
     s = 1.0 / mag
   return v.Scale(s)
 
-proc Dot(v1: Vector, v2: Vector): float =
+proc Dot(v1: Vector, v2: Vector): float64 =
   return (v1.x * v2.x) + (v1.y * v2.y) + (v1.z * v2.z)
 
 proc Add(v1: Vector, v2: Vector): Vector  =
@@ -102,7 +103,7 @@ proc Sub(v1: Vector, v2: Vector): Vector =
     z: v1.z - v2.z
   )
 
-proc Scale(color: Color, k: float): Color  =
+proc Scale(color: Color, k: float64): Color  =
   return Color(
     r: k * color.r,
     g: k * color.g,
@@ -123,13 +124,13 @@ proc Add(a: Color, b: Color): Color =
     b: a.b + b.b
   )
 
-proc Legalize(c: float): uint8 =
+proc Legalize(c: float64): uint8 =
   let x = (c * 255.0)
   if x < 0.0:
     return 0
   if x > 255.0:
     return 255
-  return cast[uint8](x)
+  return uint8(x)
 
 proc ToDrawingColor(c: Color): RgbColor =
   var color: RgbColor
@@ -154,7 +155,7 @@ proc CreateCamera(pos: Vector, lookAt: Vector): Camera =
 
   camera.right = rightNorm.Scale(1.5)
   camera.up    = upNorm.Scale(1.5)
- 
+
   return camera
 
 proc Normal(obj: Thing, pos: Vector): Vector =
@@ -176,7 +177,7 @@ proc ObjectIntersect(obj: Thing, ray: Ray): Intersection =
         let disc = obj.radius2 - (eo.Dot(eo) - (v * v))
         if (disc >= 0):
             dist = v - sqrt(disc)
-      if (dist != 0):
+      if (dist != 0.0):
         result.thing = obj
         result.ray   = ray
         result.dist  = dist
@@ -187,20 +188,11 @@ proc ObjectIntersect(obj: Thing, ray: Ray): Intersection =
         result.thing = obj
         result.ray   = ray
 
-proc CreateVector(x: float, y: float, z: float): Vector =
-  return Vector(x: x, y: y, z: z)
-
-proc CreateLight(pos: Vector, color: Color): Light =
-  return Light(pos: pos, color: color)
-
-proc CreateColor(r: float, g: float, b: float): Color =
-  return Color(r: r, g: g, b: b)
-
-proc CreateSphere(center: Vector, radius: float, surfaceType: SurfaceType): Thing =
+proc CreateSphere(center: Vector, radius: float64, surfaceType: SurfaceType): Thing =
   var r2 = radius * radius
   return Thing(surfaceType: surfaceType, objectType: Sphere, center: center, radius2: r2)
 
-proc CreatePlane(normal: Vector, offset: float, surfaceType: SurfaceType): Thing =
+proc CreatePlane(normal: Vector, offset: float64, surfaceType: SurfaceType): Thing =
   return Thing(surfaceType: surfaceType, objectType: Plane,  normal: normal, offset: offset)
 
 proc GetSurfaceProperties(obj: Thing, pos: Vector): SurfaceProperties =
@@ -224,36 +216,37 @@ proc GetSurfaceProperties(obj: Thing, pos: Vector): SurfaceProperties =
   return properties
 
 proc CreateScene(): Scene =
-  var scene: Scene;
+  var scene: Scene = new Scene;
   scene.maxDepth   = 5
 
   scene.things = @[
-    CreatePlane(CreateVector(0.0, 1.0, 0.0), 0.0, CheckerBoardSurface),
-    CreateSphere(CreateVector(0.0, 1.0, -0.25), 1.0, ShinySurface),
-    CreateSphere(CreateVector(-1.0, 0.5, 1.5), 0.5, ShinySurface)
+    CreatePlane(Vector(x:0.0, y:1.0,  z: 0.0), 0.0, CheckerBoardSurface),
+    CreateSphere(Vector(x:0.0, y:1.0, z: -0.25), 1.0, ShinySurface),
+    CreateSphere(Vector(x: -1.0, y:0.5, z: 1.5), 0.5, ShinySurface)
   ]
 
   scene.lights =  @[
-    CreateLight(CreateVector(-2.0, 2.5, 0.0), CreateColor(0.49, 0.07, 0.07)),
-    CreateLight(CreateVector(1.5, 2.5, 1.5),  CreateColor(0.07, 0.07, 0.49)),
-    CreateLight(CreateVector(1.5, 2.5, -1.5), CreateColor(0.07, 0.49, 0.071)),
-    CreateLight(CreateVector(0.0, 3.5, 0.0),  CreateColor(0.21, 0.21, 0.35))
+    Light(pos: Vector(x: -2.0, y: 2.5, z: 0.0),  color: Color(r: 0.49, g: 0.07, b: 0.07)),
+    Light(pos: Vector(x: 1.5,  y: 2.5, z: 1.5),  color: Color(r: 0.07, g: 0.07, b: 0.49)),
+    Light(pos: Vector(x: 1.5,  y: 2.5, z: -1.5), color: Color(r: 0.07, g: 0.49, b: 0.071)),
+    Light(pos: Vector(x: 0.0,  y: 3.5, z: 0.0),  color: Color(r: 0.21, g: 0.21, b: 0.35))
   ]
 
-  scene.camera = CreateCamera(CreateVector(3.0, 2.0, 4.0), CreateVector(-1.0, 0.5, 0.0))
+  scene.camera = CreateCamera(Vector(x:3.0, y: 2.0,z: 4.0), Vector(x: -1.0, y: 0.5, z: 0.0))
   return scene
 
 proc Intersections(scene: Scene, ray: Ray): Intersection =
-  var closest: float = FarAway
+  var closest: float64 = FarAway
+  result.thing = nil
 
   for thing in scene.things:
     let intersect = ObjectIntersect(thing, ray)
-    if not isNil(intersect.thing) and (intersect.dist < closest):
+    if (not isNil(intersect.thing)) and (intersect.dist < closest):
       result = intersect
       closest = intersect.dist
   return result
 
-proc TestRay(scene: Scene, ray: Ray): float =
+proc TestRay(scene: Scene, ray: Ray): float64 =
   let isect = scene.Intersections(ray)
   if not isNil(isect.thing):
     return isect.dist
@@ -268,17 +261,13 @@ proc Shade(scene: Scene, isect: Intersection, depth: int): Color =
 
   var pos = scaled.Add(isect.ray.start)
   var normal = isect.thing.Normal(pos)
-  var nodmalDotD = normal.Dot(d)
-  var normalScaled = normal.Scale(nodmalDotD * 2)
-  var reflectDir = d.Sub(normalScaled)
+  var reflectDir = d.Sub(normal.Scale(normal.Dot(d) * 2))
 
-  var naturalColor = GetNaturalColor(scene, isect.thing, pos, normal, reflectDir)
-  naturalColor = background.Add(naturalColor)
-
+  var naturalColor =  background.Add(GetNaturalColor(scene, isect.thing, pos, normal, reflectDir))
   var reflectedColor: Color
 
   if depth >= scene.maxDepth:
-    reflectedColor = grey 
+    reflectedColor = grey
   else:
     reflectedColor = GetReflectionColor(scene, isect.thing, pos, normal, reflectDir, depth)
 
@@ -305,59 +294,55 @@ proc GetNaturalColor(scene: Scene, thing: Thing, pos: Vector, norm: Vector, rd: 
   for light in scene.lights:
     var ldis  = light.pos.Sub(pos)
     var livec = ldis.Norm()
-
     var ldisLen = ldis.Length()
     var ray = Ray(start: pos, dir: livec)
     var neatIsect = scene.TestRay(ray)
 
-    let isInShadow = if (neatIsect == NAN): 
-                      false 
-                     else: 
-                      neatIsect <= ldisLen
+    let isInShadow = (neatIsect.classify != fcNan) and neatIsect <= ldisLen
+
     if not isInShadow:
       let illum   =  livec.Dot(norm)
       let specular = livec.Dot(rdNorm)
 
-      var lcolor = if illum > 0:    
-                    light.color.Scale(illum) 
-                   else:  
+      var lcolor = if illum > 0:
+                    light.color.Scale(illum)
+                   else:
                     defaultColor
-      var scolor = if specular > 0: 
+      var scolor = if specular > 0:
                      light.color.Scale(pow(specular, sp.roughness))
-                   else: 
+                   else:
                      defaultColor
+
       lcolor = lcolor.Multiply(sp.diffuse)
       scolor = scolor.Multiply(sp.specular)
 
-      var resultCol = lcolor.Add(scolor)
-      result = result.Add(resultCol)
+      result = result.Add(lcolor.Add(scolor))
 
 proc GetPoint(x: int, y: int, camera: Camera, screenWidth: int, screenHeight: int): Vector =
-  var sw: float = float(screenWidth)
-  var sh: float = float(screenHeight)
-  var xf = float(x)
-  var yf = float(y)
+  var sw = float64(screenWidth)
+  var sh = float64(screenHeight)
+  var xf = float64(x)
+  var yf = float64(y)
 
   var recenterX =  (xf - (sw / 2.0)) / 2.0 / sw
   var recenterY = -(yf - (sh / 2.0)) / 2.0 / sh
 
-  var vx: Vector = camera.right.Scale(recenterX)
-  var vy: Vector = camera.up.Scale(recenterY)
+  var vx = camera.right.Scale(recenterX)
+  var vy = camera.up.Scale(recenterY)
 
-  var v: Vector = vx.Add(vy)
-  var z: Vector = camera.forward.Add(v)
+  var v = vx.Add(vy)
+  var z = camera.forward.Add(v)
 
   return z.Norm()
 
-proc RenderScene(scene: Scene, bitmapData: var seq[RgbColor], stride: int, w: int, h: int) = 
+proc RenderScene(scene: Scene, bitmapData: var seq[RgbColor], stride: int, w: int, h: int) =
   var ray: Ray
   ray.start = scene.camera.pos
   for y in 0 .. h-1:
     var pos = y * w
     for x in 0 .. w-1:
       ray.dir = GetPoint(x, y, scene.camera, h, w)
-      var color = scene.TraceRay(ray, 0)
-      bitmapData[pos] = color.ToDrawingColor()
+      bitmapData[pos] = scene.TraceRay(ray, 0).ToDrawingColor()
       pos = pos + 1
 
 proc SaveRGBBitmap(bitmapData: seq[RgbColor], width: int, height: int, wBitsPerPixel: int, fileName: string) =
@@ -379,12 +364,12 @@ proc SaveRGBBitmap(bitmapData: seq[RgbColor], width: int, height: int, wBitsPerP
     biClrUsed: DWORD
     biClrImportant: DWORD
 
-  type BITMAPFILEHEADER {.packed.} = object 
-    bfType: WORD  
-    bfSize: DWORD 
-    bfReserved1: WORD  
-    bfReserved2: WORD  
-    bfOffBits: DWORD 
+  type BITMAPFILEHEADER {.packed.} = object
+    bfType: WORD
+    bfSize: DWORD
+    bfReserved1: WORD
+    bfReserved2: WORD
+    bfOffBits: DWORD
 
   var bmpInfoHeader : BITMAPINFOHEADER
   bmpInfoHeader.biSize = DWORD(sizeof(BITMAPINFOHEADER))
@@ -411,14 +396,18 @@ proc SaveRGBBitmap(bitmapData: seq[RgbColor], width: int, height: int, wBitsPerP
     discard file.writeBuffer(addr x, sizeof(RgbColor))
   file.close()
 
-#let t1 = GetTickCount()
+
+var t1 = cpuTime()
 var scene  = CreateScene()
 var width  = 500
 var height = 500
 var stride = width * 4
-
 var bitmapData = newSeq[RgbColor](width * height)
 
 RenderScene(scene, bitmapData, stride, width, height)
+var t2 = cpuTime()
+var diff = (t2 - t1) * 1000
+
+echo "CPU time [ms] ", diff
 
 SaveRGBBitmap(bitmapData, width, height, 32, "nim-raytracer.bmp")

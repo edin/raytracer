@@ -1,6 +1,7 @@
 import math
 import time
 from PIL import Image
+# pip install Pillow
 
 FarAway = 1000000
 
