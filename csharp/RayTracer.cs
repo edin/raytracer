@@ -1,38 +1,136 @@
 using System;
-using System.Collections.Generic;
 using System.Diagnostics;
-using System.Drawing.Imaging;
+using System.IO;
+using System.Runtime.InteropServices;
 
-class Program
+internal class Program
 {
     private static void Main(string[] args)
     {
-        var bmp = new System.Drawing.Bitmap(500, 500, PixelFormat.Format32bppArgb);
+        var image = new Image(500, 500);
         Stopwatch sw = new Stopwatch();
         Console.WriteLine("C# RayTracer Test");
 
         long t = 0;
+        long n = 1;
 
-        for (var i = 0; i < 5; i++)
+        for (var i = 0; i < n; i++)
         {
             sw.Reset();
             sw.Start();
             var rayTracer = new RayTracerEngine();
             var scene = new Scene();
-            rayTracer.Render(scene, bmp);
+            rayTracer.Render(scene, image);
             sw.Stop();
-            t = t + sw.ElapsedMilliseconds;
+            t += sw.ElapsedMilliseconds;
         }
 
-        bmp.Save("csharp-ray-tracer.png");
+        image.Save("csharp-ray-tracer.png");
 
         Console.WriteLine("");
-        Console.WriteLine("Total time: " + (t / 5).ToString() + " ms");
+        Console.WriteLine("Total time: " + (t / n).ToString() + " ms");
         Console.ReadLine();
     }
 }
 
-struct Vector
+internal class Image
+{
+    private RGBColor[] data;
+    public int Width { get; private set; }
+    public int Height { get; private set; }
+
+    [StructLayout(LayoutKind.Sequential)]
+    private struct BITMAPINFOHEADER
+    {
+        public uint biSize;
+        public int biWidth;
+        public int biHeight;
+        public ushort biPlanes;
+        public ushort biBitCount;
+        public uint biCompression;
+        public uint biSizeImage;
+        public int biXPelsPerMeter;
+        public int biYPelsPerMeter;
+        public uint biClrUsed;
+        public uint biClrImportant;
+    }
+
+    [StructLayout(LayoutKind.Sequential, Pack = 2)]
+    private struct BITMAPFILEHEADER
+    {
+        public ushort bfType;
+        public uint bfSize;
+        public ushort bfReserved1;
+        public ushort bfReserved2;
+        public uint bfOffBits;
+    }
+
+    public Image(int width, int height)
+    {
+        this.Width = width;
+        this.Height = height;
+        this.data = new RGBColor[(width * height)];
+    }
+
+    public RGBColor this[int index]
+    {
+        get { return data[index]; }
+        set { data[index] = value; }
+    }
+
+    public void Save(string fileName)
+    {
+        var infoHeaderSize = Marshal.SizeOf(typeof(BITMAPINFOHEADER));
+        var fileHeaderSize = Marshal.SizeOf(typeof(BITMAPFILEHEADER));
+        var offBits = infoHeaderSize + fileHeaderSize;
+
+        BITMAPINFOHEADER infoHeader = new BITMAPINFOHEADER
+        {
+            biSize = (uint)infoHeaderSize,
+            biBitCount = 32,
+            biClrImportant = 0,
+            biClrUsed = 0,
+            biCompression = 0,
+            biHeight = -Height,
+            biWidth = Width,
+            biPlanes = 1,
+            biSizeImage = (uint)(Width * Height * 4)
+        };
+
+        BITMAPFILEHEADER fileHeader = new BITMAPFILEHEADER
+        {
+            bfType = 'B' + ('M' << 8),
+            bfOffBits = (uint)offBits,
+            bfSize = (uint)(offBits + infoHeader.biSizeImage)
+        };
+
+        using (var writer = new BinaryWriter(File.Open(fileName, FileMode.Create)))
+        {
+            writer.Write(GetBytes(fileHeader));
+            writer.Write(GetBytes(infoHeader));
+            foreach (var color in data)
+            {
+                writer.Write(color.B);
+                writer.Write(color.G);
+                writer.Write(color.R);
+                writer.Write(color.A);
+            }
+        }
+    }
+
+    public byte[] GetBytes<T>(T data)
+    {
+        var length = Marshal.SizeOf(data);
+        var ptr = Marshal.AllocHGlobal(length);
+        var result = new byte[length];
+        Marshal.StructureToPtr(data, ptr, true);
+        Marshal.Copy(ptr, result, 0, length);
+        Marshal.FreeHGlobal(ptr);
+        return result;
+    }
+}
+
+internal struct Vector
 {
     public double X;
     public double Y;
@@ -72,7 +170,15 @@ struct Vector
     }
 }
 
-struct Color
+internal struct RGBColor
+{
+    public byte B;
+    public byte G;
+    public byte R;
+    public byte A;
+}
+
+internal struct Color
 {
     public double R;
     public double G;
@@ -97,7 +203,16 @@ struct Color
 
     public static Color operator *(Color a, Color b) => new Color(a.R * b.R, a.G * b.G, a.B * b.B);
 
-    public static System.Drawing.Color ToDrawingColor(Color c) => System.Drawing.Color.FromArgb(Clamp(c.R), Clamp(c.G), Clamp(c.B));
+    public RGBColor ToRGBColor()
+    {
+        return new RGBColor
+        {
+            B = Clamp(this.B),
+            G = Clamp(this.G),
+            R = Clamp(this.R),
+            A = 255
+        };
+    }
 
     public static byte Clamp(double c)
     {
@@ -107,7 +222,7 @@ struct Color
     }
 }
 
-class Camera
+internal class Camera
 {
     public Vector Forward;
     public Vector Right;
@@ -122,9 +237,16 @@ class Camera
         Right = 1.5 * Forward.Cross(down).Norm();
         Up = 1.5 * Forward.Cross(Right).Norm();
     }
+
+    public Vector GetPoint(int x, int y, int w, int h)
+    {
+        var recenterX = (x - (w / 2.0)) / 2.0 / w;
+        var recenterY = -(y - (h / 2.0)) / 2.0 / h;
+        return (this.Forward + (recenterX * this.Right) + (recenterY * this.Up)).Norm();
+    }
 }
 
-class Ray
+internal class Ray
 {
     public Vector Start;
     public Vector Dir;
@@ -136,7 +258,7 @@ class Ray
     }
 }
 
-class Intersection
+internal class Intersection
 {
     public IThing Thing;
     public Ray Ray;
@@ -150,7 +272,7 @@ class Intersection
     }
 }
 
-struct SurfaceProperties
+internal struct SurfaceProperties
 {
     public Color Diffuse;
     public Color Specular;
@@ -158,12 +280,12 @@ struct SurfaceProperties
     public double Roughness;
 }
 
-interface ISurface
+internal interface ISurface
 {
     SurfaceProperties GetSurfaceProperties(Vector pos);
 }
 
-interface IThing
+internal interface IThing
 {
     Intersection Intersect(Ray ray);
 
@@ -172,7 +294,7 @@ interface IThing
     ISurface Surface { get; set; }
 }
 
-struct Light
+internal struct Light
 {
     public Vector Pos;
     public Color Color;
@@ -184,7 +306,7 @@ struct Light
     }
 }
 
-class Sphere : IThing
+internal class Sphere : IThing
 {
     private readonly double m_Radius2;
     private readonly Vector m_Center;
@@ -219,7 +341,7 @@ class Sphere : IThing
     public ISurface Surface { get; set; }
 }
 
-class Plane : IThing
+internal class Plane : IThing
 {
     private readonly Vector m_Normal;
     private readonly double m_Offset;
@@ -248,11 +370,12 @@ class Plane : IThing
     public ISurface Surface { get; set; }
 }
 
-class ShinySurface : ISurface
+internal class ShinySurface : ISurface
 {
     public SurfaceProperties GetSurfaceProperties(Vector pos)
     {
-        return new SurfaceProperties() {
+        return new SurfaceProperties()
+        {
             Diffuse = Color.White,
             Specular = Color.Grey,
             Reflect = 0.7,
@@ -261,7 +384,7 @@ class ShinySurface : ISurface
     }
 }
 
-class CheckerboardSurface : ISurface
+internal class CheckerboardSurface : ISurface
 {
     public SurfaceProperties GetSurfaceProperties(Vector pos)
     {
@@ -279,7 +402,7 @@ class CheckerboardSurface : ISurface
     }
 }
 
-class Scene
+internal class Scene
 {
     public Camera Camera { get; set; }
     public readonly Light[] Lights;
@@ -307,9 +430,9 @@ class Scene
     }
 }
 
-class RayTracerEngine
+internal class RayTracerEngine
 {
-    private readonly int maxDepth = 5;
+    private const int maxDepth = 5;
     private Scene scene;
 
     private Intersection Intersections(Ray ray)
@@ -328,16 +451,6 @@ class RayTracerEngine
         }
 
         return closestInter;
-    }
-
-    private double TestRay(Ray ray)
-    {
-        var isect = Intersections(ray);
-        if (isect != null)
-        {
-            return isect.Dist;
-        }
-        return double.NaN;
     }
 
     private Color TraceRay(Ray ray, int depth)
@@ -379,9 +492,9 @@ class RayTracerEngine
         {
             var ldis = light.Pos - pos;
             var livec = ldis.Norm();
-            var neatIsect = TestRay(new Ray(pos, livec));
+            var neatIsect = Intersections(new Ray(pos, livec));
 
-            var isInShadow = !double.IsNaN(neatIsect) && (neatIsect <= ldis.Length());
+            var isInShadow = (neatIsect != null) && (neatIsect.Dist <= ldis.Length());
             if (isInShadow)
             {
                 return col;
@@ -396,31 +509,22 @@ class RayTracerEngine
         }
     }
 
-    public void Render(Scene scene, System.Drawing.Bitmap bmp)
+    public void Render(Scene scene, Image image)
     {
         this.scene = scene;
-        int w = bmp.Width;
-        int h = bmp.Height;
+        int w = image.Width;
+        int h = image.Height;
+        Ray ray = new Ray(scene.Camera.Pos, new Vector(0, 0, 0));
 
-        Vector GetPoint(int x, int y, Camera camera) {
-            var recenterX = (x - (w / 2.0)) / 2.0 / w;
-            var recenterY = -(y - (h / 2.0)) / 2.0 / h;
-            return (camera.Forward + (recenterX * camera.Right) + (recenterY * camera.Up)).Norm();
-        };
-
-        BitmapData bitmapData = bmp.LockBits(new System.Drawing.Rectangle(0, 0, w, h), ImageLockMode.ReadWrite, bmp.PixelFormat);
-        unsafe
+        for (var y = 0; y < h; ++y)
         {
-            for (var y = 0; y < h; ++y)
+            int pos = y * h;
+            for (var x = 0; x < w; ++x)
             {
-                int* row = (int*)(bitmapData.Scan0 + (y * bitmapData.Stride));
-                for (var x = 0; x < w; ++x)
-                {
-                    var color = TraceRay(new Ray(scene.Camera.Pos, GetPoint(x, y, scene.Camera)), 0);
-                    row[x] = Color.ToDrawingColor(color).ToArgb();
-                }
+                ray.Dir = scene.Camera.GetPoint(x, y, w, h);
+                var color = TraceRay(ray, 0);
+                image[pos + x] = color.ToRGBColor();
             }
         }
-        bmp.UnlockBits(bitmapData);
     }
 }
