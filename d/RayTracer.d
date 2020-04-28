@@ -4,7 +4,6 @@ import std.typecons;
 import std.container;
 import std.math;
 import std.conv;
-import core.sys.windows.windows;
 import std.algorithm.comparison;
 import std.algorithm;
 
@@ -17,7 +16,7 @@ struct Vector
 {
     double x, y, z;
 
-    Vector opBinaryRight(string op)(double k) const if(op == "*")
+    Vector opBinaryRight(string op)(double k) const if (op == "*")
     {
         return Vector(k * x, k * y, k * z);
     }
@@ -51,9 +50,7 @@ struct Vector
 
     Vector cross(const ref Vector v) const
     {
-        return Vector(y * v.z - z * v.y,
-                      z * v.x - x * v.z,
-                      x * v.y - y * v.x);
+        return Vector(y * v.z - z * v.y, z * v.x - x * v.z, x * v.y - y * v.x);
     }
 }
 
@@ -62,12 +59,12 @@ struct Color
     double r, g, b;
 
     static immutable Color white = Color(1.0, 1.0, 1.0);
-    static immutable Color grey  = Color(0.5, 0.5, 0.5);
+    static immutable Color grey = Color(0.5, 0.5, 0.5);
     static immutable Color black = Color(0.0, 0.0, 0.0);
-    static immutable Color background   = black;
+    static immutable Color background = black;
     static immutable Color defaultColor = black;
 
-    Color opBinaryRight(string op)(double k) const if(op == "*")
+    Color opBinaryRight(string op)(double k) const if (op == "*")
     {
         return Color(k * r, k * g, k * b);
     }
@@ -89,7 +86,7 @@ struct Color
 
     private static ubyte clamp(double c)
     {
-        const double value = std.algorithm.comparison.clamp(c*255.0, 0.0, 255.0);
+        const double value = std.algorithm.comparison.clamp(c * 255.0, 0.0, 255.0);
         return to!ubyte(value);
     }
 }
@@ -103,12 +100,22 @@ class Camera
 
     public this(Vector pos, Vector lookAt)
     {
-        const Vector _down     = Vector(0.0, -1.0, 0.0);
+        const Vector _down = Vector(0.0, -1.0, 0.0);
         const Vector _forward = lookAt - pos;
-        this.pos      = pos;
-        this.forward  = _forward.norm;
-        this.right    = 1.5 * this.forward.cross(_down).norm;
-        this.up       = 1.5 * this.forward.cross(this.right).norm;
+        this.pos = pos;
+        this.forward = _forward.norm;
+        this.right = 1.5 * this.forward.cross(_down).norm;
+        this.up = 1.5 * this.forward.cross(this.right).norm;
+    }
+
+    private Vector getPoint(int x, int y, int screenWidth, int screenHeight, int scale)
+    {
+        const double recenterX = (x - (screenWidth / 2.0)) / 2.0 / scale;
+        const double recenterY = -(y - (screenHeight / 2.0)) / 2.0 / scale;
+        const Vector vx = recenterX * this.right;
+        const Vector vy = recenterY * this.up;
+        const Vector v = vx + vy;
+        return (this.forward + v).norm;
     }
 }
 
@@ -118,11 +125,18 @@ struct Ray
     Vector dir;
 }
 
-struct Intersection
+class Intersection
 {
     Thing thing;
     Ray ray;
     double dist;
+
+    this(Thing thing, Ray ray, double dist)
+    {
+        this.thing = thing;
+        this.ray = ray;
+        this.dist = dist;
+    }
 }
 
 struct SurfaceProperties
@@ -140,9 +154,9 @@ interface Surface
 
 interface Thing
 {
-    Nullable!Intersection intersect(ref const Ray ray) const;
-    Vector normal(ref Vector pos) const;
-    Surface surface() const;
+    Intersection intersect(ref const Ray ray);
+    Vector normal(ref Vector pos);
+    Surface surface();
 }
 
 struct Light
@@ -155,7 +169,7 @@ class Sphere : Thing
 {
     public double radius2;
     public Vector center;
-    public Surface _surface;
+    private Surface _surface;
 
     public this(Vector center, double radius, Surface surface)
     {
@@ -164,63 +178,35 @@ class Sphere : Thing
         this._surface = surface;
     }
 
-    public Vector normal(ref Vector pos) const
+    public Vector normal(ref Vector pos)
     {
         return (pos - this.center).norm;
     }
 
-    public Nullable!Intersection intersect(ref Ray ray) const
+    public Intersection intersect(ref const Ray ray)
     {
-        Nullable!Intersection result;
         Vector eo = this.center - ray.start;
-        const double v  = eo.dot(ray.dir);
+        const double v = eo.dot(ray.dir);
         double dist = 0;
         if (v >= 0)
         {
-            double disc = this.radius2 - (eo.dot(eo) - v * v);
-            if (disc >= 0)
-            {
-                dist = v - sqrt(disc);
-            }
+            const double disc = this.radius2 - (eo.dot(eo) - v * v);
+            dist = (disc >= 0) ? v - sqrt(disc) : dist;
         }
-
-        if (dist == 0) {
-            return result;
-        }
-        result = Intersection(this, ray, dist);
-        return result;
+        return (dist == 0) ? null : new Intersection(this, ray, dist);
     }
 
-    public Surface surface() const
+    public Surface surface()
     {
         return _surface;
     }
 }
 
-class Plane: Thing
+class Plane : Thing
 {
     private Vector norm;
     private double offset;
     private Surface _surface;
-
-    public Vector normal(ref Vector pos) const
-    {
-        return this.norm;
-    }
-
-    public Nullable!Intersection intersect(ref const Ray ray) const
-    {
-        Nullable!Intersection result;
-
-        const double denom = norm.dot(ray.dir);
-        if (denom > 0)
-        {
-            return result;
-        }
-        const double dist = (norm.dot(ray.start) + offset) / (-denom);
-        result = Intersection(this, ray, dist);
-        return result;
-    }
 
     public this(Vector norm, double offset, Surface surface)
     {
@@ -229,15 +215,32 @@ class Plane: Thing
         this.offset = offset;
     }
 
-    public Surface surface() const
+    public Vector normal(ref Vector pos)
+    {
+        return this.norm;
+    }
+
+    public Intersection intersect(ref const Ray ray)
+    {
+        const double denom = norm.dot(ray.dir);
+        if (denom <= 0)
+        {
+            const double dist = (norm.dot(ray.start) + offset) / (-denom);
+            return new Intersection(this, ray, dist);
+        }
+        return null;
+    }
+
+    public Surface surface()
     {
         return _surface;
     }
 }
 
-class ShinySurface: Surface
+class ShinySurface : Surface
 {
-    public override SurfaceProperties getSurfaceProperties(ref Vector pos) {
+    public override SurfaceProperties getSurfaceProperties(ref Vector pos)
+    {
         return SurfaceProperties(Color.white, Color.grey, 0.7, 250.0);
     }
 }
@@ -248,8 +251,8 @@ class CheckerboardSurface : Surface
     {
         Color diffuse = Color.black;
         double reflect = 0.7;
-
-        if (to!int(floor(pos.z) + floor(pos.x))  % 2 != 0) {
+        if (to!int(floor(pos.z) + floor(pos.x)) % 2 != 0)
+        {
             diffuse = Color.white;
             reflect = 0.1;
         }
@@ -261,7 +264,7 @@ class Scene
 {
     public Thing[] things;
     public Light[] lights;
-    public Camera  camera;
+    public Camera camera;
 
     public this()
     {
@@ -269,16 +272,16 @@ class Scene
         CheckerboardSurface checkerboard = new CheckerboardSurface();
 
         this.things = [
-            cast(Thing)new Plane (Vector(0.0, 1.0, 0.0),   0.0, checkerboard),
-            cast(Thing)new Sphere(Vector(0.0, 1.0, -0.25), 1.0, shiny),
-            cast(Thing)new Sphere(Vector(-1.0, 0.5, 1.5),  0.5, shiny)
+            cast(Thing) new Plane(Vector(0.0, 1.0, 0.0), 0.0, checkerboard),
+            cast(Thing) new Sphere(Vector(0.0, 1.0, -0.25), 1.0, shiny),
+            cast(Thing) new Sphere(Vector(-1.0, 0.5, 1.5), 0.5, shiny)
         ];
 
         this.lights = [
             Light(Vector(-2.0, 2.5, 0.0), Color(0.49, 0.07, 0.07)),
-            Light(Vector(1.5, 2.5, 1.5),  Color(0.07, 0.07, 0.49)),
+            Light(Vector(1.5, 2.5, 1.5), Color(0.07, 0.07, 0.49)),
             Light(Vector(1.5, 2.5, -1.5), Color(0.07, 0.49, 0.071)),
-            Light(Vector(0.0, 3.5, 0.0),  Color(0.21, 0.21, 0.35)),
+            Light(Vector(0.0, 3.5, 0.0), Color(0.21, 0.21, 0.35)),
         ];
 
         this.camera = new Camera(Vector(3.0, 2.0, 4.0), Vector(-1.0, 0.5, 0.0));
@@ -290,15 +293,15 @@ class RayTracerEngine
     private static const int maxDepth = 5;
     private Scene scene;
 
-    private Nullable!Intersection intersections(ref Ray ray) const
+    private Intersection intersections(ref Ray ray)
     {
         double closest = double.infinity;
-        Nullable!Intersection closestInter;
+        Intersection closestInter = null;
 
         foreach (thing; scene.things)
         {
             auto inter = thing.intersect(ray);
-            if (!inter.isNull && inter.dist < closest)
+            if (inter !is null && inter.dist < closest)
             {
                 closestInter = inter;
                 closest = inter.dist;
@@ -309,54 +312,52 @@ class RayTracerEngine
 
     private Color traceRay(ref Ray ray, int depth)
     {
-        Nullable!Intersection isect = intersections(ray);
-        if (isect.isNull) {
-            return Color.background;
-        }
-        return this.shade(isect, depth);
+        Intersection isect = intersections(ray);
+        return (isect is null) ? Color.background : this.shade(isect, depth);
     }
 
-    private Color shade(ref Intersection isect, int depth)
+    private Color shade(Intersection isect, int depth)
     {
-        Vector d      = isect.ray.dir;
-        Vector pos    = isect.dist * d + isect.ray.start;
+        Vector d = isect.ray.dir;
+        Vector pos = isect.dist * d + isect.ray.start;
         Vector normal = isect.thing.normal(pos);
 
-        const Vector vec   = 2.0 * (normal.dot(d) * normal);
-        Vector reflectDir  = (d - vec);
-        auto  surface = isect.thing.surface.getSurfaceProperties(pos);
+        const Vector vec = 2.0 * (normal.dot(d) * normal);
+        Vector reflectDir = (d - vec);
+        auto surface = isect.thing.surface.getSurfaceProperties(pos);
 
-        Color getReflectionColor() {
+        Color getReflectionColor()
+        {
             Ray ray = Ray(pos, reflectDir);
             return surface.reflect * traceRay(ray, depth + 1);
         }
 
         Color getNaturalColor()
         {
-            Color   resultColor = Color.black;
-            Vector  rayDirNormal = reflectDir.norm();
-            Color colDiffuse  = surface.diffuse;
+            Color resultColor = Color.black;
+            Vector rayDirNormal = reflectDir.norm();
+            Color colDiffuse = surface.diffuse;
             Color colSpecular = surface.specular;
-            Ray ray = Ray(pos, Vector(0,0,0));
+            Ray ray = Ray(pos, Vector(0, 0, 0));
 
             void addLight(ref Light light)
             {
-                const Vector ldis    = light.pos - pos;
-                Vector livec   = ldis.norm;
+                const Vector ldis = light.pos - pos;
+                Vector livec = ldis.norm;
                 ray.dir = livec;
 
-                const auto  neatIsect  = intersections(ray);
-                const bool  isInShadow = (neatIsect.isNull) ? false : (neatIsect.dist <= ldis.mag);
+                const auto neatIsect = intersections(ray);
+                const bool isInShadow = (neatIsect !is null) && (neatIsect.dist <= ldis.mag);
 
-                if (!isInShadow) {
-                    const double illum    = livec.dot(normal);
+                if (!isInShadow)
+                {
+                    const double illum = livec.dot(normal);
                     const double specular = livec.dot(rayDirNormal);
                     Color lcolor = (illum > 0) ? illum * light.color : Color.defaultColor;
                     Color scolor = (specular > 0) ? pow(specular, surface.roughness) * light.color : Color.defaultColor;
                     resultColor = resultColor + lcolor.times(colDiffuse) + scolor.times(colSpecular);
                 }
             }
-
             foreach (item; scene.lights)
             {
                 addLight(item);
@@ -369,70 +370,108 @@ class RayTracerEngine
         return naturalColor + reflectedColor;
     }
 
-    private Vector getPoint(int x, int y, Camera camera, int screenWidth, int screenHeight, int scale)
+    public void render(Scene scene, Image image)
     {
-        const double recenterX =  (x - (screenWidth / 2.0)) / 2.0 / scale;
-        const double recenterY = -(y - (screenHeight / 2.0)) / 2.0 / scale;
-        const Vector vx = recenterX * camera.right;
-        const Vector vy = recenterY * camera.up;
-        const Vector v  = vx + vy;
-        return (camera.forward + v).norm;
-    }
-
-    public void render(Scene scene, ubyte[] bitmapData, int stride, int w, int h)
-    {
-        //import std.algorithm.comparison;
         this.scene = scene;
-
         Camera camera = scene.camera;
-        Ray ray = Ray(camera.pos, Vector(0,0,0));
-        int scale = min(w,h);
+        Ray ray = Ray(camera.pos, Vector(0, 0, 0));
+        int w = image.width;
+        int h = image.height;
+        int scale = min(w, h);
 
-        for (int y = 0; y < h; ++y) {
-            int pos = y * stride;
-            RGBColor* ptrColor = (cast(RGBColor*)&bitmapData[pos]);
-
-            for (int x = 0; x < w; ++x) {
-                ray.dir = this.getPoint(x, y, camera, w, h, scale);
-                *ptrColor++  = this.traceRay(ray, 0).toDrawingColor;
+        for (int y = 0; y < h; ++y)
+        {
+            for (int x = 0; x < w; ++x)
+            {
+                ray.dir = camera.getPoint(x, y, w, h, scale);
+                RGBColor color = this.traceRay(ray, 0).toDrawingColor;
+                image.setColor(x, y, color);
             }
         }
     }
 }
 
-void saveImage(ubyte[] pBitmapBits, int lWidth, int lHeight, int wBitsPerPixel, string fileName )
+class Image
 {
-    const BI_RGB = 0;
-    BITMAPINFOHEADER bmpInfoHeader = {};
-    bmpInfoHeader.biSize = BITMAPINFOHEADER.sizeof;
-    bmpInfoHeader.biBitCount = cast(WORD)wBitsPerPixel;
-    bmpInfoHeader.biClrImportant = 0;
-    bmpInfoHeader.biClrUsed = 0;
-    bmpInfoHeader.biCompression = BI_RGB;
-    bmpInfoHeader.biHeight = -lHeight;
-    bmpInfoHeader.biWidth = lWidth;
-    bmpInfoHeader.biPlanes = 1;
-    bmpInfoHeader.biSizeImage = lWidth* lHeight * (wBitsPerPixel/8);
+    private int _width;
+    private int _height;
+    private RGBColor[] _data;
 
-    struct BITMAPFILEHEADER {
-        WORD  bfType;
-        DWORD bfSize;
-        WORD  bfReserved1;
-        WORD  bfReserved2;
-        DWORD bfOffBits;
+    @property int width()
+    {
+        return _width;
     }
 
-    BITMAPFILEHEADER bfh = {  };
-    bfh.bfType    = 'B' + ('M' << 8);
-    bfh.bfOffBits = BITMAPINFOHEADER.sizeof + 14;
-    bfh.bfSize    = bfh.bfOffBits + bmpInfoHeader.biSizeImage;
+    @property int height()
+    {
+        return _height;
+    }
 
-    auto file = File(fileName, "wb");
-    file.rawWrite((cast(ubyte*)&bfh)[0..2]); // Skip padded bytes
-    file.rawWrite((cast(ubyte*)&bfh)[4..16]);
-    file.rawWrite((cast(ubyte*)&bmpInfoHeader)[0 .. 40]);
-    file.rawWrite(pBitmapBits);
-    file.close();
+    this(int width, int height)
+    {
+        this._width = width;
+        this._height = height;
+        this._data = new RGBColor[_width * _height];
+    }
+
+    public void setColor(int x, int y, ref RGBColor color)
+    {
+        this._data[y * _height + x] = color;
+    }
+
+    public void save(string fileName)
+    {
+        alias WORD = ushort;
+        alias DWORD = uint;
+        alias LONG = int;
+
+        struct BITMAPINFOHEADER
+        {
+            DWORD biSize;
+            LONG biWidth;
+            LONG biHeight;
+            WORD biPlanes;
+            WORD biBitCount;
+            DWORD biCompression;
+            DWORD biSizeImage;
+            LONG biXPelsPerMeter;
+            LONG biYPelsPerMeter;
+            DWORD biClrUsed;
+            DWORD biClrImportant;
+        }
+
+        struct BITMAPFILEHEADER
+        {
+            WORD bfType;
+            DWORD bfSize;
+            WORD bfReserved1;
+            WORD bfReserved2;
+            DWORD bfOffBits;
+        }
+
+        BITMAPINFOHEADER bmpInfoHeader = {};
+        bmpInfoHeader.biSize = BITMAPINFOHEADER.sizeof;
+        bmpInfoHeader.biBitCount = 32;
+        bmpInfoHeader.biClrImportant = 0;
+        bmpInfoHeader.biClrUsed = 0;
+        bmpInfoHeader.biCompression = 0;
+        bmpInfoHeader.biHeight = -_height;
+        bmpInfoHeader.biWidth = _width;
+        bmpInfoHeader.biPlanes = 1;
+        bmpInfoHeader.biSizeImage = _width * _height * 4;
+
+        BITMAPFILEHEADER bfh = {};
+        bfh.bfType = 'B' + ('M' << 8);
+        bfh.bfOffBits = BITMAPINFOHEADER.sizeof + 14;
+        bfh.bfSize = bfh.bfOffBits + bmpInfoHeader.biSizeImage;
+
+        auto file = File(fileName, "wb");
+        file.rawWrite((cast(ubyte*)&bfh)[0 .. 2]); // Skip padded bytes - could not get struct align to work
+        file.rawWrite((cast(ubyte*)&bfh)[4 .. 16]);
+        file.rawWrite((cast(ubyte*)&bmpInfoHeader)[0 .. 40]);
+        file.rawWrite(_data);
+        file.close();
+    }
 }
 
 void main(string[] argv)
@@ -440,17 +479,11 @@ void main(string[] argv)
     writeln("Starting");
     StopWatch sw;
     sw.start();
-
-    int width  = 500;
-    int height = 500;
-    int stride = width * 4;
-    ubyte[] bitmapData = new ubyte[stride * height];
-
+    Image image = new Image(500, 500);
     Scene scene = new Scene();
     RayTracerEngine rayTracer = new RayTracerEngine();
-
-    rayTracer.render(scene, bitmapData, stride,width,height);
+    rayTracer.render(scene, image);
     sw.stop();
-    saveImage(bitmapData, width,height, 32, "d-raytracer.bmp");
     writeln("Completed in: ", sw.peek.msecs, " [ms]");
+    image.save("d-raytracer.bmp");
 }

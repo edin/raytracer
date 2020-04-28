@@ -9,14 +9,14 @@ Language / Compiler       | Time [ms]    | Loc
 C++ (GCC)                 | 160 ms       | 461
 Fortran                   | 160 ms       | 565
 C (GCC)                   | 160 ms       | 641
-D (LDC)                   | 210 ms       | 456
+D (LDC)                   | 210 ms       | 490
 C (MSVC)                  | 250 ms       | 468
 C++ (MSVC)                | 250 ms       | 461
 VB.NET                    | 360 ms       | 406
 C#                        | 360 ms       | 426
 Delphi XE6                | 390 ms       | 678
 Go                        | 460 ms       | 529
-D (DMD)                   | 500 ms       | 456
+D (DMD)                   | 500 ms       | 490
 Java 9                    | 600 ms       | 521
 Delphi 2010 (32 bit)      | 720 ms       | 678
 Nim                       | 1500 ms      | 418
