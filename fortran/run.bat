@@ -1,2 +1,2 @@
-gfortran main.f95 -o FRay.exe
+gfortran.exe main.f95 -O3 -o FRay.exe
 FRay.exe

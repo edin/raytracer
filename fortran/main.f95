@@ -342,12 +342,10 @@ contains
         integer val, surface
 
         if (surface .eq. SHINY_SURFACE) then
-            properties%diffuse   = white
-            properties%specular  = grey
-            properties%reflect   = 0.7
-            properties%roughness = 150.0
+            properties = TSurfaceProperties(0.7, 150, white, grey)
         else
             val = (floor(pos%z) + floor(pos%x))
+
             if (mod(val,2) /= 0) then
                 properties%reflect   = 0.5
                 properties%diffuse   = white
@@ -392,7 +390,7 @@ contains
 
         do i = 1,  ubound(scene%lights, 1)
             light = scene%lights(i)
-            ldis  = VectorSub(light%pos, pos)
+            ldis  = light%pos - pos
             livec = VectorNorm(ldis)
 
             ldisLen = VectorLength(ldis)
@@ -418,7 +416,6 @@ contains
         type(TVector) value
         type(TThing) thing
         type(TVector) pos
-
         value = merge(VectorNorm(pos - thing%centerOrNormal), thing%centerOrNormal, thing%type == SPHERE)
     end function
 
@@ -448,7 +445,7 @@ contains
     function GetPoint(x, y, camera, screenWidth, screenHeight) result (value)
         integer       :: x, y, screenWidth, screenHeight
         type(TCamera) :: camera
-        type(TVector) :: vx, vy, v, value
+        type(TVector) :: vx, vy, value
         real(8)       :: recenterX, recenterY
 
         recenterX =  (x - (screenWidth  / 2.0)) / 2.0 / screenWidth
@@ -457,9 +454,7 @@ contains
         vx = camera%right * recenterX
         vy = camera%up * recenterY
 
-        v = VectorAdd(vx, vy)
-        value = VectorAdd(camera%forward, v)
-        value = VectorNorm(value)
+        value = VectorNorm(camera%forward + vx + vy)
     end function
 
     subroutine RenderScene(scene, bitmapData, stride, w, h)
@@ -487,7 +482,7 @@ contains
 
         camera%pos = pos
         down       = TVector(0.0, -1.0, 0.0)
-        forward    = VectorSub(lookAt, pos)
+        forward    = lookAt - pos
 
         camera%forward  = VectorNorm(forward)
         camera%right    = camera%forward .cross. down
@@ -496,14 +491,14 @@ contains
         rightNorm = VectorNorm(camera%right)
         upNorm    = VectorNorm(camera%up)
 
-        camera%right = VectorScale(rightNorm, 1.5d+0)
-        camera%up = VectorScale(upNorm, 1.5d+0)
+        camera%right = rightNorm * 1.5d+0
+        camera%up = upNorm * 1.5d+0
     end function
 
     subroutine SaveRGBBitmap(image, lWidth, lHeight)
         type(BmpInfoHeader) :: infoHeader
         type(BmpFileHeader) :: fileHeader
-        integer :: lWidth, lHeight, i, p
+        integer :: lWidth, lHeight
         type(TColorRGB), dimension(:), intent(in) :: image
 
         infoHeader%biSize = 40
@@ -521,35 +516,11 @@ contains
         fileHeader%bfSize    = fileHeader%bfOffBits + infoHeader%biSizeImage
 
         open (unit = 1, file = 'RayTracer.bmp', status = 'unknown', access = 'STREAM')
-
-        ! write (1, pos=1) fileHeader%bfType
-        ! write (1, pos=3) fileHeader%bfSize
-        ! write (1, pos=7) fileHeader%bfOffBits
-        ! write (1, pos=11) fileHeader%bfReserved
         write (1) fileHeader
         write (1) infoHeader
-        ! write (1) infoHeader%biSize
-        ! write (1) infoHeader%biWidth
-        ! write (1) infoHeader%biHeight
-        ! write (1) infoHeader%biPlanes
-        ! write (1) infoHeader%biBitCount
-        ! write (1) infoHeader%biCompression
-        ! write (1) infoHeader%biSizeImage
-        ! write (1) infoHeader%biXPelsPerMeter
-        ! write (1) infoHeader%biYPelsPerMeter
-        ! write (1) infoHeader%biClrUsed
-        ! write (1) infoHeader%biClrImportant
         write (1) image
-
-        ! do i = 0, lWidth * lHeight - 1
-        !     p = i * 4 + 1
-        !     write(1) image(i)%b
-        !     write(1) image(i)%g
-        !     write(1) image(i)%r
-        !     write(1) image(i)%a
-        ! end do
-
         close(1)
+
     end subroutine
 end module
 
@@ -557,8 +528,12 @@ program RayTracerProgram
     use ModRaytracer
     implicit none
 
+    real :: timeStart, timeEnd
     type(TScene)   :: scene
     type(TColorRGB), dimension(:) :: bitmap(500 * 500)
+
+
+    call cpu_time(timeStart)
 
     allocate(scene%things(3))
     allocate(scene%lights(4))
@@ -579,6 +554,11 @@ program RayTracerProgram
 
     deallocate(scene%things)
     deallocate(scene%lights)
+
+    call cpu_time(timeEnd)
+
+    print '("Render time: ",f8.2," ms.")', (timeEnd - timeStart) * 1000
+
 
     call SaveRGBBitmap(bitmap, 500, 500)
 

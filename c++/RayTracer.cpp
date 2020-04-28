@@ -34,7 +34,7 @@ struct Vector
         return *this * div;
     }
 
-    Vector Cross(const Vector &v) const
+    Vector Cross(const Vector& v) const
     {
         return Vector(
             y * v.z - z * v.y,
@@ -74,7 +74,7 @@ struct Color
     static Color Background;
     static Color DefaultColor;
 
-    Color() : r(0), g(0), b(0) {}
+    Color() : r(0.0), g(0.0), b(0.0) {}
 
     Color(double r, double g, double b) : r(r), g(g), b(b) { }
 
@@ -130,6 +130,13 @@ struct Camera
         this->right = this->forward.Cross(Down).Norm() * 1.5;
         this->up = this->forward.Cross(this->right).Norm() * 1.5;
     }
+
+    Vector GetPoint(int x, int y, int screenWidth, int screenHeight) const
+    {
+        double recenterX = (x - (screenWidth / 2.0)) / 2.0 / screenWidth;
+        double recenterY = -(y - (screenHeight / 2.0)) / 2.0 / screenHeight;
+        return (this->forward + ((this->right * recenterX) + (this->up * recenterY))).Norm();
+    }
 };
 
 struct Ray
@@ -157,8 +164,8 @@ struct SurfacePropreties
 {
     Color Diffuse;
     Color Specular;
-    double Reflect;
-    double Roughness;
+    double Reflect = 0.0;
+    double Roughness = 0.0;
 
     SurfacePropreties() {}
     SurfacePropreties(Color diffuse, Color specular, double reflect, double roughness) :
@@ -190,7 +197,7 @@ class Sphere : public Thing {
     Vector   center;
     double   radius2;
 public:
-    Sphere(Vector center, double radius, Surface& surface): surface(surface), center(center), radius2(radius*radius)  {}
+    Sphere(Vector center, double radius, Surface& surface) : surface(surface), center(center), radius2(radius* radius) {}
 
     Vector GetNormal(const Vector& pos) const override {
         return (pos - center).Norm();
@@ -212,7 +219,7 @@ public:
     Surface& GetSurface() const { return surface; };
 };
 
-class Plane: public Thing {
+class Plane : public Thing {
     Surface& surface;
     Vector   normal;
     double   offset;
@@ -271,7 +278,7 @@ public:
     {
         things.push_back(std::make_unique<Plane>(Vector(0.0, 1.0, 0.0), 0.0, checkerboard));
         things.push_back(std::make_unique<Sphere>(Vector(0.0, 1.0, -0.25), 1.0, shiny));
-        things.push_back(std::make_unique<Sphere>(Vector(-1.0,0.5, 1.5), 0.5, shiny));
+        things.push_back(std::make_unique<Sphere>(Vector(-1.0, 0.5, 1.5), 0.5, shiny));
 
         lights.push_back(Light(Vector(-2.0, 2.5, 0.0), Color(0.49, 0.07, 0.07)));
         lights.push_back(Light(Vector(1.5, 2.5, 1.5), Color(0.07, 0.07, 0.49)));
@@ -284,7 +291,7 @@ public:
 class RayTracerEngine
 {
     static const int maxDepth = 5;
-    Scene &scene;
+    Scene& scene;
 
     std::optional<Intersection> GetClosestIntersection(const Ray& ray)
     {
@@ -294,22 +301,12 @@ class RayTracerEngine
         for (auto& thing : scene.things)
         {
             auto inter = thing->GetIntersection(ray);
-            if (inter && inter->dist < closest)
-            {
+            if (inter && inter->dist < closest) {
                 closestInter = inter;
                 closest = inter->dist;
             }
         }
         return closestInter;
-    }
-
-    std::optional<double> TestRay(const Ray& ray)
-    {
-        auto isect = GetClosestIntersection(ray);
-        if (isect) {
-            return isect->dist;
-        }
-        return std::nullopt;
     }
 
     Color TraceRay(const Ray& ray, int depth)
@@ -331,7 +328,7 @@ class RayTracerEngine
         SurfacePropreties surface = isect.thing->GetSurface().GetSurfaceProperties(pos);
 
         Color naturalColor = Color::Background + GetNaturalColor(surface, pos, normal, reflectDir);
-        Color reflectedColor = (depth >= maxDepth)? Color::Grey: GetReflectionColor(surface, pos, reflectDir, depth);
+        Color reflectedColor = (depth >= maxDepth) ? Color::Grey : GetReflectionColor(surface, pos, reflectDir, depth);
 
         return naturalColor + reflectedColor;
     }
@@ -350,11 +347,10 @@ class RayTracerEngine
         {
             Vector ldis = light.pos - pos;
             Vector livec = ldis.Norm();
-            Ray ray { pos, livec };
+            Ray ray{ pos, livec };
 
-            std::optional<double> neatIsect = TestRay(ray);
-
-            bool isInShadow = neatIsect ? (neatIsect.value() <= ldis.Length()) : false;
+            auto neatIsect = GetClosestIntersection(ray);
+            bool isInShadow = neatIsect.has_value() ? (neatIsect->dist <= ldis.Length()) : false;
 
             if (!isInShadow) {
                 double illum = livec * norm;
@@ -368,38 +364,29 @@ class RayTracerEngine
         return result;
     }
 
-    Vector GetPoint(int x, int y, const Camera& camera, int screenWidth, int screenHeight)
-    {
-        double recenterX = (x - (screenWidth / 2.0)) / 2.0 / screenWidth;
-        double recenterY = -(y - (screenHeight / 2.0)) / 2.0 / screenHeight;
-        return (camera.forward + ((camera.right * recenterX) + (camera.up * recenterY))).Norm();
-    }
-
 public:
-    RayTracerEngine(Scene &scene) : scene(scene) {}
+    RayTracerEngine(Scene& scene) : scene(scene) {}
 
-    void render(UInt8* bitmapData, int stride, int w, int h)
+    void render(RgbColor* image, int w, int h)
     {
         Ray ray(scene.camera.pos, Vector());
         auto& camera = scene.camera;
+        int pos = 0;
 
-        for (int y = 0; y < h; ++y)
-        {
-            RgbColor* pColor = (RgbColor*)(&bitmapData[y * stride]);
-            for (int x = 0; x < w; ++x)
-            {
-                ray.dir = GetPoint(x, y, camera, h, w);
-                *pColor = TraceRay(ray, 0).ToDrawingColor();
-                pColor++;
+        for (int y = 0; y < h; ++y) {
+            pos = y * h;
+            for (int x = 0; x < w; ++x) {
+                ray.dir = camera.GetPoint(x, y, w, h);
+                image[pos + x] = TraceRay(ray, 0).ToDrawingColor();
             }
         }
     }
 };
 
-void SaveRGBBitmap(UInt8* bitmapBits, int width, int height, int bitsPerPixel, const char* fileName)
+void SaveImage(RgbColor* bitmapBits, int width, int height, const char* fileName)
 {
-    typedef unsigned long DWORD;
-    typedef long LONG;
+    typedef unsigned int DWORD;
+    typedef int LONG;
     typedef unsigned short WORD;
     const int BI_RGB = 0;
 
@@ -417,6 +404,7 @@ void SaveRGBBitmap(UInt8* bitmapBits, int width, int height, int bitsPerPixel, c
         DWORD biClrImportant;
     };
 
+#pragma pack(push, 1)
     struct BITMAPFILEHEADER {
         WORD  bfType;
         DWORD bfSize;
@@ -424,17 +412,18 @@ void SaveRGBBitmap(UInt8* bitmapBits, int width, int height, int bitsPerPixel, c
         WORD  bfReserved2;
         DWORD bfOffBits;
     };
+#pragma pack(pop)
 
     BITMAPINFOHEADER bmpInfoHeader = { 0 };
     bmpInfoHeader.biSize = sizeof(BITMAPINFOHEADER);
-    bmpInfoHeader.biBitCount = bitsPerPixel;
+    bmpInfoHeader.biBitCount = 32;
     bmpInfoHeader.biClrImportant = 0;
     bmpInfoHeader.biClrUsed = 0;
     bmpInfoHeader.biCompression = BI_RGB;
     bmpInfoHeader.biHeight = -height;
     bmpInfoHeader.biWidth = width;
     bmpInfoHeader.biPlanes = 1;
-    bmpInfoHeader.biSizeImage = width * height * (bitsPerPixel / 8);
+    bmpInfoHeader.biSizeImage = width * height * 4;
 
     BITMAPFILEHEADER bfh = { 0 };
     bfh.bfType = 'B' + ('M' << 8);
@@ -456,20 +445,17 @@ int main()
     Scene scene;
     RayTracerEngine rayTracer(scene);
 
-    int width = 500;
-    int height = 500;
-    int stride = width * 4;
+    const int width = 500;
+    const int height = 500;
 
-    std::vector<UInt8> bitmapData(stride * height);
-    rayTracer.render(&bitmapData[0], stride, width, height);
+    std::vector<RgbColor> bitmapData(width * height);
+    rayTracer.render(&bitmapData[0], width, height);
 
     auto t2 = std::chrono::high_resolution_clock::now();
     auto diff = std::chrono::duration_cast<std::chrono::milliseconds>((t2 - t1));
 
     std::cout << "Completed in " << diff.count() << " ms" << std::endl;
-    SaveRGBBitmap(&bitmapData[0], width, height, 32, "cpp-raytracer.bmp");
-
-    std::cin.get();
+    SaveImage(&bitmapData[0], width, height, "cpp-raytracer.bmp");
 
     return 0;
 };

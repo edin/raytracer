@@ -60,7 +60,7 @@ type Color(r:double, g:double, b:double) =
 let White = Color(1.0, 1.0, 1.0);
 let Grey =  Color(0.5, 0.5, 0.5);
 let Black = Color(0.0, 0.0, 0.0);
-let Background = Black
+let Background = Black;
 let Defaultcolor = Black;
 
 type Camera(pos: Vector, lookAt:Vector) =
