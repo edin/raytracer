@@ -138,7 +138,7 @@ struct Scene
         things = [
             Plane(Vector(0.0, 1.0, 0.0), 0.0,  CheckerBoard)
             Sphere(Vector(0.0, 1.0, -0.25), 1.0, Shiny)
-            Sphere(Vector(-1.0, 0.5, 1.5), 0.5, Shiny)
+            Sphere(Vector(-1.0, 0.5, 1.5), 0.5*0.5, Shiny)
         ]
         lights = [
             Light(Vector(-2.0, 2.5, 0.0), Color(0.49, 0.07, 0.07))

@@ -311,7 +311,7 @@ CreateScene:: proc () -> Scene {
     things := []Thing{
         Plane{Vector{0.0, 1.0, 0.0}, 0.0, Surface.Checkerboard},
         Sphere{Vector{0.0, 1.0, -0.25}, 1.0, Surface.Shiny},
-        Sphere{Vector{-1.0, 0.5, 1.5}, 0.5, Surface.Shiny}
+        Sphere{Vector{-1.0, 0.5, 1.5}, 0.5*0.5, Surface.Shiny}
     };
 
     lights := []Light{
