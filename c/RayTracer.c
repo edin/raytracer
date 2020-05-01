@@ -4,12 +4,7 @@
 #include <stdlib.h>
 #include <time.h>
 
-#ifdef _MSC_VER
-#   ifndef INFINITY
-#       define INFINITY (DBL_MAX+DBL_MAX)
-#       define NAN (INFINITY-INFINITY)
-#   endif
-#endif
+const double FarAway = 1000000.0;
 
 typedef unsigned char  UInt8;
 typedef unsigned long  DWORD;
@@ -32,6 +27,7 @@ typedef struct {
     DWORD biClrImportant;
 } BITMAPINFOHEADER;
 
+#pragma pack(push, 1)
 typedef struct {
     WORD  bfType;
     DWORD bfSize;
@@ -39,6 +35,7 @@ typedef struct {
     WORD  bfReserved2;
     DWORD bfOffBits;
 } BITMAPFILEHEADER;
+#pragma pack(pop)
 
 typedef enum SurfaceType {
     SHINY_SURFACE,
@@ -59,7 +56,7 @@ typedef struct Vector{
 } Vector;
 
 typedef struct Color {
-    double r, b, g;
+    double b, g, r;
 } Color;
 
 typedef struct Camera {
@@ -70,15 +67,9 @@ typedef struct Ray {
     Vector start, dir;
 } Ray;
 
-typedef struct Surface {
-    SurfaceType type;
-    Color  diffuse, specular;
-    double reflect, roughness;
-} Surface;
-
 typedef struct Thing {
     ObjectType  type;
-    Surface    *surface;
+    SurfaceType surface;
     union {
         double radius2; // For Sphere
         double offset;  // For Plane
@@ -120,18 +111,11 @@ static Color black  = { 0.0, 0.0, 0.0 };
 static Color background   = { 0.0, 0.0, 0.0 };
 static Color defaultColor = { 0.0, 0.0, 0.0 };
 
-static Surface shiny;
-static Surface checkerboard;
-
 Color Shade(Intersection  *isect, Scene *scene, int depth);
 
 Vector CreateVector(double x, double y, double z)
 {
-    Vector v;
-    v.x = x;
-    v.y = y;
-    v.z = z;
-    return v;
+    return Vector{.x = x, .y = y, .z = z};
 }
 
 Vector VectorCross(Vector *v1, Vector *v2)
@@ -156,7 +140,7 @@ Vector VectorScale(Vector *v, double k)
 Vector VectorNorm(Vector v)
 {
     double mag = VectorLength(&v);
-    double div = (mag == 0) ? INFINITY : 1.0 / mag;
+    double div = (mag == 0) ? FarAway : 1.0 / mag;
     return VectorScale(&v, div);
 }
 
@@ -183,29 +167,21 @@ Vector VectorSub(Vector *v1, Vector *v2)
 
 Color CreateColor(double r, double g, double b)
 {
-    Color color;
-    color.r = r;
-    color.g = g;
-    color.b = b;
-    return color;
+    return Color {.b = b, .g = g, .r = r};
 }
 
 Color ScaleColor(Color *color, double k)
 {
-    Color result;
-    result.r = k * color->r;
-    result.g = k * color->g;
-    result.b = k * color->b;
-    return result;
+    return CreateColor(k * color->r, k * color->g, k * color->b);
 }
 
 Color ColorMultiply(Color *v1, Color *v2)
 {
-    Color color;
-    color.r = v1->r * v2->r;
-    color.g = v1->g * v2->g;
-    color.b = v1->b * v2->b;
-    return color;
+    return CreateColor(
+        v1->r * v2->r,
+        v1->g * v2->g,
+        v1->b * v2->b
+    );
 }
 
 void ColorMultiplySelf(Color *v1, Color *v2)
@@ -216,11 +192,11 @@ void ColorMultiplySelf(Color *v1, Color *v2)
 }
 
 Color ColorAdd(Color *v1, Color *v2) {
-    Color color;
-    color.r = v1->r + v2->r;
-    color.g = v1->g + v2->g;
-    color.b = v1->b + v2->b;
-    return color;
+    return CreateColor(
+        v1->r + v2->r,
+        v1->g + v2->g,
+        v1->b + v2->b
+    );
 }
 
 UInt8 Legalize(double c)
@@ -233,12 +209,12 @@ UInt8 Legalize(double c)
 
 RgbColor ToDrawingColor(Color *c)
 {
-    RgbColor color;
-    color.r = (UInt8)Legalize(c->r);
-    color.g = (UInt8)Legalize(c->g);
-    color.b = (UInt8)Legalize(c->b);
-    color.a = 255;
-    return color;
+    return RgbColor {
+        .b = Legalize(c->b),
+        .g = Legalize(c->g),
+        .r = Legalize(c->r),
+        .a = 255
+    };
 }
 
 Camera CreateCamera(Vector pos, Vector lookAt)
@@ -262,27 +238,17 @@ Camera CreateCamera(Vector pos, Vector lookAt)
 
 Ray CreateRay(Vector start, Vector dir)
 {
-    Ray ray;
-    ray.start = start;
-    ray.dir   = dir;
-    return ray;
+    return Ray{.start = start, .dir = dir};
 }
 
 Intersection CreateIntersection(Thing* thing, Ray ray, double dist)
 {
-    Intersection isect;
-    isect.thing = thing;
-    isect.ray   = ray;
-    isect.dist  = dist;
-    return isect;
+    return Intersection{.thing = thing, .ray = ray, .dist = dist};
 }
 
 Light CreateLight(Vector pos, Color color)
 {
-    Light light;
-    light.pos = pos;
-    light.color = color;
-    return light;
+    return Light{.pos = pos, .color = color};
 }
 
 Vector ObjectNormal(Thing *object, Vector *pos)
@@ -306,7 +272,7 @@ int ObjectIntersect(Thing *object, Ray *ray, Intersection *result)
     {
         case SPHERE: {
             Vector eo = VectorSub(&object->center, &ray->start);
-            double v    = VectorDot(&eo, &ray->dir);
+            double v  = VectorDot(&eo, &ray->dir);
             double dist = 0;
 
             if (v >= 0) {
@@ -335,35 +301,35 @@ int ObjectIntersect(Thing *object, Ray *ray, Intersection *result)
     return 0;
 }
 
-Thing CreateSphere(Vector center, double radius, Surface *surface)
+Thing CreateSphere(Vector center, double radius, SurfaceType surface)
 {
-    Thing sphere;
-    sphere.type    = SPHERE;
-    sphere.radius2 = radius * radius;
-    sphere.center  = center;
-    sphere.surface = surface;
-    return sphere;
+    return Thing {
+        .type    = SPHERE,
+        .surface = surface,
+        .radius2 = radius * radius,
+        .center  = center
+    };
 }
 
-Thing CreatePlane(Vector norm, double offset, Surface *surface)
+Thing CreatePlane(Vector norm, double offset, SurfaceType surface)
 {
-    Thing plane;
-    plane.type = PLANE;
-    plane.surface = surface;
-    plane.norm    = norm;
-    plane.offset  = offset;
-    return plane;
+    return Thing {
+        .type    = PLANE,
+        .surface = surface,
+        .offset  = offset,
+        .norm    = norm
+    };
 }
 
-void GetSurfaceProperties(Surface *surface, Vector *pos, SurfaceProperties *properties)
+void GetSurfaceProperties(SurfaceType surface, Vector *pos, SurfaceProperties *properties)
 {
-    switch(surface->type)
+    switch(surface)
     {
         case SHINY_SURFACE: {
-            properties->diffuse   = surface->diffuse;
-            properties->specular  = surface->specular;
-            properties->reflect   = surface->reflect;
-            properties->roughness = surface->roughness;
+            properties->diffuse   = white;
+            properties->specular  = grey;
+            properties->reflect   = 0.7;
+            properties->roughness = 250.0;
         } break;
         case CHECKERBOARD_SURFACE: {
             int val = (int)(floor(pos->z) + floor(pos->x));
@@ -374,31 +340,10 @@ void GetSurfaceProperties(Surface *surface, Vector *pos, SurfaceProperties *prop
                 properties->reflect   = 0.7;
                 properties->diffuse   = black;
             }
-            properties->specular  = surface->specular;
-            properties->roughness = surface->roughness;
+            properties->specular  = white;
+            properties->roughness = 150.0;
         } break;
     }
-}
-
-Surface CreateSurface(SurfaceType type)
-{
-    Surface surface;
-    surface.type = type;
-    switch (type) {
-        case SHINY_SURFACE: {
-            surface.diffuse   = white;
-            surface.specular  = grey;
-            surface.reflect   = 0.7;
-            surface.roughness = 250.0;
-        } break;
-        case CHECKERBOARD_SURFACE: {
-            surface.diffuse   = black;
-            surface.specular  = white;
-            surface.reflect   = 0.7;
-            surface.roughness = 150.0;
-        } break;
-    }
-    return surface;
 }
 
 Scene CreateScene()
@@ -411,9 +356,9 @@ Scene CreateScene()
     scene.things = (Thing*)(malloc(scene.thingCount * sizeof(Thing)));
     scene.lights = (Light*)(malloc(scene.lightCount * sizeof(Light)));
 
-    scene.things[0] = CreatePlane(CreateVector(0.0, 1.0, 0.0), 0.0, &checkerboard);
-    scene.things[1] = CreateSphere(CreateVector(0.0, 1.0, -0.25), 1.0, &shiny);
-    scene.things[2] = CreateSphere(CreateVector(-1.0, 0.5, 1.5), 0.5, &shiny);
+    scene.things[0] = CreatePlane(CreateVector(0.0, 1.0, 0.0), 0.0, CHECKERBOARD_SURFACE);
+    scene.things[1] = CreateSphere(CreateVector(0.0, 1.0, -0.25), 1.0, SHINY_SURFACE);
+    scene.things[2] = CreateSphere(CreateVector(-1.0, 0.5, 1.5), 0.5, SHINY_SURFACE);
 
     scene.lights[0] = CreateLight(CreateVector(-2.0, 2.5, 0.0), CreateColor(0.49, 0.07, 0.07));
     scene.lights[1] = CreateLight(CreateVector(1.5, 2.5, 1.5),  CreateColor(0.07, 0.07, 0.49));
@@ -432,19 +377,15 @@ void ReleaseScene(Scene *scene)
 
 Intersection Intersections(Ray *ray, Scene *scene)
 {
-    double closest = INFINITY;
+    double closest = FarAway;
     Intersection closestInter;
     closestInter.thing = NULL;
 
-    int thingCount = scene->thingCount;
-
-    Thing *first = &scene->things[0];
-    Thing *last  = &scene->things[thingCount-1];
-
     Intersection inter;
 
-    for (Thing *thing = first; thing <= last; ++thing)
+    for (int i = 0; i < scene->thingCount; i++)
     {
+        Thing * thing = &scene->things[i];
         int intersect = ObjectIntersect(thing, ray, &inter);
         if (intersect == 1  && inter.dist < closest)
         {
@@ -455,24 +396,10 @@ Intersection Intersections(Ray *ray, Scene *scene)
     return closestInter;
 }
 
-double TestRay(Ray *ray, Scene *scene)
-{
-    Intersection isect = Intersections(ray, scene);
-    if (isect.thing != NULL)
-    {
-        return isect.dist;
-    }
-    return NAN;
-}
-
 Color TraceRay(Ray *ray, Scene *scene, int depth)
 {
     Intersection isect = Intersections(ray, scene);
-    if (isect.thing != NULL)
-    {
-        return Shade(&isect, scene, depth);
-    }
-    return background;
+    return (isect.thing != NULL) ? Shade(&isect, scene, depth) : background;
 }
 
 Color GetReflectionColor(Thing* thing, Vector *pos, Vector *normal, Vector *rd, Scene *scene, int depth)
@@ -493,22 +420,18 @@ Color GetNaturalColor(Thing* thing, Vector *pos, Vector *norm, Vector *rd, Scene
     SurfaceProperties sp;
     GetSurfaceProperties(thing->surface, pos, &sp);
 
-    int lightCount = scene->lightCount;
-
-    Light *first = &scene->lights[0];
-    Light *last  = &scene->lights[lightCount - 1];
-
-    for (Light *light = first; light <= last; ++light)
+    for (int i = 0; i < scene->lightCount; i++)
     {
+        Light  *light = &scene->lights[i];
         Vector ldis  = VectorSub(&light->pos, pos);
         Vector livec = VectorNorm(ldis);
 
         double ldisLen = VectorLength(&ldis);
         Ray ray = { *pos, livec };
 
-        double neatIsect = TestRay(&ray, scene);
+        Intersection neatIsect = Intersections(&ray, scene);
 
-        int isInShadow = (neatIsect == NAN) ? 0 : (neatIsect <= ldisLen);
+        int isInShadow = (neatIsect.thing != NULL) && (neatIsect.dist <= ldisLen);
         if (!isInShadow) {
             Vector rdNorm = VectorNorm(*rd);
 
@@ -611,9 +534,6 @@ void SaveRGBBitmap(UInt8* bitmapBits, int width, int height, int bitsPerPixel, c
 
 int main()
 {
-    shiny        = CreateSurface(SHINY_SURFACE);
-    checkerboard = CreateSurface(CHECKERBOARD_SURFACE);
-
     printf("Started\n");
     clock_t t1 = clock();
     Scene scene  = CreateScene();
@@ -635,7 +555,6 @@ int main()
 
     ReleaseScene(&scene);
     free(bitmapData);
-    //system("pause");
 
     return 0;
 };

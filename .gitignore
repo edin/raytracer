@@ -21,3 +21,6 @@ c++/RayTracer/RayTracer.sdf
 /zig/zig-cache
 /zig/RayTracer.lib
 *.mod
+node_modules
+*.png
+*.bmp
