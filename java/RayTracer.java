@@ -13,7 +13,7 @@ public class RayTracer
         BufferedImage b = new BufferedImage(500,500,BufferedImage.TYPE_INT_RGB);
 
         long t1 = System.nanoTime();
-        Scene s = new DefaultScene();
+        Scene s = new Scene();
         RayTracerEngine rt = new RayTracerEngine();
         rt.render(s, b);
         long t2 = System.nanoTime();
@@ -39,43 +39,43 @@ class Vector
         this.z = z;
     }
 
-    static Vector times(double k, Vector v)
+    public Vector times(double k)
     {
-        return new Vector(k * v.x, k * v.y, k * v.z);
+        return new Vector(k * x, k * y, k * z);
     }
 
-    static Vector minus(Vector v1, Vector v2)
+    public Vector minus(Vector v)
     {
-        return new Vector(v1.x - v2.x, v1.y - v2.y, v1.z - v2.z);
+        return new Vector(x - v.x, y - v.y, z - v.z);
     }
 
-    static Vector plus(Vector v1, Vector  v2)
+    public Vector plus(Vector  v)
     {
-        return new Vector(v1.x + v2.x, v1.y + v2.y, v1.z + v2.z);
+        return new Vector(x + v.x, y + v.y, z + v.z);
     }
 
-    static double dot(Vector v1, Vector v2)
+    public double dot(Vector v)
     {
-        return v1.x * v2.x + v1.y * v2.y + v1.z * v2.z;
+        return x * v.x + y * v.y + z * v.z;
     }
 
-    static double mag(Vector v)
+    public double mag()
     {
-        return Math.sqrt(v.x * v.x + v.y * v.y + v.z * v.z);
+        return Math.sqrt(x * x + y * y + z * z);
     }
 
-    static Vector norm(Vector v)
+    public Vector norm()
     {
-        double mag = Vector.mag(v);
+        double mag = this.mag();
         double div = (mag == 0) ? Double.POSITIVE_INFINITY : 1.0 / mag;
-        return Vector.times(div, v);
+        return this.times(div);
     }
 
-    static Vector cross(Vector v1, Vector v2)
+    public Vector cross(Vector v)
     {
-        return new Vector(v1.y * v2.z - v1.z * v2.y,
-                          v1.z * v2.x - v1.x * v2.z,
-                          v1.x * v2.y - v1.y * v2.x);
+        return new Vector(y * v.z - z * v.y,
+                          z * v.x - x * v.z,
+                          x * v.y - y * v.x);
     }
 }
 
@@ -92,19 +92,19 @@ class Color
         this.b = b;
     }
 
-    static Color scale(double k, Color v)
+    public Color scale(double k)
     {
-        return new Color(k * v.r, k * v.g, k * v.b);
+        return new Color(k * r, k * g, k * b);
     }
 
-    static Color plus(Color v1, Color v2)
+    public Color plus(Color v)
     {
-        return new Color(v1.r + v2.r, v1.g + v2.g, v1.b + v2.b);
+        return new Color(r + v.r, g + v.g, b + v.b);
     }
 
-    static Color times(Color v1, Color v2)
+    public Color times(Color v)
     {
-        return new Color(v1.r * v2.r, v1.g * v2.g, v1.b * v2.b);
+        return new Color(r * v.r, g * v.g, b * v.b);
     }
 
     static Color white = new Color(1.0, 1.0, 1.0);
@@ -113,16 +113,16 @@ class Color
     static Color background   = Color.black;
     static Color defaultColor = Color.black;
 
-    static int toDrawingColor(Color c)
+    public int toDrawingColor()
     {
-        int r = legalize(c.r);
-        int g = legalize(c.g);
-        int b = legalize(c.b);
+        int r = legalize(this.r);
+        int g = legalize(this.g);
+        int b = legalize(this.b);
         java.awt.Color color = new java.awt.Color(r, g, b);
         return color.getRGB();
     }
 
-    static int legalize(double c)
+    private static int legalize(double c)
     {
         int x = (int)(c*255);
         if (x < 0) x = 0;
@@ -140,12 +140,19 @@ class Camera
 
     public Camera(Vector pos, Vector lookAt)
     {
-        this.pos = pos;
         Vector down = new Vector(0.0, -1.0, 0.0);
-        this.forward = Vector.norm(Vector.minus(lookAt, this.pos));
-        this.right = Vector.times(1.5, Vector.norm(Vector.cross(this.forward, down)));
-        this.up = Vector.times(1.5, Vector.norm(Vector.cross(this.forward, this.right)));
+        this.pos = pos;
+        this.forward = lookAt.minus(this.pos).norm();
+        this.right = this.forward.cross(down).norm().times(1.5);
+        this.up = this.forward.cross(right).norm().times(1.5);
     }
+
+    public Vector getPoint(int x, int y, int screenWidth, int screenHeight)
+    {
+        double recenterX = (x - (screenWidth / 2.0)) / 2.0 / screenWidth;
+        double recenterY = - (y - (screenHeight / 2.0)) / 2.0 / screenHeight;
+        return forward.plus(right.times(recenterX)).plus(up.times(recenterY)).norm();
+    }    
 }
 
 class Ray
@@ -183,7 +190,6 @@ interface Surface
     public double roughness();
 }
 
-
 interface Thing
 {
     public Intersection intersect(Ray ray);
@@ -202,13 +208,6 @@ class Light
     }
 }
 
-interface Scene
-{
-    public List<Thing> things();
-    public List<Light> lights();
-    Camera camera();
-}
-
 class Sphere implements Thing
 {
     public double radius2;
@@ -224,28 +223,24 @@ class Sphere implements Thing
 
     public Vector normal(Vector pos)
     {
-        return Vector.norm(Vector.minus(pos, this.center));
+        return pos.minus(this.center).norm();
     }
 
     public Intersection intersect(Ray ray)
     {
-        Vector eo = Vector.minus(this.center, ray.start);
-        double v = Vector.dot(eo, ray.dir);
+        Vector eo = this.center.minus(ray.start);
+        double v = eo.dot(ray.dir);
         double dist = 0;
         if (v >= 0)
         {
-            double disc = this.radius2 - (Vector.dot(eo, eo) - v * v);
+            double disc = this.radius2 - (eo.dot(eo) - v * v);
             if (disc >= 0)
             {
                 dist = v - Math.sqrt(disc);
+                return new Intersection(this, ray, dist);
             }
         }
-
-        if (dist == 0)
-        {
-            return null;
-        }
-        return new Intersection(this, ray, dist);
+        return null;
     }
 
     @Override
@@ -254,7 +249,6 @@ class Sphere implements Thing
         return this.surface;
     }
 }
-
 
 class Plane implements Thing
 {
@@ -269,12 +263,12 @@ class Plane implements Thing
 
     public Intersection intersect(Ray ray)
     {
-        double denom = Vector.dot(norm, ray.dir);
+        double denom = norm.dot(ray.dir);
         if (denom > 0)
         {
             return null;
         }
-        double dist = (Vector.dot(norm, ray.start) + offset) / (-denom);
+        double dist = (norm.dot(ray.start) + offset) / (-denom);
         return new Intersection(this, ray, dist);
     }
 
@@ -291,7 +285,6 @@ class Plane implements Thing
         return surface;
     }
 }
-
 
 class Surfaces
 {
@@ -321,7 +314,6 @@ class Surfaces
             return 250;
         }
     };
-
 
     public static Surface checkerboard = new Surface()
     {
@@ -359,63 +351,36 @@ class Surfaces
     };
 }
 
-
-class DefaultScene implements Scene
+class Scene
 {
-    private List<Thing> things = new ArrayList<Thing>();
-    private List<Light> lights = new ArrayList<Light>();
-    private Camera camera;
+    public List<Thing> things = new ArrayList<Thing>();
+    public List<Light> lights = new ArrayList<Light>();
+    public Camera camera;
 
-    public DefaultScene()
+    public Scene()
     {
-        this.things.add(new Plane(new Vector(0.0, 1.0, 0.0), 0.0, Surfaces.checkerboard));
-        this.things.add(new Sphere(new Vector(0.0, 1.0, -0.25), 1.0, Surfaces.shiny));
-        this.things.add(new Sphere(new Vector(-1.0, 0.5, 1.5), 0.5, Surfaces.shiny));
+        things.add(new Plane(new Vector(0.0, 1.0, 0.0), 0.0, Surfaces.checkerboard));
+        things.add(new Sphere(new Vector(0.0, 1.0, -0.25), 1.0, Surfaces.shiny));
+        things.add(new Sphere(new Vector(-1.0, 0.5, 1.5), 0.5, Surfaces.shiny));
 
+        lights.add(new Light(new Vector(-2.0, 2.5, 0.0), new Color(0.49, 0.07, 0.07)));
+        lights.add(new Light(new Vector( 1.5, 2.5, 1.5), new Color(0.07, 0.07, 0.49)));
+        lights.add(new Light(new Vector( 1.5, 2.5,-1.5), new Color(0.07, 0.49, 0.071)));
+        lights.add(new Light(new Vector( 0.0, 3.5, 0.0), new Color(0.21, 0.21, 0.35)));
 
-        Light a = new Light(new Vector(-2.0, 2.5, 0.0), new Color(0.49, 0.07, 0.07));
-        Light b = new Light(new Vector(1.5, 2.5, 1.5),new Color(0.07, 0.07, 0.49));
-        Light c = new Light(new Vector(1.5, 2.5, -1.5),new Color(0.07, 0.49, 0.071));
-        Light d = new Light(new Vector(0.0, 3.5, 0.0),new Color(0.21, 0.21, 0.35) );
-
-        this.lights.add(a);
-        this.lights.add(b);
-        this.lights.add(c);
-        this.lights.add(d);
-
-        this.camera= new Camera(new Vector(3.0, 2.0, 4.0), new Vector(-1.0, 0.5, 0.0));
-    }
-
-    @Override
-    public List<Thing> things()
-    {
-        return things;
-    }
-
-    @Override
-    public List<Light> lights()
-    {
-        return lights;
-    }
-
-    @Override
-    public Camera camera()
-    {
-        return camera;
+        camera = new Camera(new Vector(3.0, 2.0, 4.0), new Vector(-1.0, 0.5, 0.0));
     }
 }
-
 
 class RayTracerEngine
 {
     private int maxDepth = 5;
 
-
     private Intersection intersections(Ray ray,Scene scene)
     {
         double closest = Double.POSITIVE_INFINITY;
         Intersection closestInter = null;
-        for (Thing thing : scene.things())
+        for (Thing thing : scene.things)
         {
             Intersection inter = thing.intersect(ray);
             if (inter != null && inter.dist < closest)
@@ -426,18 +391,6 @@ class RayTracerEngine
         }
         return closestInter;
     }
-
-
-    private double testRay(Ray ray,Scene scene)
-    {
-        Intersection isect = intersections(ray, scene);
-        if (isect != null)
-        {
-            return isect.dist;
-        }
-        return Double.NaN;
-    }
-
 
     private Color traceRay(Ray ray, Scene scene, int depth)
     {
@@ -451,50 +404,60 @@ class RayTracerEngine
     private Color shade(Intersection isect,Scene scene, int depth)
     {
         Vector d = isect.ray.dir;
-        Vector pos = Vector.plus(Vector.times(isect.dist, d), isect.ray.start);
+        Vector pos = d.times(isect.dist).plus(isect.ray.start);
         Vector normal = isect.thing.normal(pos);
-        Vector reflectDir = Vector.minus(d, Vector.times(2, Vector.times(Vector.dot(normal, d), normal)));
-        Color naturalColor = Color.plus(Color.background, getNaturalColor(isect.thing, pos, normal, reflectDir, scene));
-        Color reflectedColor = (depth >= this.maxDepth) ? Color.grey : getReflectionColor(isect.thing, pos, normal, reflectDir, scene, depth);
-        return Color.plus(naturalColor, reflectedColor);
+
+        Vector reflectDir = d.minus(normal.times(normal.dot(d)).times(2));
+        Color naturalColor = Color.background.plus(getNaturalColor(isect.thing, pos, normal, reflectDir, scene));
+
+        Color reflectedColor = Color.grey;
+        if (depth < this.maxDepth) {
+            reflectedColor = getReflectionColor(isect.thing, pos, normal, reflectDir, scene, depth);
+        }
+        return naturalColor.plus(reflectedColor);
     }
 
-
-    private Color getReflectionColor(Thing thing,Vector pos,Vector normal,Vector rd, Scene scene,int depth)
+    private Color getReflectionColor(Thing thing, Vector pos, Vector normal, Vector rd, Scene scene, int depth)
     {
-        return Color.scale(thing.surface().reflect(pos), traceRay(new Ray(pos, rd), scene, depth + 1));
+        Color color = traceRay(new Ray(pos, rd), scene, depth + 1);
+        double reflect = thing.surface().reflect(pos);
+        return color.scale(reflect);
     }
 
-    private Color getNaturalColor(Thing thing, Vector pos,Vector norm,Vector rd,Scene scene)
+    private Color getNaturalColor(Thing thing, Vector pos, Vector norm, Vector rd, Scene scene)
     {
-        Color c = Color.black;
-        for(Light item : scene.lights())
+        Color color = Color.black;
+        for(Light light : scene.lights)
         {
-            Color newColor = addLight(c, item, pos, scene, thing, rd, norm);
-            c = newColor;
-        }
-        return c;
-    }
+            Vector ldis  = light.pos.minus(pos);
+            Vector livec = ldis.norm();
+            Ray ray = new Ray(pos, livec);
 
-    public Color addLight(Color col, Light light, Vector pos, Scene scene, Thing thing, Vector rd, Vector norm)
-    {
-        Vector ldis = Vector.minus(light.pos, pos);
-        Vector livec = Vector.norm(ldis);
-        double neatIsect = testRay(new Ray(pos,  livec),  scene);
+            Intersection neatIsect = intersections(ray,  scene);
+            boolean isInShadow = (neatIsect != null) && (neatIsect.dist <= ldis.mag());
+            
+            if (!isInShadow) 
+            {
+                double illum    = livec.dot(norm);
+                double specular = livec.dot(rd.norm());
 
-        boolean isInShadow = (neatIsect == Double.NaN) ? false : (neatIsect <= Vector.mag(ldis));
-        if (isInShadow)
-        {
-            return col;
+                Color lcolor = Color.defaultColor;
+                Color scolor = Color.defaultColor;
+
+                if (illum > 0)    { 
+                    lcolor = light.color.scale(illum);
+                }
+
+                if (specular > 0) {
+                    scolor = light.color.scale(Math.pow(specular, thing.surface().roughness()));
+                } 
+                Color surfDiffuse = thing.surface().diffuse(pos);
+                Color surfSpecular = thing.surface().specular(pos);
+                color = color.plus(lcolor.times(surfDiffuse)).plus(scolor.times(surfSpecular));
+            }
+
         }
-        else
-        {
-            double illum    = Vector.dot(livec, norm);
-            Color  lcolor   = (illum > 0) ? Color.scale(illum, light.color) : Color.defaultColor;
-            double specular = Vector.dot(livec, Vector.norm(rd));
-            Color scolor    = (specular > 0) ? Color.scale(Math.pow(specular, thing.surface().roughness()), light.color) : Color.defaultColor;
-            return Color.plus(col, Color.plus(Color.times(thing.surface().diffuse(pos), lcolor), Color.times(thing.surface().specular(pos), scolor)));
-        }
+        return color;
     }
 
     public void render(Scene scene, BufferedImage img)
@@ -505,17 +468,11 @@ class RayTracerEngine
         {
             for (int x = 0; x < w;  x++)
             {
-                Color color = this.traceRay(new Ray(scene.camera().pos,  getPoint(x, y, scene.camera(),h,w)), scene, 0);
-                int c = Color.toDrawingColor(color);
-                img.setRGB(x, y, c);
+                Vector point = scene.camera.getPoint(x, y, w, h);
+                Ray ray = new Ray(scene.camera.pos, point);
+                Color color = this.traceRay(ray, scene, 0);
+                img.setRGB(x, y, color.toDrawingColor());
             }
         }
-    }
-
-    private Vector getPoint(int x, int y,Camera camera, int screenWidth, int screenHeight)
-    {
-        double recenterX = (x - (screenWidth / 2.0)) / 2.0 / screenWidth;
-        double recenterY = - (y - (screenHeight / 2.0)) / 2.0 / screenHeight;
-        return Vector.norm(Vector.plus(camera.forward, Vector.plus(Vector.times(recenterX, camera.right), Vector.times(recenterY, camera.up))));
     }
 }

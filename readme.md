@@ -51,9 +51,9 @@ Raytracer benchmarks based on [Typescript](http://www.typescriptlang.org) sample
 | Nim        | 418 |
 | C#         | 426 |
 | C++        | 461 |
+| Java       | 478 |
 | D          | 490 |
 | PHP        | 491 |
-| Java       | 521 |
 | Go         | 529 |
 | C          | 560 |
 | Fortran    | 565 |
