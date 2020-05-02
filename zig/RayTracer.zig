@@ -7,53 +7,73 @@ const RGBColor = struct {
     a: u8,
 };
 
+const WORD = u16;
+const DWORD = u32;
+const LONG = i32;
+
+const BITMAPINFOHEADER = struct {
+    biSize: DWORD,
+    biWidth: LONG,
+    biHeight: LONG,
+    biPlanes: WORD,
+    biBitCount: WORD,
+    biCompression: DWORD,
+    biSizeImage: DWORD,
+    biXPelsPerMeter: LONG,
+    biYPelsPerMeter: LONG,
+    biClrUsed: DWORD,
+    biClrImportant: DWORD,
+};
+
+const BITMAPFILEHEADER = packed struct {
+    bfType: WORD,
+    bfSize: DWORD,
+    bfReserved1: WORD,
+    bfReserved2: WORD,
+    bfOffBits: DWORD,
+};
+
 const Vector = struct {
     x: f32,
     y: f32,
     z: f32,
 
-    pub fn init(x: f32, y: f32, z: f32) Vector
-    {
-        return Vector {.x = x, .y = y, .z = z};
+    pub fn init(x: f32, y: f32, z: f32) Vector {
+        return Vector{ .x = x, .y = y, .z = z };
     }
 
-    pub fn scale(self: Vector, k: f32) Vector
-    {
+    pub fn scale(self: Vector, k: f32) Vector {
         return Vector.init(k * self.x, k * self.y, k * self.z);
     }
 
-    pub fn add(self: Vector, v: Vector) Vector
-    {
+    pub fn add(self: Vector, v: Vector) Vector {
         return Vector.init(self.x + v.x, self.y + v.y, self.z + v.z);
     }
 
-    pub fn sub(self: Vector, v: Vector) Vector
-    {
+    pub fn sub(self: Vector, v: Vector) Vector {
         return Vector.init(self.x - v.x, self.y - v.y, self.z - v.z);
     }
 
-    pub fn dot(self: Vector, v: Vector) f32
-    {
+    pub fn dot(self: Vector, v: Vector) f32 {
         return self.x * v.x + self.y * v.y + self.z * v.z;
     }
 
-    pub fn mag(self: Vector) f32
-    {
+    pub fn mag(self: Vector) f32 {
         return sqrt(self.x * self.x + self.y * self.y + self.z * self.z);
     }
 
-    pub fn norm(self: Vector) f32
-    {
+    pub fn norm(self: Vector) f32 {
         const magnitude = self.mag;
-        const div = if (mag == 0.0) { double.infinity; } else { 1.0 / magnitude; };
+        const div = if (mag == 0.0) {
+            double.infinity;
+        } else {
+            1.0 / magnitude;
+        };
         return div * self;
     }
 
-    pub fn cross(self: Vector, v: Vector) Vector
-    {
-        return Vector.init(self.y * v.z - self.z * v.y,
-                           self.z * v.x - self.x * v.z,
-                           self.x * v.y - self.y * v.x);
+    pub fn cross(self: Vector, v: Vector) Vector {
+        return Vector.init(self.y * v.z - self.z * v.y, self.z * v.x - self.x * v.z, self.x * v.y - self.y * v.x);
     }
 };
 
@@ -62,49 +82,42 @@ const Color = struct {
     g: f32 = 0,
     b: f32 = 0,
 
-    pub fn init(r: f32, g: f32, b: f32) Color
-    {
-        return Color{.r = r, .g = g, .b = b};
+    pub fn init(r: f32, g: f32, b: f32) Color {
+        return Color{ .r = r, .g = g, .b = b };
     }
 
-    pub fn scale(self: Color, k: f32) Color
-    {
+    pub fn scale(self: Color, k: f32) Color {
         return Color.init(k * self.r, k * self.g, k * self.b);
     }
 
-    pub fn add(self: Color, color: Color) Color
-    {
+    pub fn add(self: Color, color: Color) Color {
         return Color.init(self.r + color.r, self.g + color.g, self.b + color.b);
     }
 
-    pub fn scale(self: Color, c: Color) Color
-    {
+    pub fn scale(self: Color, c: Color) Color {
         self.r = self.r * c.r;
         self.g = self.g * c.g;
         self.b = self.b * c.b;
         return self;
     }
 
-    pub fn add(self: Color, c: Color) Color
-    {
+    pub fn add(self: Color, c: Color) Color {
         self.r = self.r + c.r;
         self.g = self.g + c.g;
         self.b = self.b + c.b;
         return self;
     }
 
-    pub fn toDrawingColor(self: Color) RGBColor
-    {
-        return RGBColor {
+    pub fn toDrawingColor(self: Color) RGBColor {
+        return RGBColor{
             .r = clamp(r),
             .g = clamp(g),
             .b = clamp(b),
-            .a = 255
+            .a = 255,
         };
     }
 
-    pub fn clamp(c: f32) u8
-    {
+    pub fn clamp(c: f32) u8 {
         const x = i32(c * 255.0);
         if (x < 0) x = 0;
         if (x > 255) x = 255;
@@ -112,11 +125,13 @@ const Color = struct {
     }
 };
 
-const white = Color(1.0, 1.0, 1.0);
-const grey  = Color(0.5, 0.5, 0.5);
-const black = Color(0.0, 0.0, 0.0);
-const background   = black;
-const defaultColor = black;
+const FarAway = 1000000.0;
+
+const White = Color(1.0, 1.0, 1.0);
+const Grey = Color(0.5, 0.5, 0.5);
+const Black = Color(0.0, 0.0, 0.0);
+const Background = Black;
+const DefaultColor = Black;
 
 const Camera = struct {
     forward: Vector,
@@ -124,16 +139,15 @@ const Camera = struct {
     up: Vector,
     pos: Vector,
 
-    pub fn init(pos: Vector, lookAt: Vector) Camera
-    {
-        const down    = Vector.init(0.0, -1.0, 0.0);
+    pub fn init(pos: Vector, lookAt: Vector) Camera {
+        const down = Vector.init(0.0, -1.0, 0.0);
         const forward = lookAt.sub(pos);
 
-        return Camera {
+        return Camera{
             .pos = pos,
             .forward = forward.norm(),
-            .right   = forward.cross(down).norm.scale(1.5),
-            .up      = forward.cross(this.right).norm.scale(1.5)
+            .right = forward.cross(down).norm.scale(1.5),
+            .up = forward.cross(this.right).norm.scale(1.5),
         };
     }
 };
@@ -142,9 +156,8 @@ const Ray = struct {
     start: Vector,
     dir: Vector,
 
-    pub fn init(start: Vector, dir: Vector) Ray
-    {
-        return Ray{.start = start, .dir = dir};
+    pub fn init(start: Vector, dir: Vector) Ray {
+        return Ray{ .start = start, .dir = dir };
     }
 };
 
@@ -153,26 +166,23 @@ const Intersection = struct {
     ray: Ray,
     dist: f32,
 
-    pub fn init(thing: Thing, ray: Ray, dist: f32) Intersection
-    {
-        return Intersection{.thing = thing, .ray = ray, .dist = dist};
+    pub fn init(thing: Thing, ray: Ray, dist: f32) Intersection {
+        return Intersection{ .thing = thing, .ray = ray, .dist = dist };
     }
 };
 
 const SurfaceProperties = struct {
     diffuse: Color,
-    specular: Color, 
+    specular: Color,
     reflect: double,
     roughness: double,
 };
 
-
 const Light = struct {
     pos: Vector,
     color: Color,
-    pub fn init(pos: Vector, color: Color) Light
-    {
-        return Light{.pos = pos, .color = color};
+    pub fn init(pos: Vector, color: Color) Light {
+        return Light{ .pos = pos, .color = color };
     }
 };
 
@@ -188,27 +198,23 @@ const Surface = enum {
 
 const Thing = union(ThingType) {
     Plane: struct {
-        norm: Vector,
-        offset: double,
-        surface: Surface
+        norm: Vector, offset: double, surface: Surface
     },
     Sphere: struct {
-        center: Vector,
-        radius2: double,
-        surface: Surface
+        center: Vector, radius2: double, surface: Surface
     },
 };
 
 fn GetNormal(thing: Thing, pos: Vector) Vector {
     return switch (thing) {
-        ThingType.Plane  => |plane |  p.norm,
-        ThingType.Sphere => |sphere| (pos.sub(sphere.center)).norm()
+        ThingType.Plane => |plane| p.norm,
+        ThingType.Sphere => |sphere| (pos.sub(sphere.center)).norm(),
     };
 }
 
-fn GetIntersection(thing: Thing, ray: Ray) ?Intersection  {
+fn GetIntersection(thing: Thing, ray: Ray) ?Intersection {
     return switch (thing) {
-        ThingType.Plane  => |plane| {
+        ThingType.Plane => |plane| {
             denom = plane.norm.dot(ray.dir);
             if (denom > 0) {
                 return null;
@@ -218,10 +224,10 @@ fn GetIntersection(thing: Thing, ray: Ray) ?Intersection  {
         },
         ThingType.Sphere => |sphere| {
             var eo = sphere.center.sub(ray.start);
-            var v  = eo.dot(ray.dir);
+            var v = eo.dot(ray.dir);
             var dist = 0;
             if (v >= 0) {
-                var  disc = sphere.radius2 - (eo.dot(eo) - v * v);
+                var disc = sphere.radius2 - (eo.dot(eo) - v * v);
                 if (disc >= 0) {
                     dist = v - sqrt(disc);
                 }
@@ -230,29 +236,35 @@ fn GetIntersection(thing: Thing, ray: Ray) ?Intersection  {
                 return null;
             }
             return Intersection(this, ray, dist);
-        }
+        },
     };
 }
 
 fn GetSurfacePropertis(surface: Surface, pos: Vector) SurfaceProperties {
     return switch (surface) {
         Surface.ShinySurface => {
-            SurfaceProperties {
-                .diffuse = white,
-                .specular = grey, 
+            SurfaceProperties{
+                .diffuse = White,
+                .specular = Grey,
                 .reflect = 0.7,
-                .roughness = 250.0
+                .roughness = 250.0,
             };
         },
         Surface.CheckerboardSurface => {
             var condition = int(floor(pos.z) + floor(pos.x)) % 2 != 0;
-            return SurfaceProperties {
-                .diffuse   = white, // Color.black,
-                .specular  = white, 
-                .reflect   = 0.1, // 0.7,
-                .roughness = 150.0
+            var color = Black;
+            var reflect = 0.7;
+            if (condition) {
+                color = White;
+                reflect = 0.1;
+            }
+            return SurfaceProperties{
+                .diffuse = color,
+                .specular = white,
+                .reflect = reflect,
+                .roughness = 150.0,
             };
-        }
+        },
     };
 }
 
@@ -261,242 +273,182 @@ const Scene = struct {
     lights: []Light,
     camera: Camera,
     pub fn init() Scene {
-        // things = [
-        //     new Plane (Vector(0.0, 1.0, 0.0),   0.0, checkerboard),
-        //     new Sphere(Vector(0.0, 1.0, -0.25), 1.0, shiny),
-        //     new Sphere(Vector(-1.0, 0.5, 1.5),  0.5, shiny)
-        // ];
-        // lights = [
-        //     new Light(Vector(-2.0, 2.5, 0.0), Color(0.49, 0.07, 0.07)),
-        //     new Light(Vector(1.5, 2.5, 1.5),  Color(0.07, 0.07, 0.49)),
-        //     new Light(Vector(1.5, 2.5, -1.5), Color(0.07, 0.49, 0.071)),
-        //     new Light(Vector(0.0, 3.5, 0.0),  Color(0.21, 0.21, 0.35)),
-        // ];
-        // camera = new Camera(Vector(3.0, 2.0, 4.0), Vector(-1.0, 0.5, 0.0));
-        //var camera = Camera()
-        return Scene{.things = [], .lights = [], .camera = camera};
+        things = []Thing{
+            Plane(Vector(0.0, 1.0, 0.0), 0.0, Checkerboard),
+            Sphere(Vector(0.0, 1.0, -0.25), 1.0, Shiny),
+            Sphere(Vector(-1.0, 0.5, 1.5), 0.5, Shiny),
+        };
+        lights = []Light{
+            Light(Vector(-2.0, 2.5, 0.0), Color(0.49, 0.07, 0.07)),
+            Light(Vector(1.5, 2.5, 1.5), Color(0.07, 0.07, 0.49)),
+            Light(Vector(1.5, 2.5, -1.5), Color(0.07, 0.49, 0.071)),
+            Light(Vector(0.0, 3.5, 0.0), Color(0.21, 0.21, 0.35)),
+        };
+        camera = Camera(Vector(3.0, 2.0, 4.0), Vector(-1.0, 0.5, 0.0));
+        return Scene{ .things = things, .lights = lights, .camera = camera };
+    }
+};
+
+const Image = struct {
+    width: int,
+    height: int,
+    data: [*]RGBColor,
+
+    pub fn init(w: int, h: int) Image {
+        var data = try std.heap.c_allocator.alloc(RGBColor, w * h);
+        return Image{ .width = w, .height = h, .data = data };
+    }
+
+    pub fn setColor(self: Image, x: int, y: int, c: RGBColor) void {
+        self.data.*[y * self.width + x] = c;
+    }
+
+    pub fn save(fileName: string) void {
+        // bmpInfoHeader := BITMAPINFOHEADER{};
+        // bmpInfoHeader.biSize = size_of(BITMAPINFOHEADER);
+        // bmpInfoHeader.biBitCount = 32;
+        // bmpInfoHeader.biClrImportant = 0;
+        // bmpInfoHeader.biClrUsed = 0;
+        // bmpInfoHeader.biCompression = 0;
+        // bmpInfoHeader.biHeight = LONG(-image.height);
+        // bmpInfoHeader.biWidth  = LONG(image.width);
+        // bmpInfoHeader.biPlanes = 1;
+        // bmpInfoHeader.biSizeImage = DWORD(image.width * image.height * 4);
+
+        // bfh := BITMAPFILEHEADER{};
+        // bfh.bfType = 'B' + ('M' << 8);
+        // bfh.bfOffBits = size_of(BITMAPINFOHEADER) + size_of(BITMAPFILEHEADER);
+        // bfh.bfSize = bfh.bfOffBits + bmpInfoHeader.biSizeImage;
+
+        // f, err := os.open(fileName, os.O_WRONLY | os.O_CREATE);
+        // if err == os.ERROR_NONE {
+        //     os.write_ptr(f, &bfh, size_of(bfh));
+        //     os.write_ptr(f, &bmpInfoHeader, size_of(bmpInfoHeader));
+        //     os.write_ptr(f, &image.data[0], len(image.data) * size_of(RgbColor));
+        // }
+        // os.close(f);
+    }
+};
+
+pub fn GetClosestIntersection(scene: Scene, ray: Ray) ?Intersection {
+    var closest = FarAway;
+    var closestInter: ?Intersection = null;
+
+    for (scene.things) |thing| {
+        var isect = GetIntersection(thing, ray);
+        if (isect != null and isect.dist < closest) {
+            closestInter = inter;
+            closest = inter.dist;
+        }
+    }
+    return closestInter;
+}
+
+pub fn TraceRay(scene: Scene, ray: Ray, depth: int) Color {
+    var isect = GetClosestIntersection(scene, ray);
+    if (isect == null) {
+        return Color.background;
+    }
+    return Shade(isect, scene, depth);
+}
+
+pub fn Shade(scene: Scene, isect: Intersection, depth: int) Color {
+    var d = isect.ray.dir;
+    var pos = d.scale(isect.dist).add(isect.ray.start);
+    var normal = GetNormal(isect.thing, pos);
+
+    var vec = normal.scale(normal.dot(d) * 2.0);
+    var reflectDir = d.sub(vec);
+
+    var naturalColor = background.add(GetNaturalColor(scene, isect.thing, pos, normal, reflectDir, scene));
+    var reflectedColor = Grey;
+    if (depth < this.maxDepth) {
+        reflectedColor = getReflectionColor();
+    }
+    return naturalColor.add(reflectedColor);
+}
+
+pub fn GetReflectionColor() Color {
+    var ray = Ray(&pos, &reflectDir);
+    var reflect = isect.thing.surface.reflect(pos);
+    return this.traceRay(ray, scene, depth + 1).scale(reflect);
+}
+
+pub fn GetNaturalColor(thing: ThingType, pos: Vector, norm: Vector, rd: Vector, scene: Vector) Color {
+    var resultColor = Black;
+    var surface = thing.surface;
+    var rayDirNormal = rd.norm();
+
+    var colDiffuse = surface.diffuse(pos);
+    var colSpecular = surface.specular(pos);
+
+    for (scene.lights) |light| {
+        var ldis = light.pos - pos;
+        var livec = ldis.norm;
+        var ray = Ray(pos, livec);
+
+        var isect = GetClosestIntersection(scene, ray);
+        var isInShadow = (isect == null) and (isect.dist <= ldis.mag());
+
+        if (!isInShadow) {
+            var illum = livec.dot(norm);
+            var specular = livec.dot(rayDirNormal);
+
+            var lcolor = DefaultColor;
+            var scolor = DefaultColor;
+
+            if (illum > 0) {
+                lcolor = light.color.scale(illum);
+            }
+            if (specular > 0) {
+                scolor = light.color.scale(pow(specular, surface.roughness));
+            }
+
+            lcolor.scale(colDiffuse);
+            scolor.scale(colSpecular);
+
+            resultColor.add(lcolor).add(scolor);
+        }
+    }
+
+    return resultColor;
+}
+
+pub fn GetPoint(camera: Camera, x: int, y: int, screenWidth: int, screenHeight: int) Vector {
+    var recenterX = (x - (screenWidth / 2.0)) / 2.0 / screenWidth;
+    var recenterY = -(y - (screenHeight / 2.0)) / 2.0 / screenHeight;
+
+    var vx = camera.right.scale(recenterX);
+    var vy = camera.up.scale(recenterY);
+    var v = vx.add(vy);
+
+    return camera.forward.add(v).norm();
+}
+
+pub fn Render(scene: Scene, image: Image) void {
+    var x: int = 0;
+    var y: int = 0;
+
+    while (y < image.height) {
+        x = 0;
+        while (x < image.width) {
+            var pt = GetPoint(camera, x, y, w, h);
+            var ray = Ray(scene.camera.pos, pt);
+            var color = TraceRay(scene, ray, 0).toDrawingColor();
+            image.setColor(x, y, color);
+            x += 1;
+        }
+        y += 1;
     }
 }
 
-// class RayTracerEngine
-// {
-// private:
-//     static const int maxDepth = 5;
-
-//     Nullable!Intersection intersections(ref Ray ray, Scene scene)
-//     {
-//         double closest = double.infinity;
-//         Nullable!Intersection closestInter;
-
-//         foreach (thing; scene.things())
-//         {
-//             auto inter = thing.intersect(ray);
-//             if (!inter.isNull && inter.dist < closest)
-//             {
-//                 closestInter = inter;
-//                 closest = inter.dist;
-//             }
-//         }
-//         return closestInter;
-//     }
-
-//     double testRay(ref Ray ray, Scene scene)
-//     {
-//         Nullable!Intersection isect = this.intersections(ray, scene);
-//         if (!isect.isNull)
-//         {
-//             return isect.dist;
-//         }
-//         return double.nan;
-//     }
-
-//     Color traceRay(ref Ray ray, Scene scene, int depth)
-//     {
-//         Nullable!Intersection isect = this.intersections(ray, scene);
-//         if (isect.isNull)
-//         {
-//             return Color.background;
-//         }
-//         return this.shade(isect, scene, depth);
-//     }
-
-//     Color shade(ref Intersection isect, Scene scene, int depth)
-//     {
-//         Vector d      = isect.ray.dir;
-//         Vector pos    = isect.dist * d + isect.ray.start;
-//         Vector normal = isect.thing.normal(pos);
-
-//         Vector vec         = 2.0 * (normal.dot(d) * normal);
-//         Vector reflectDir  = d - vec;
-
-//         Color naturalColor = this.getNaturalColor(isect.thing, pos, normal, reflectDir, scene) + Color.background;
-
-//         Color getReflectionColor()
-//         {
-//             Ray ray = Ray(&pos, &reflectDir);
-//             return isect.thing.surface.reflect(pos) * this.traceRay(ray, scene, depth + 1);
-//         }
-
-//         Color reflectedColor;
-//         if (depth >= this.maxDepth) {
-//             reflectedColor = Color.grey;
-//         } else {
-//             reflectedColor = getReflectionColor();
-//         }
-//         return naturalColor + reflectedColor;
-//     }
-
-//     Color getNaturalColor(Thing thing, ref Vector pos, ref Vector norm, ref Vector rd, Scene scene)
-//     {
-//         Color   resultColor = Color.black;
-//         Surface surface = thing.surface;
-//         Vector  rayDirNormal = rd.norm();
-
-//         Color colDiffuse  = surface.diffuse(pos);
-//         Color colSpecular = surface.specular(pos);
-
-//         Color lcolor;
-//         Color scolor;
-//         //Vector ldis;
-//         //Vector livec;
-
-//         Ray ray;
-//         ray.start = &pos;
-
-//         void addLight(Light light)
-//         {
-//             Vector ldis    = light.pos - pos;
-//             Vector livec   = ldis.norm;
-//             ray.dir = &livec;
-
-//             double neatIsect  = testRay(ray, scene);
-//             bool   isInShadow = (neatIsect == double.nan) ? false : (neatIsect <= ldis.mag);
-
-//             if (isInShadow) {
-//                 return;
-//             }
-
-//             double illum    = livec.dot(norm);
-//             double specular = livec.dot(rayDirNormal);
-
-//             lcolor = (illum > 0)    ? illum                            * light.color : Color.defaultColor;
-//             scolor = (specular > 0) ? pow(specular, surface.roughness) * light.color : Color.defaultColor;
-
-//             lcolor.scale(colDiffuse);
-//             scolor.scale(colSpecular);
-
-//             resultColor.add(lcolor).add(scolor);
-//         }
-
-//         foreach (item; scene.lights)
-//         {
-//             addLight(item);
-//         }
-
-//         return resultColor;
-//     }
-
-
-//     inout Vector getPoint(int x, int y, Camera camera, int screenWidth, int screenHeight, int scale)
-//     {
-//         double recenterX =  (x - (screenWidth / 2.0)) / 2.0 / scale;
-//         double recenterY = -(y - (screenHeight / 2.0)) / 2.0 / scale;
-
-//         Vector vx = recenterX * camera.right;
-//         Vector vy = recenterY * camera.up;
-//         Vector v  = vx + vy;
-
-//         return (camera.forward + v).norm;
-//     }
-
-// public:
-//     void render(Scene scene, ubyte[] bitmapData, int stride, int w, int h)
-//     {
-//         import std.algorithm.comparison;
-
-//         Camera camera = scene.camera;
-//         Ray ray;
-//         ray.start = &camera.pos;
-
-//         int scale = min(w,h);
-
-//         Color result;
-
-//         for (int y = 0; y < h; ++y)
-//         {
-//             int pos = y * stride;
-//             RGBColor* ptrColor = (cast(RGBColor*)&bitmapData[pos]);
-
-//             for (int x = 0; x < w; ++x) {
-//                 Vector dir   = this.getPoint(x, y, camera, w, h, scale);
-//                 ray.dir      = &dir;
-//                 *ptrColor++  = this.traceRay(ray, scene, 0).toDrawingColor;
-//             }
-//         }
-//     }
-// }
-
-// void SaveRGBBitmap(ubyte[] pBitmapBits, int lWidth, int lHeight, int wBitsPerPixel, string fileName )
-// {
-//     BITMAPINFOHEADER bmpInfoHeader = {};
-//     bmpInfoHeader.biSize = BITMAPINFOHEADER.sizeof;
-//     bmpInfoHeader.biBitCount = cast(WORD)wBitsPerPixel;
-//     bmpInfoHeader.biClrImportant = 0;
-//     bmpInfoHeader.biClrUsed = 0;
-//     bmpInfoHeader.biCompression = 0;
-//     bmpInfoHeader.biHeight = -lHeight;
-//     bmpInfoHeader.biWidth = lWidth;
-//     bmpInfoHeader.biPlanes = 1;
-//     bmpInfoHeader.biSizeImage = lWidth* lHeight * (wBitsPerPixel/8);
-
-//     struct BITMAPFILEHEADER {
-//         WORD  bfType;
-//         DWORD bfSize;
-//         WORD  bfReserved1;
-//         WORD  bfReserved2;
-//         DWORD bfOffBits;
-//     };
-
-//     BITMAPFILEHEADER bfh = {};
-//     bfh.bfType    = 'B' + ('M' << 8);
-//     bfh.bfOffBits = BITMAPINFOHEADER.sizeof + 14; // BITMAPFILEHEADER.sizeof;
-//     bfh.bfSize    = bfh.bfOffBits + bmpInfoHeader.biSizeImage;
-
-//     auto file = File(fileName, "wb");
-
-//     file.rawWrite((cast(ubyte*)&bfh)[0..2]); //Skip padded bytes
-//     file.rawWrite((cast(ubyte*)&bfh)[4..16]);
-//     file.rawWrite((cast(ubyte*)&bmpInfoHeader)[0 .. 40]);
-//     file.rawWrite(pBitmapBits);
-//     file.close();
-// }
-
-// int main(string[] argv)
-// {
-//     writeln("Starting");
-//     StopWatch sw;
-//     sw.start();
-
-//     int width  = 500;
-//     int height = 500;
-//     int stride = width * 4;
-//     ubyte[] bitmapData = new ubyte[stride * height];
-
-//     Scene scene = new DefaultScene();
-//     RayTracerEngine rayTracer = new RayTracerEngine();
-
-//     rayTracer.render(scene, bitmapData, stride,width,height);
-//     sw.stop();
-
-//     SaveRGBBitmap(bitmapData, width,height, 32, "d-raytracer.bmp");
-
-//     writeln("Completed in: ", sw.peek.msecs, " [ms]");
-
-//     readln;
-//     return 0;
-// }
-
 pub fn main() !void {
-    var stdout_file = try std.io.getStdOut();
-    try stdout_file.write("Hello, world!\n");
+    const stdout = std.io.getStdOut().outStream();
+
+    var image = Image(500, 500);
+    var scene = Scene();
+    Render(scene, image);
+    image.save("zig-ray.bmp");
+
+    try stdout.print("Completed, {}!\n", .{"OK"});
 }
