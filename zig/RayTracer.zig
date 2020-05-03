@@ -34,15 +34,15 @@ const BITMAPFILEHEADER = packed struct {
 };
 
 const Vector = struct {
-    x: f32,
-    y: f32,
-    z: f32,
+    x: f64,
+    y: f64,
+    z: f64,
 
-    pub fn init(x: f32, y: f32, z: f32) Vector {
+    pub fn init(x: f64, y: f64, z: f64) Vector {
         return Vector{ .x = x, .y = y, .z = z };
     }
 
-    pub fn scale(self: Vector, k: f32) Vector {
+    pub fn scale(self: Vector, k: f64) Vector {
         return Vector.init(k * self.x, k * self.y, k * self.z);
     }
 
@@ -54,22 +54,23 @@ const Vector = struct {
         return Vector.init(self.x - v.x, self.y - v.y, self.z - v.z);
     }
 
-    pub fn dot(self: Vector, v: Vector) f32 {
+    pub fn dot(self: Vector, v: Vector) f64 {
         return self.x * v.x + self.y * v.y + self.z * v.z;
     }
 
-    pub fn mag(self: Vector) f32 {
-        return sqrt(self.x * self.x + self.y * self.y + self.z * self.z);
+    pub fn mag(self: Vector) f64 {
+        return std.math.sqrt(self.x * self.x + self.y * self.y + self.z * self.z);
     }
 
-    pub fn norm(self: Vector) f32 {
-        const magnitude = self.mag;
-        const div = if (mag == 0.0) {
-            double.infinity;
+    pub fn norm(self: Vector) Vector {
+        var magnitude = self.mag();
+        var div: f64 = 0.0;
+        if (magnitude == 0.0) {
+            div = FarAway;
         } else {
-            1.0 / magnitude;
-        };
-        return div * self;
+            div = 1.0 / magnitude;
+        }
+        return self.scale(div);
     }
 
     pub fn cross(self: Vector, v: Vector) Vector {
@@ -78,15 +79,15 @@ const Vector = struct {
 };
 
 const Color = struct {
-    r: f32 = 0,
-    g: f32 = 0,
-    b: f32 = 0,
+    r: f64 = 0,
+    g: f64 = 0,
+    b: f64 = 0,
 
-    pub fn init(r: f32, g: f32, b: f32) Color {
+    pub fn init(r: f64, g: f64, b: f64) Color {
         return Color{ .r = r, .g = g, .b = b };
     }
 
-    pub fn scale(self: Color, k: f32) Color {
+    pub fn scale(self: Color, k: f64) Color {
         return Color.init(k * self.r, k * self.g, k * self.b);
     }
 
@@ -94,42 +95,31 @@ const Color = struct {
         return Color.init(self.r + color.r, self.g + color.g, self.b + color.b);
     }
 
-    pub fn scale(self: Color, c: Color) Color {
-        self.r = self.r * c.r;
-        self.g = self.g * c.g;
-        self.b = self.b * c.b;
-        return self;
-    }
-
-    pub fn add(self: Color, c: Color) Color {
-        self.r = self.r + c.r;
-        self.g = self.g + c.g;
-        self.b = self.b + c.b;
-        return self;
+    pub fn mul(self: Color, color: Color) Color {
+        return Color.init(self.r * color.r, self.g * color.g, self.b * color.b);
     }
 
     pub fn toDrawingColor(self: Color) RGBColor {
         return RGBColor{
-            .r = clamp(r),
-            .g = clamp(g),
-            .b = clamp(b),
+            .r = clamp(self.r),
+            .g = clamp(self.g),
+            .b = clamp(self.b),
             .a = 255,
         };
     }
 
-    pub fn clamp(c: f32) u8 {
-        const x = i32(c * 255.0);
-        if (x < 0) x = 0;
-        if (x > 255) x = 255;
-        return u8(x);
+    pub fn clamp(c: f64) u8 {
+        if (c < 0.0) return 1;
+        if (c > 1.0) return 255;
+        return @floatToInt(u8, c * 255.0);
     }
 };
 
 const FarAway = 1000000.0;
-
-const White = Color(1.0, 1.0, 1.0);
-const Grey = Color(0.5, 0.5, 0.5);
-const Black = Color(0.0, 0.0, 0.0);
+const MaxDepth = 5;
+const White = Color.init(1.0, 1.0, 1.0);
+const Grey = Color.init(0.5, 0.5, 0.5);
+const Black = Color.init(0.0, 0.0, 0.0);
 const Background = Black;
 const DefaultColor = Black;
 
@@ -142,12 +132,13 @@ const Camera = struct {
     pub fn init(pos: Vector, lookAt: Vector) Camera {
         const down = Vector.init(0.0, -1.0, 0.0);
         const forward = lookAt.sub(pos);
-
+        const right = forward.cross(down).norm().scale(1.5);
+        const up = forward.cross(right).norm().scale(1.5);
         return Camera{
             .pos = pos,
             .forward = forward.norm(),
-            .right = forward.cross(down).norm.scale(1.5),
-            .up = forward.cross(this.right).norm.scale(1.5),
+            .right = right,
+            .up = up,
         };
     }
 };
@@ -164,9 +155,9 @@ const Ray = struct {
 const Intersection = struct {
     thing: Thing,
     ray: Ray,
-    dist: f32,
+    dist: f64,
 
-    pub fn init(thing: Thing, ray: Ray, dist: f32) Intersection {
+    pub fn init(thing: Thing, ray: Ray, dist: f64) Intersection {
         return Intersection{ .thing = thing, .ray = ray, .dist = dist };
     }
 };
@@ -174,8 +165,8 @@ const Intersection = struct {
 const SurfaceProperties = struct {
     diffuse: Color,
     specular: Color,
-    reflect: double,
-    roughness: double,
+    reflect: f64,
+    roughness: f64,
 };
 
 const Light = struct {
@@ -186,64 +177,66 @@ const Light = struct {
     }
 };
 
-const ThingType = enum {
-    Plane,
-    Sphere,
-};
-
 const Surface = enum {
     ShinySurface,
     CheckerboardSurface,
 };
 
-const Thing = union(ThingType) {
+const Thing = union(enum) {
     Plane: struct {
-        norm: Vector, offset: double, surface: Surface
+        norm: Vector, offset: f64, surface: Surface
     },
     Sphere: struct {
-        center: Vector, radius2: double, surface: Surface
+        center: Vector, radius2: f64, surface: Surface
     },
 };
 
 fn GetNormal(thing: Thing, pos: Vector) Vector {
     return switch (thing) {
-        ThingType.Plane => |plane| p.norm,
-        ThingType.Sphere => |sphere| (pos.sub(sphere.center)).norm(),
+        Thing.Plane => |plane| plane.norm,
+        Thing.Sphere => |sphere| (pos.sub(sphere.center)).norm(),
+    };
+}
+
+fn GetSurface(thing: Thing) Surface {
+    return switch (thing) {
+        Thing.Plane => |plane| plane.surface,
+        Thing.Sphere => |sphere| sphere.surface,
     };
 }
 
 fn GetIntersection(thing: Thing, ray: Ray) ?Intersection {
     return switch (thing) {
-        ThingType.Plane => |plane| {
-            denom = plane.norm.dot(ray.dir);
+        Thing.Plane => |plane| {
+            var denom = plane.norm.dot(ray.dir);
             if (denom > 0) {
                 return null;
             }
-            dist = (plane.norm.dot(ray.start) + plane.offset) / (-denom);
-            return Intersection(this, ray, dist);
+            var dist = (plane.norm.dot(ray.start) + plane.offset) / (-denom);
+            return Intersection.init(thing, ray, dist);
         },
-        ThingType.Sphere => |sphere| {
+        Thing.Sphere => |sphere| {
             var eo = sphere.center.sub(ray.start);
             var v = eo.dot(ray.dir);
-            var dist = 0;
+            var dist: f64 = 0.0;
             if (v >= 0) {
                 var disc = sphere.radius2 - (eo.dot(eo) - v * v);
                 if (disc >= 0) {
-                    dist = v - sqrt(disc);
+                    dist = v - std.math.sqrt(disc);
                 }
             }
             if (dist == 0) {
                 return null;
             }
-            return Intersection(this, ray, dist);
+            return Intersection.init(thing, ray, dist);
         },
     };
 }
 
-fn GetSurfacePropertis(surface: Surface, pos: Vector) SurfaceProperties {
+fn GetSurfaceProperties(surface: Surface, pos: Vector) SurfaceProperties {
     return switch (surface) {
         Surface.ShinySurface => {
-            SurfaceProperties{
+            return SurfaceProperties{
                 .diffuse = White,
                 .specular = Grey,
                 .reflect = 0.7,
@@ -251,16 +244,16 @@ fn GetSurfacePropertis(surface: Surface, pos: Vector) SurfaceProperties {
             };
         },
         Surface.CheckerboardSurface => {
-            var condition = int(floor(pos.z) + floor(pos.x)) % 2 != 0;
+            var condition = @mod(@floatToInt(i32, std.math.floor(pos.z) + std.math.floor(pos.x)), 2) != 0;
             var color = Black;
-            var reflect = 0.7;
+            var reflect: f64 = 0.7;
             if (condition) {
                 color = White;
                 reflect = 0.1;
             }
             return SurfaceProperties{
                 .diffuse = color,
-                .specular = white,
+                .specular = White,
                 .reflect = reflect,
                 .roughness = 150.0,
             };
@@ -269,38 +262,39 @@ fn GetSurfacePropertis(surface: Surface, pos: Vector) SurfaceProperties {
 }
 
 const Scene = struct {
-    things: []Thing,
-    lights: []Light,
+    things: [3]Thing,
+    lights: [4]Light,
     camera: Camera,
     pub fn init() Scene {
-        things = []Thing{
-            Plane(Vector(0.0, 1.0, 0.0), 0.0, Checkerboard),
-            Sphere(Vector(0.0, 1.0, -0.25), 1.0, Shiny),
-            Sphere(Vector(-1.0, 0.5, 1.5), 0.5, Shiny),
+        var things = [3]Thing{
+            Thing{ .Plane = .{ .norm = Vector.init(0.0, 1.0, 0.0), .offset = 0.0, .surface = Surface.CheckerboardSurface } },
+            Thing{ .Sphere = .{ .center = Vector.init(0.0, 1.0, -0.25), .radius2 = 1.0, .surface = Surface.ShinySurface } },
+            Thing{ .Sphere = .{ .center = Vector.init(-1.0, 0.5, 1.5), .radius2 = 0.25, .surface = Surface.ShinySurface } },
         };
-        lights = []Light{
-            Light(Vector(-2.0, 2.5, 0.0), Color(0.49, 0.07, 0.07)),
-            Light(Vector(1.5, 2.5, 1.5), Color(0.07, 0.07, 0.49)),
-            Light(Vector(1.5, 2.5, -1.5), Color(0.07, 0.49, 0.071)),
-            Light(Vector(0.0, 3.5, 0.0), Color(0.21, 0.21, 0.35)),
+        var lights = [4]Light{
+            Light.init(Vector.init(-2.0, 2.5, 0.0), Color.init(0.49, 0.07, 0.07)),
+            Light.init(Vector.init(1.5, 2.5, 1.5), Color.init(0.07, 0.07, 0.49)),
+            Light.init(Vector.init(1.5, 2.5, -1.5), Color.init(0.07, 0.49, 0.071)),
+            Light.init(Vector.init(0.0, 3.5, 0.0), Color.init(0.21, 0.21, 0.35)),
         };
-        camera = Camera(Vector(3.0, 2.0, 4.0), Vector(-1.0, 0.5, 0.0));
+        var camera = Camera.init(Vector(3.0, 2.0, 4.0), Vector(-1.0, 0.5, 0.0));
         return Scene{ .things = things, .lights = lights, .camera = camera };
     }
 };
 
 const Image = struct {
-    width: int,
-    height: int,
+    width: i32,
+    height: i32,
     data: [*]RGBColor,
 
-    pub fn init(w: int, h: int) Image {
+    pub fn init(w: i32, h: i32) Image {
         var data = try std.heap.c_allocator.alloc(RGBColor, w * h);
         return Image{ .width = w, .height = h, .data = data };
     }
 
-    pub fn setColor(self: Image, x: int, y: int, c: RGBColor) void {
-        self.data.*[y * self.width + x] = c;
+    pub fn setColor(self: Image, x: i32, y: i32, c: RGBColor) void {
+        var idx: usize = y * self.width + x;
+        self.data.*[idx] = c;
     }
 
     pub fn save(fileName: string) void {
@@ -331,28 +325,32 @@ const Image = struct {
 };
 
 pub fn GetClosestIntersection(scene: Scene, ray: Ray) ?Intersection {
-    var closest = FarAway;
+    var closest: f64 = FarAway;
     var closestInter: ?Intersection = null;
 
     for (scene.things) |thing| {
-        var isect = GetIntersection(thing, ray);
-        if (isect != null and isect.dist < closest) {
-            closestInter = inter;
-            closest = inter.dist;
+        var isectOrNull = GetIntersection(thing, ray);
+        switch (isectOrNull) {
+            Intersection => |isect| {
+                if (isect.dist < closest) {
+                    closestInter = inter;
+                    closest = inter.dist;
+                }
+            },
         }
     }
     return closestInter;
 }
 
-pub fn TraceRay(scene: Scene, ray: Ray, depth: int) Color {
+pub fn TraceRay(scene: Scene, ray: Ray, depth: i32) Color {
     var isect = GetClosestIntersection(scene, ray);
     if (isect == null) {
-        return Color.background;
+        return Background;
     }
     return Shade(isect, scene, depth);
 }
 
-pub fn Shade(scene: Scene, isect: Intersection, depth: int) Color {
+pub fn Shade(scene: Scene, isect: Intersection, depth: i32) Color {
     var d = isect.ray.dir;
     var pos = d.scale(isect.dist).add(isect.ray.start);
     var normal = GetNormal(isect.thing, pos);
@@ -360,35 +358,41 @@ pub fn Shade(scene: Scene, isect: Intersection, depth: int) Color {
     var vec = normal.scale(normal.dot(d) * 2.0);
     var reflectDir = d.sub(vec);
 
-    var naturalColor = background.add(GetNaturalColor(scene, isect.thing, pos, normal, reflectDir, scene));
+    var naturalColor = Background.add(GetNaturalColor(scene, isect.thing, pos, normal, reflectDir));
     var reflectedColor = Grey;
-    if (depth < this.maxDepth) {
-        reflectedColor = getReflectionColor();
+    if (depth < MaxDepth) {
+        reflectedColor = GetReflectionColor(scene, isect.thing, pos, reflectDir, depth);
     }
     return naturalColor.add(reflectedColor);
 }
 
-pub fn GetReflectionColor() Color {
-    var ray = Ray(&pos, &reflectDir);
-    var reflect = isect.thing.surface.reflect(pos);
-    return this.traceRay(ray, scene, depth + 1).scale(reflect);
+pub fn GetReflectionColor(scene: Scene, thing: Thing, pos: Vector, reflectDir: Vector, depth: i32) Color {
+    var ray = Ray.init(pos, reflectDir);
+    var surface = GetSurfaceProperties(GetSurface(thing), pos);
+    return TraceRay(scene, ray, depth + 1).scale(surface.reflect);
 }
 
-pub fn GetNaturalColor(thing: ThingType, pos: Vector, norm: Vector, rd: Vector, scene: Vector) Color {
+pub fn GetNaturalColor(scene: Scene, thing: Thing, pos: Vector, norm: Vector, rd: Vector) Color {
     var resultColor = Black;
-    var surface = thing.surface;
+    var surface = GetSurfaceProperties(GetSurface(thing), pos);
     var rayDirNormal = rd.norm();
 
-    var colDiffuse = surface.diffuse(pos);
-    var colSpecular = surface.specular(pos);
+    var colDiffuse = surface.diffuse;
+    var colSpecular = surface.specular;
 
     for (scene.lights) |light| {
-        var ldis = light.pos - pos;
-        var livec = ldis.norm;
-        var ray = Ray(pos, livec);
+        var ldis = light.pos.sub(pos);
+        var livec = ldis.norm();
+        var ray = Ray.init(pos, livec);
 
         var isect = GetClosestIntersection(scene, ray);
-        var isInShadow = (isect == null) and (isect.dist <= ldis.mag());
+        var isInShadow = false;
+
+        switch (isect) {
+            Intersection => |isectObj| {
+                isInShadow = isectObj.dist < ldis.mag();
+            },
+        }
 
         if (!isInShadow) {
             var illum = livec.dot(norm);
@@ -414,9 +418,14 @@ pub fn GetNaturalColor(thing: ThingType, pos: Vector, norm: Vector, rd: Vector, 
     return resultColor;
 }
 
-pub fn GetPoint(camera: Camera, x: int, y: int, screenWidth: int, screenHeight: int) Vector {
-    var recenterX = (x - (screenWidth / 2.0)) / 2.0 / screenWidth;
-    var recenterY = -(y - (screenHeight / 2.0)) / 2.0 / screenHeight;
+pub fn GetPoint(camera: Camera, x: i32, y: i32, screenWidth: i32, screenHeight: i32) Vector {
+    var xf = @intToFloat(f64, x);
+    var yf = @intToFloat(f64, y);
+    var wf = @intToFloat(f64, screenWidth);
+    var hf = @intToFloat(f64, screenHeight);
+
+    var recenterX = (xf - (wf / 2.0)) / 2.0 / wf;
+    var recenterY = -(yf - (hf / 2.0)) / 2.0 / hf;
 
     var vx = camera.right.scale(recenterX);
     var vy = camera.up.scale(recenterY);
@@ -426,14 +435,14 @@ pub fn GetPoint(camera: Camera, x: int, y: int, screenWidth: int, screenHeight: 
 }
 
 pub fn Render(scene: Scene, image: Image) void {
-    var x: int = 0;
-    var y: int = 0;
+    var x: i32 = 0;
+    var y: i32 = 0;
 
     while (y < image.height) {
         x = 0;
         while (x < image.width) {
-            var pt = GetPoint(camera, x, y, w, h);
-            var ray = Ray(scene.camera.pos, pt);
+            var pt = GetPoint(scene.camera, x, y, image.width, image.height);
+            var ray = Ray.init(scene.camera.pos, pt);
             var color = TraceRay(scene, ray, 0).toDrawingColor();
             image.setColor(x, y, color);
             x += 1;
@@ -445,8 +454,8 @@ pub fn Render(scene: Scene, image: Image) void {
 pub fn main() !void {
     const stdout = std.io.getStdOut().outStream();
 
-    var image = Image(500, 500);
-    var scene = Scene();
+    var image = Image.init(500, 500);
+    var scene = Scene.init();
     Render(scene, image);
     image.save("zig-ray.bmp");
 
