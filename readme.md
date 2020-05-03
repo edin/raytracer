@@ -46,12 +46,12 @@ Raytracer benchmarks based on [Typescript](http://www.typescriptlang.org) sample
 | F#         | 300 |
 | Ruby       | 351 |
 | Julia      | 360 |
-| VB.NET     | 406 |
 | Typescript | 412 |
 | Nim        | 418 |
 | C#         | 426 |
 | C++        | 461 |
 | Java       | 478 |
+| VB.NET     | 481 |
 | D          | 490 |
 | PHP        | 491 |
 | Go         | 529 |

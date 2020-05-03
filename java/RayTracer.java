@@ -1,28 +1,22 @@
-import java.awt.image.BufferedImage;
 import java.io.File;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
-import javax.imageio.ImageIO;
 
 public class RayTracer
 {
     public static void main(String[] args) throws IOException
     {
-        BufferedImage b = new BufferedImage(500,500,BufferedImage.TYPE_INT_RGB);
+        long start = System.nanoTime();
+        Image image = new Image(500,500);
+        Scene scene = new Scene();
+        RayTracerEngine tracer = new RayTracerEngine();
+        tracer.render(scene, image);
+        long t = System.nanoTime() - start;
 
-        long t1 = System.nanoTime();
-        Scene s = new Scene();
-        RayTracerEngine rt = new RayTracerEngine();
-        rt.render(s, b);
-        long t2 = System.nanoTime();
-        long t = t2- t1 ;
-
-        File outputfile = new File("java-ray-tracer.bmp");
-        ImageIO.write(b, "bmp", outputfile);
-
-        System.out.println("Time is " + TimeUnit.NANOSECONDS.toMillis(t) + " ms" );
+        image.save("jRay.bmp");
+        System.out.println("Rendered in: " + TimeUnit.NANOSECONDS.toMillis(t) + " ms" );
     }
 }
 
@@ -79,6 +73,13 @@ class Vector
     }
 }
 
+class RGBColor {
+    public byte b;
+    public byte g;
+    public byte r;
+    public byte a;
+}
+
 class Color
 {
     public double r;
@@ -113,21 +114,22 @@ class Color
     static Color background   = Color.black;
     static Color defaultColor = Color.black;
 
-    public int toDrawingColor()
+    public RGBColor toDrawingColor()
     {
-        int r = legalize(this.r);
-        int g = legalize(this.g);
-        int b = legalize(this.b);
-        java.awt.Color color = new java.awt.Color(r, g, b);
-        return color.getRGB();
+        var result = new RGBColor();
+        result.r = legalize(this.r);
+        result.g = legalize(this.g);
+        result.b = legalize(this.b);
+        result.a = -1;
+        return result;
     }
 
-    private static int legalize(double c)
+    private static byte legalize(double c)
     {
         int x = (int)(c*255);
         if (x < 0) x = 0;
         if (x > 255) x = 255;
-        return x;
+        return (byte)x;
     }
 }
 
@@ -472,6 +474,78 @@ class RayTracerEngine
                 Ray ray = new Ray(scene.camera.pos, point);
                 Color color = this.traceRay(ray, scene, 0);
                 img.setRGB(x, y, color.toDrawingColor());
+            }
+        }
+    }
+}
+
+private class BITMAPINFOHEADER
+{
+    public int biSize;
+    public int biWidth;
+    public int biHeight;
+    public short biPlanes;
+    public short biBitCount;
+    public int biCompression;
+    public int biSizeImage;
+    public int biXPelsPerMeter;
+    public int biYPelsPerMeter;
+    public int biClrUsed;
+    public int biClrImportant;
+}
+
+private class BITMAPFILEHEADER
+{
+    public short bfType;
+    public int bfSize;
+    public short bfReserved1;
+    public short bfReserved2;
+    public int bfOffBits;
+}
+
+private class Image {
+    public final int width;
+    public final int height;
+    private RGBColor[] data;
+
+    public Image(int width, int height) {
+        this.width = width;
+        this.height = height;
+        this.data = new Rgb
+    }
+
+    public void save(string fileName) 
+    {
+        var infoHeaderSize = 40;
+        var fileHeaderSize = 14;
+        var offBits = infoHeaderSize + fileHeaderSize;
+
+        var infoHeader = new BITMAPINFOHEADER();
+        infoHeader.biSize = (uint)infoHeaderSize;
+        infoHeader.biBitCount = 32;
+        infoHeader.biClrImportant = 0;
+        infoHeader.biClrUsed = 0;
+        infoHeader.biCompression = 0;
+        infoHeader.biHeight = -Height;
+        infoHeader.biWidth = Width;
+        infoHeader.biPlanes = 1;
+        infoHeader.biSizeImage = (uint)(Width * Height * 4);
+
+        var fileHeader = new BITMAPFILEHEADER();
+        fileHeader.bfType = 'B' + ('M' << 8);
+        fileHeader.bfOffBits = (uint)offBits;
+        fileHeader.bfSize = (uint)(offBits + infoHeader.biSizeImage);
+
+        using (var writer = new BinaryWriter(File.Open(fileName, FileMode.Create)))
+        {
+            writer.Write(GetBytes(fileHeader));
+            writer.Write(GetBytes(infoHeader));
+            foreach (var color in data)
+            {
+                writer.Write(color.B);
+                writer.Write(color.G);
+                writer.Write(color.R);
+                writer.Write(color.A);
             }
         }
     }
