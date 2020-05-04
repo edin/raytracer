@@ -3,7 +3,7 @@ program DelphiRayTracer;
 {$APPTYPE CONSOLE}
 
 uses
-  Graphics, Windows,
+  Vcl.Graphics, Windows,
   SysUtils, Diagnostics,
   RayTracer in 'RayTracer.pas';
 
@@ -26,7 +26,7 @@ begin
     sw.Start;
     sc := Scene.Create();
     rt := RayTracerEngine.Create();
-    rt.render(sc, bmp);
+    rt.Render(sc, bmp);
     sw.Stop;
 
     bmp.SaveToFile('delphi-ray-tracer.bmp');

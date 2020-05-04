@@ -24,3 +24,5 @@ c++/RayTracer/RayTracer.sdf
 node_modules
 *.png
 *.bmp
+__history/
+*.dcu
