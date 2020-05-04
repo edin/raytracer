@@ -17,7 +17,7 @@ Raytracer benchmarks based on [Typescript](http://www.typescriptlang.org) sample
 | Delphi XE6           | 390 ms    |
 | Go                   | 460 ms    |
 | D (DMD)              | 500 ms    |
-| Java 9               | 600 ms    |
+| Java 8-14            | 600 ms    |
 | Delphi 2010 (32 bit) | 720 ms    |
 | Julia                | 900 ms    |
 | Nim                  | 1500 ms   |
@@ -50,13 +50,13 @@ Raytracer benchmarks based on [Typescript](http://www.typescriptlang.org) sample
 | Nim        | 418 |
 | C#         | 426 |
 | C++        | 461 |
-| Java       | 478 |
 | VB.NET     | 481 |
 | D          | 490 |
 | PHP        | 491 |
 | Go         | 529 |
 | C          | 560 |
 | Fortran    | 565 |
+| Java       | 569 |
 | Delphi     | 678 |
 
 ## Comments:
