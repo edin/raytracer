@@ -15,6 +15,7 @@ Raytracer benchmarks based on [Typescript](http://www.typescriptlang.org) sample
 | VB.NET               | 360 ms    |
 | C#                   | 360 ms    |
 | Delphi XE6           | 390 ms    |
+| Odin                 | 450 ms    |
 | Go                   | 460 ms    |
 | D (DMD)              | 500 ms    |
 | Java 8-14            | 600 ms    |
@@ -34,7 +35,6 @@ Raytracer benchmarks based on [Typescript](http://www.typescriptlang.org) sample
 | PHP (PHP 5.6)        | 83000 ms  |
 | Zig                  | ? ms      |
 | V                    | ? ms      |
-| Odin                 | ? ms      |
 | Swift                | ? ms      |
 | Haskel               | ? ms      |
 
@@ -49,6 +49,7 @@ Raytracer benchmarks based on [Typescript](http://www.typescriptlang.org) sample
 | Typescript | 412 |
 | Nim        | 418 |
 | C#         | 426 |
+| Swift      | 450 |
 | C++        | 461 |
 | VB.NET     | 481 |
 | D          | 490 |

@@ -9,35 +9,65 @@ struct Vector
     }
 
     func Length() -> Double {
-        return Math.Sqrt(X * X + Y * Y + Z * Z)
+        return (X * X + Y * Y + Z * Z).squareRoot()
     }
 
-    func -(a: Vector, b: Vector) -> Vector {
+    static func -(a: Vector, b: Vector) -> Vector {
         return Vector(X: a.X - b.X, Y: a.Y - b.Y, Z: a.Z - b.Z)
     }
 
-    func +(a: Vector, b: Vector) -> Vector {
+    static func +(a: Vector, b: Vector) -> Vector {
         return Vector(X: a.X + b.X, Y: a.Y + b.Y, Z: a.Z + b.Z)
     }
 
-    func *(k: Double, v: Vector) -> Vector {
+    static func *(k: Double, v: Vector) -> Vector {
         return Vector(X: k * v.X, Y: k * v.Y, Z: k * v.Z)
     }
 
     func Norm() -> Vector
     {
-        var length = this.Length()
-        var div = (length == 0) ? Double.PositiveInfinity : 1.0 / length
-        return div * this
+        let length = self.Length()
+        let div = (length == 0) ? Double.infinity : 1.0 / length
+        return div * self
     }
 
-    func Cross(v: Vector): Vector
+    func Cross(v: Vector) -> Vector
     {
-        return new Vector(
+        return Vector(
             X: Y * v.Z - Z * v.Y,
             Y: Z * v.X - X * v.Z,
             Z: X * v.Y - Y * v.X
         )
+    }
+}
+
+struct RGBColor {
+    var B: UInt8
+    var G: UInt8
+    var R: UInt8
+    var A: UInt8
+}
+
+extension Double {
+    func toColorComponent() -> UInt8 {
+        if (self > 1.0) {return 255}
+        if (self < 0.0) {return 0}
+        return (UInt8)(self * 255.0)
+    }
+
+    func floorAsInt() -> Int {
+        var result = self;
+        result.round(.down)
+        return Int(result)
+    }
+
+    func power(_ power: Int) -> Double {
+        precondition(power >= 0)
+        var result = self
+        for _ in 2 ... power {
+            result = result * self
+        }
+        return result
     }
 }
 
@@ -47,35 +77,33 @@ struct Color
     var G: Double
     var B: Double
 
-    let White = Color(R: 1.0, G: 1.0, B: 1.0)
-    let Grey  = Color(R: 0.5, G: 0.5, B: 0.5)
-    let Black = Color(R: 0.0, G: 0.0, B: 0.0)
-    let Background = Color.Black
-    let Defaultcolor = Color.Black
-
-    func *(double k, Color v) -> Color {
-        return Color(k * v.R, k * v.G, k * v.B)
+    static func *(k: Double, v: Color) -> Color {
+        return Color(R:k * v.R, G:k * v.G, B:k * v.B)
     }
 
-    func +(Color a, Color b) -> Color {
-        return Color(a.R + b.R, a.G + b.G, a.B + b.B)
+    static func +(a: Color, b: Color) -> Color {
+        return Color(R: a.R + b.R, G: a.G + b.G, B: a.B + b.B)
     }
 
-    func *(Color a, Color b) -> Color {
-        return Color(a.R * b.R, a.G * b.G, a.B * b.B)
+    static func *(a: Color, b: Color) -> Color {
+        return Color(R: a.R * b.R, G: a.G * b.G, B: a.B * b.B)
     }
 
     func ToDrawingColor() -> RGBColor {
-         System.Drawing.Color.FromArgb(Clamp(R), Clamp(G), Clamp(B))
-    }
-
-    func Clamp(c: Double) -> Byte
-    {
-        if (c > 1.0) return 255
-        if (c < 0.0) return 0
-        return (Byte)(c * 255)
+        return RGBColor(
+            B: self.B.toColorComponent(),
+            G: self.G.toColorComponent(),
+            R: self.R.toColorComponent(),
+            A: 255
+        )
     }
 }
+
+let White = Color(R: 1.0, G: 1.0, B: 1.0)
+let Grey  = Color(R: 0.5, G: 0.5, B: 0.5)
+let Black = Color(R: 0.0, G: 0.0, B: 0.0)
+let Background = Black
+let Defaultcolor = Black
 
 struct Camera
 {
@@ -84,13 +112,22 @@ struct Camera
     var Up: Vector
     var Pos: Vector
 
-    init(pos: Vector, lookAt: Vector) -> Camera
-    {
-        var down = Vector(R:0.0, G:-1.0, B:0.0)
+    init(pos: Vector, lookAt: Vector) {
+        let down = Vector(X:0.0, Y:-1.0, Z:0.0)
         Pos = pos
         Forward = (lookAt - Pos).Norm()
-        Right = 1.5 * Forward.Cross(down).Norm()
-        Up = 1.5 * Forward.Cross(Right).Norm()
+        Right = 1.5 * Forward.Cross(v: down).Norm()
+        Up = 1.5 * Forward.Cross(v: Right).Norm()
+    }
+
+    func GetPoint(x: Int, y: Int, w: Int, h: Int) -> Vector {
+        let xf = Double(x);
+        let yf = Double(y);
+        let wf = Double(w);
+        let hf = Double(h);
+        let recenterX = (xf - (wf / 2.0)) / 2.0 / wf
+        let recenterY = -(yf - (hf / 2.0)) / 2.0 / hf
+        return (self.Forward + (recenterX * self.Right) + (recenterY * self.Up)).Norm()
     }
 }
 
@@ -100,25 +137,25 @@ struct Ray
     var Dir: Vector
 }
 
-class Intersection
+struct Intersection
 {
-    var Thing: IThing
+    var Thing: Thing
     var Ray: Ray
     var Dist: Double
 }
 
 protocol ISurface
 {
-    func Roughness: Double
-    func Diffuse(pos: Vector) -> Color
-    func Specular(pos: Vector) -> Color
-    func Reflect(pos: Vector ) -> Double
+    func Diffuse(pos: Vector)   -> Color
+    func Specular(pos: Vector)  -> Color
+    func Reflect(pos: Vector )  -> Double
+    func Roughness() -> Double
 }
 
-protocol IThing
+protocol Thing
 {
-    var Surface: ISurface
-    func Intersect(ray: Ray) -> Intersection
+    func Surface() -> ISurface
+    func Intersect(ray: Ray) -> Intersection?
     func Normal(pos: Vector) -> Vector
 }
 
@@ -128,240 +165,289 @@ struct Light
     var Color: Color
 }
 
-class Sphere : IThing
+class Sphere : Thing
 {
     var m_Radius2: Double
     var m_Center: Vector
     var m_Surface: ISurface
 
-    init (center: Vector, radius: Double, surface: ISurface) -> Sphere
+    init (center: Vector, radius: Double, surface: ISurface)
     {
         m_Radius2 = radius * radius
         m_Surface = surface
         m_Center = center
     }
 
-    func Intersect(ray: Ray) -> Intersection
+    func Intersect(ray: Ray) -> Intersection?
     {
-        var eo = (m_Center - ray.Start)
-        var v = eo.Dot(ray.Dir)
-        var dist = 0.0
-
+        let eo = (m_Center - ray.Start)
+        let v = eo.Dot(v: ray.Dir)
         if (v >= 0)
         {
-            var disc = m_Radius2 - (eo.Dot(eo) - v * v)
+            let disc = m_Radius2 - (eo.Dot(v: eo) - v * v)
             if (disc >= 0)
             {
-                dist = v - Math.Sqrt(disc)
+                let dist = v - disc.squareRoot()
+                return Intersection(Thing: self, Ray: ray, Dist: dist)
             }
         }
-        return dist == 0 ? default : new Intersection(this, ray, dist)
+        return nil;
     }
 
     func Normal(pos: Vector) -> Vector {
         return (pos - m_Center).Norm()
     }
 
-     ISurface Surface { get set }
+    func Surface() -> ISurface { return m_Surface }
 }
 
-class Plane : IThing
+class Plane : Thing
 {
     var m_Normal: Vector
     var m_Offset: Double
     var m_Surface: ISurface
 
-    init Plane(norm: Vector, offset: Double, surface: ISurface)
+    init(norm: Vector, offset: Double, surface: ISurface)
     {
         m_Normal = norm
         m_Offset = offset
         m_Surface = surface
     }
 
-    init Intersect(ray: Ray) -> Intersection
+    func Intersect(ray: Ray) -> Intersection?
     {
-        var denom = m_Normal.Dot(ray.Dir)
-        if (denom > 0) {
-            return null
+        let denom = m_Normal.Dot(v: ray.Dir)
+        if (denom <= 0) {
+            let dist = (m_Normal.Dot(v: ray.Start) + m_Offset) / (-denom)
+            return Intersection(Thing: self, Ray: ray, Dist: dist)
         }
-        var dist = (m_Normal.Dot(ray.Start) + m_Offset) / (-denom)
-        return Intersection(this, ray, dist)
+        return nil
     }
 
     func Normal(pos: Vector) -> Vector {
         return m_Normal
     }
 
-     ISurface Surface { get set }
+    func Surface() -> ISurface { return m_Surface }
 }
 
 class ShinySurface : ISurface
 {
-    func Diffuse(pos: Vector) ->  Color  { return Color.White }
-    func Specular(pos: Vector) -> Color  { return Color.Grey }
+    func Diffuse(pos: Vector) ->  Color  { return White }
+    func Specular(pos: Vector) -> Color  { return Grey }
     func Reflect(pos: Vector ) -> Double { return 0.7 }
     func Roughness() -> Double { return 250.0 }
 }
 
 class CheckerboardSurface : ISurface
 {
-     func Diffuse(Vector pos) -> Color  { return (Math.Floor(pos.Z) + Math.Floor(pos.X)) % 2 != 0 ? Color.White : Color.Black }
-     func Specular(Vector pos) -> Color { return Color.White }
-     func Reflect(Vector pos) -> Double { return (Math.Floor(pos.Z) + Math.Floor(pos.X)) % 2 != 0 ? 0.1 : 0.7 }
-     func Roughness () -> Double { return 150.0 }
-}
+     func Condition(pos: Vector) -> Bool {
+        return (pos.Z.floorAsInt() + pos.X.floorAsInt()) % 2 != 0;
+     }
 
-class Surfaces
-{
-     let Shiny: ISurface = ShinySurface()
-     let Checkerboard: ISurface = CheckerboardSurface()
+     func Diffuse(pos: Vector) -> Color  { return self.Condition(pos: pos) ? White : Black }
+     func Specular(pos: Vector) -> Color { return White }
+     func Reflect(pos: Vector) -> Double { return self.Condition(pos: pos) ? 0.1 : 0.7 }
+     func Roughness () -> Double { return 150.0 }
 }
 
 class Scene
 {
-    var Camera: Camera
-    var Lights: [Light]
-    var Things: [IThing]
+    var camera: Camera
+    var lights: [Light]
+    var things: [Thing]
 
-    Scene()
+    init()
     {
-        Camera = Camera(Vector(X:3.0, Y:2.0, Z:4.0), Vector(X:-1.0, Y:0.5, Z:0.0))
-        Things = [
-            Plane( Vector(0.0, 1.0,  0.0 ), 0.0, Surfaces.Checkerboard),
-            Sphere(Vector(0.0, 1.0, -0.25), 1.0, Surfaces.Shiny),
-            Sphere(Vector(-1.0, 0.5, 1.5 ), 0.5, Surfaces.Shiny)
+        let Shiny = ShinySurface()
+        let Checkerboard = CheckerboardSurface()
+        things = [
+            Plane( norm:   Vector(X: 0.0, Y:1.0, Z: 0.0 ), offset: 0.0, surface: Checkerboard),
+            Sphere(center: Vector(X: 0.0, Y:1.0, Z:-0.25), radius: 1.0, surface: Shiny),
+            Sphere(center: Vector(X:-1.0, Y:0.5, Z: 1.5 ), radius: 0.5, surface: Shiny)
         ]
-        Lights = [
-            Light(Vector(-2.0, 2.5, 0.0), Color(0.49, 0.07, 0.07)),
-            Light(Vector(1.5, 2.5, 1.5),  Color(0.07, 0.07, 0.49)),
-            Light(Vector(1.5, 2.5, -1.5), Color(0.07, 0.49, 0.071)),
-            Light(Vector(0.0, 3.5, 0.0),  Color(0.21, 0.21, 0.35))
+        lights = [
+            Light(Pos: Vector(X:-2.0, Y:2.5, Z:0.0),  Color: Color(R:0.49, G:0.07, B:0.07)),
+            Light(Pos: Vector(X: 1.5, Y:2.5, Z:1.5),  Color: Color(R:0.07, G:0.07, B:0.49)),
+            Light(Pos: Vector(X: 1.5, Y:2.5, Z:-1.5), Color: Color(R:0.07, G:0.49, B:0.071)),
+            Light(Pos: Vector(X: 0.0, Y:3.5, Z:0.0),  Color: Color(R:0.21, G:0.21, B:0.35))
         ]
+        self.camera = Camera(pos: Vector(X:3.0, Y:2.0, Z:4.0), lookAt: Vector(X:-1.0, Y:0.5, Z:0.0))
     }
 }
 
-class RayTracerEngine
+let MaxDepth: Int = 5
+
+func Intersections(scene: Scene, ray: Ray) -> Intersection?
 {
-    let m_MaxDepth: Integer = 5
-    var scene: Scene
+    var closest = Double.infinity
+    var closestInter : Intersection? = nil
 
-    func Intersections(ray: Ray) -> Intersection
+    for item in scene.things
     {
-        var closest = double.PositiveInfinity
-        Intersection closestInter = null
-
-        foreach (var item in scene.Things)
-        {
-            var inter = item.Intersect(ray)
-            if (inter == null || !(inter.Dist < closest)) continue
+        let inter = item.Intersect(ray: ray)
+        if (inter != nil && inter!.Dist < closest) {
             closestInter = inter
-            closest = inter.Dist
+            closest = inter!.Dist
         }
-
-        return closestInter
     }
+    return closestInter
+}
 
-    func TestRay(ray: Ray) -> Double
+func TraceRay(scene: Scene, ray: Ray, depth: Int) -> Color
+{
+    let isect = Intersections(scene: scene, ray: ray)
+    return isect == nil ? Background : Shade(scene: scene, isect: isect!, depth: depth)
+}
+
+func Shade(scene: Scene, isect: Intersection, depth: Int) -> Color
+{
+    let d = isect.Ray.Dir
+    let pos = (isect.Dist * d) + isect.Ray.Start
+    let normal = isect.Thing.Normal(pos: pos)
+    let reflectDir = d - (2 * normal.Dot(v:d) * normal)
+    let naturalColor = Background + GetNaturalColor(scene: scene, thing: isect.Thing, pos: pos, normal: normal, reflectDir: reflectDir)
+    let reflectedColor = depth >= MaxDepth ? Grey : GetReflectionColor(scene: scene, thing: isect.Thing, pos: pos, normal: normal, reflectDir: reflectDir, depth: depth)
+    return naturalColor + reflectedColor
+}
+
+func GetReflectionColor(scene: Scene, thing: Thing, pos: Vector, normal: Vector, reflectDir: Vector, depth: Int) -> Color
+{
+    let ray = Ray(Start: pos, Dir: reflectDir)
+    let reflect = thing.Surface().Reflect(pos: pos)
+    let color =  TraceRay(scene: scene, ray: ray, depth: depth + 1)
+    return reflect * color
+}
+
+func GetNaturalColor(scene: Scene, thing: Thing, pos: Vector, normal: Vector, reflectDir: Vector) -> Color
+{
+    var result = Defaultcolor
+    for 😎 in scene.lights
     {
-        Intersection isect = Intersections(ray)
-        return isect?.Dist ?? double.NaN
-    }
+        let ldis = 😎.Pos - pos
+        let livec = ldis.Norm()
+        let ray = Ray(Start:pos, Dir: livec)
+        let neatIsect = Intersections(scene: scene, ray: ray)
 
-    func TraceRay(ray: Ray, depth: Integer) -> Color
-    {
-        var isect = Intersections(ray)
-        return isect == null ? Color.Background : Shade(isect, depth)
-    }
-
-    func Shade(isect: Intersection, depth: Integer) -> Color
-    {
-        let d = isect.Ray.Dir
-
-        var pos = (isect.Dist * d) + isect.Ray.Start
-        var normal = isect.Thing.Normal(pos)
-        var reflectDir = d - (2 * normal.Dot(d) * normal)
-        var naturalColor = Color.Background + GetNaturalColor(isect.Thing, pos, normal, reflectDir)
-
-        var reflectedColor = depth >= m_MaxDepth ? Color.Grey : GetReflectionColor(isect.Thing, pos, normal, reflectDir, depth)
-        return naturalColor + reflectedColor
-    }
-
-    func GetReflectionColor(thing: IThing, pos: Vector, normal: Vector, rd: Vector, depth: Integer) -> Color
-    {
-        return thing.Surface.Reflect(pos) * TraceRay(new Ray(pos, rd), depth + 1)
-    }
-
-    func GetNaturalColor(thing: IThing, pos: Vector, norm: Vector, rd: Vector) -> Color
-    {
-        var result = Color.Defaultcolor
-        foreach (var item in scene.Lights)
-        {
-            result = AddLight(result, item, pos, norm, rd, thing)
-        }
-        return result
-    }
-
-    func AddLight(col: Color, light: Light, pos: Vector, norm: Vector, rd: Vector, thing: IThing) -> Color
-    {
-        var ldis = light.Pos - pos
-        var livec = ldis.Norm()
-        var neatIsect = TestRay(new Ray(pos, livec))
-
-        var isInShadow = !double.IsNaN(neatIsect) && (neatIsect <= ldis.Length())
+        let isInShadow = neatIsect != nil && (neatIsect!.Dist <= ldis.Length())
         if (isInShadow)
         {
-            return col
-        }
-        var illum = livec.Dot(norm)
-        var lcolor = (illum > 0) ? illum * light.Color : Color.Defaultcolor
+            let illum = livec.Dot(v: normal)
+            let specular = livec.Dot(v: reflectDir.Norm())
 
-        var specular = livec.Dot(rd.Norm())
-        var scolor = specular > 0 ? (Math.Pow(specular, thing.Surface.Roughness) * light.Color) : Color.Defaultcolor
-
-        return col + (thing.Surface.Diffuse(pos) * lcolor) + (thing.Surface.Specular(pos) * scolor)
-    }
-
-    func Render(Scene scene, System.Drawing.Bitmap bmp)
-    {
-        this.scene = scene
-        int w = bmp.Width
-        int h = bmp.Height
-
-        Vector GetPoint(int x, int y, Camera camera)
-        {
-            var recenterX = (x - (w / 2.0)) / 2.0 / w
-            var recenterY = -(y - (h / 2.0)) / 2.0 / h
-            return (camera.Forward + (recenterX * camera.Right) + (recenterY * camera.Up)).Norm()
-        }
-
-        BitmapData bitmapData = bmp.LockBits(new System.Drawing.Rectangle(0, 0, w, h), ImageLockMode.ReadWrite, bmp.PixelFormat)
-
-        unsafe
-        {
-            for (var y = 0 y < h ++y)
-            {
-                int* row = (int*)(bitmapData.Scan0 + (y * bitmapData.Stride))
-                for (var x = 0 x < w ++x)
-                {
-                    var color = TraceRay(new Ray(scene.Camera.Pos, GetPoint(x, y, scene.Camera)), 0)
-                    row[x] = Color.ToDrawingColor(color).ToArgb()
-                }
+            var lcolor = Defaultcolor
+            var scolor = Defaultcolor
+            if (illum > 0) {
+                lcolor = illum * 😎.Color
             }
+            if (specular > 0) {
+                scolor = specular.power(Int(thing.Surface().Roughness())) * 😎.Color
+            }
+            result =  result + (thing.Surface().Diffuse(pos: pos) * lcolor) + (thing.Surface().Specular(pos: pos) * scolor)
         }
-        bmp.UnlockBits(bitmapData)
+    }
+    return result
+}
+
+func Render(scene: Scene, image: Image)
+{
+    let w = image.Width
+    let h = image.Height
+
+    for  y in 0 ... h-1 {
+        for x in 0 ... w-1 {
+            let pt = scene.camera.GetPoint(x: x, y: y, w: w, h: h)
+            let ray = Ray(Start: scene.camera.Pos, Dir: pt)
+            let color = TraceRay(scene: scene, ray: ray, depth: 0)
+            image.setColor(x: x, y: y, color: color.ToDrawingColor())
+        }
     }
 }
 
-var bmp = new System.Drawing.Bitmap(2000, 2000, PixelFormat.Format32bppArgb)
-Stopwatch sw = new Stopwatch()
-Console.WriteLine("C# RayTracer Test")
+typealias WORD  = UInt16
+typealias DWORD = UInt32
+typealias LONG  = Int32
 
-sw.Start()
-var rayTracer = new RayTracerEngine()
-var scene = new Scene()
-rayTracer.Render(scene, bmp)
-sw.Stop()
-bmp.Save("csharp-ray-tracer.png")
+struct BITMAPINFOHEADER
+{
+    var biSize: DWORD
+    var biWidth: LONG
+    var biHeight: LONG
+    var biPlanes: WORD
+    var biBitCount: WORD
+    var biCompression: DWORD
+    var biSizeImage: DWORD
+    var biXPelsPerMeter: LONG
+    var biYPelsPerMeter: LONG
+    var biClrUsed: DWORD
+    var biClrImportant: DWORD
+}
 
-Console.WriteLine("")
-Console.WriteLine("Total time: " + sw.ElapsedMilliseconds.ToString() + " ms")
+struct BITMAPFILEHEADER
+{
+    var bfType: WORD
+    var bfSize: DWORD
+    var bfReserved: DWORD
+    var bfOffBits: DWORD
+}
+
+class Image
+{
+    var data: [RGBColor]
+    var Width: Int
+    var Height: Int
+
+    init(width: Int, height: Int)
+    {
+        self.Width = width
+        self.Height = height
+        self.data = Array(repeating: RGBColor(B: 0, G: 0, R: 0, A: 0), count: width*height)
+    }
+
+    func setColor(x: Int, y: Int, color: RGBColor) {
+        self.data[y * self.Width + x] = color
+    }
+
+    func Save(fileName: String)
+    {
+        // let infoHeaderSize: Int = 40;
+        // let fileHeaderSize: Int = 14;
+        // let offBits = infoHeaderSize + fileHeaderSize;
+
+        // let infoHeader = BITMAPINFOHEADER(
+        //     biSize: DWORD(infoHeaderSize),
+        //     biWidth: LONG(Width),
+        //     biHeight: LONG(-Height),
+        //     biPlanes: 1,
+        //     biBitCount: 32,
+        //     biCompression:  0,
+        //     biSizeImage: DWORD(Width * Height * 4),
+        //     biXPelsPerMeter: 0,
+        //     biYPelsPerMeter: 0,
+        //     biClrUsed: 0,
+        //     biClrImportant: 0
+        // )
+
+        // let fileHeader = BITMAPFILEHEADER(
+        //     bfType: 66 + (77 << 8),
+        //     bfSize: DWORD(Int(offBits) + Int(infoHeader.biSizeImage)),
+        //     bfReserved: 0,
+        //     bfOffBits: DWORD(offBits)
+        // )
+
+        //let url = URL(fileURLWithPath: "SwiftRay.bmp")
+        // let wArray = Array(repeating: 0, count: self.data.count * 4 + 54)
+        // let wData = Data(bytes: &wArray, count: wArray.count)
+        // try! wData.write(to: "SwiftRay.bmp")
+    }
+}
+
+func main() {
+    let image = Image(width: 500, height: 500)
+    let scene = Scene()
+    Render(scene: scene, image: image)
+
+    print("Completed")
+}
+
+main()

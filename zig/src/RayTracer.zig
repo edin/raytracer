@@ -1,4 +1,5 @@
 const std = @import("std");
+const Allocator = std.mem.Allocator;
 
 const RGBColor = struct {
     b: u8,
@@ -267,7 +268,7 @@ const Scene = struct {
     camera: Camera,
     pub fn init() Scene {
         var things = [3]Thing{
-            Thing{ .Plane = .{ .norm = Vector.init(0.0, 1.0, 0.0), .offset = 0.0, .surface = Surface.CheckerboardSurface } },
+            Thing{ .Plane =  .{ .norm   = Vector.init(0.0, 1.0, 0.0), .offset = 0.0, .surface = Surface.CheckerboardSurface } },
             Thing{ .Sphere = .{ .center = Vector.init(0.0, 1.0, -0.25), .radius2 = 1.0, .surface = Surface.ShinySurface } },
             Thing{ .Sphere = .{ .center = Vector.init(-1.0, 0.5, 1.5), .radius2 = 0.25, .surface = Surface.ShinySurface } },
         };
@@ -277,27 +278,30 @@ const Scene = struct {
             Light.init(Vector.init(1.5, 2.5, -1.5), Color.init(0.07, 0.49, 0.071)),
             Light.init(Vector.init(0.0, 3.5, 0.0), Color.init(0.21, 0.21, 0.35)),
         };
-        var camera = Camera.init(Vector(3.0, 2.0, 4.0), Vector(-1.0, 0.5, 0.0));
+        var camera = Camera.init(Vector.init(3.0, 2.0, 4.0), Vector.init(-1.0, 0.5, 0.0));
         return Scene{ .things = things, .lights = lights, .camera = camera };
     }
 };
 
 const Image = struct {
+
     width: i32,
     height: i32,
     data: [*]RGBColor,
 
-    pub fn init(w: i32, h: i32) Image {
-        var data = try std.heap.c_allocator.alloc(RGBColor, w * h);
+    pub fn init(allocator: *Allocator, w: i32, h: i32) Image {
+        var size: usize = @intCast(usize, w*h);
+
+        var data = try allocator.alloc(RGBColor, size);
         return Image{ .width = w, .height = h, .data = data };
     }
 
     pub fn setColor(self: Image, x: i32, y: i32, c: RGBColor) void {
-        var idx: usize = y * self.width + x;
-        self.data.*[idx] = c;
+        var idx: usize = @intCast(usize, y * self.width + x);
+        self.data[idx] = c;
     }
 
-    pub fn save(fileName: string) void {
+    pub fn save(self:Image, fileName:[]const u8) void {
         // bmpInfoHeader := BITMAPINFOHEADER{};
         // bmpInfoHeader.biSize = size_of(BITMAPINFOHEADER);
         // bmpInfoHeader.biBitCount = 32;
@@ -329,14 +333,10 @@ pub fn GetClosestIntersection(scene: Scene, ray: Ray) ?Intersection {
     var closestInter: ?Intersection = null;
 
     for (scene.things) |thing| {
-        var isectOrNull = GetIntersection(thing, ray);
-        switch (isectOrNull) {
-            Intersection => |isect| {
-                if (isect.dist < closest) {
-                    closestInter = inter;
-                    closest = inter.dist;
-                }
-            },
+        var isect = GetIntersection(thing, ray);
+        if (isect != null and isect.?.dist < closest) {
+            closestInter = isect;
+            closest = isect.?.dist;
         }
     }
     return closestInter;
@@ -347,7 +347,7 @@ pub fn TraceRay(scene: Scene, ray: Ray, depth: i32) Color {
     if (isect == null) {
         return Background;
     }
-    return Shade(isect, scene, depth);
+    return Shade(scene, isect.?, depth);
 }
 
 pub fn Shade(scene: Scene, isect: Intersection, depth: i32) Color {
@@ -386,13 +386,7 @@ pub fn GetNaturalColor(scene: Scene, thing: Thing, pos: Vector, norm: Vector, rd
         var ray = Ray.init(pos, livec);
 
         var isect = GetClosestIntersection(scene, ray);
-        var isInShadow = false;
-
-        switch (isect) {
-            Intersection => |isectObj| {
-                isInShadow = isectObj.dist < ldis.mag();
-            },
-        }
+        var isInShadow = isect != null and isect.?.dist < ldis.mag();
 
         if (!isInShadow) {
             var illum = livec.dot(norm);
@@ -405,13 +399,13 @@ pub fn GetNaturalColor(scene: Scene, thing: Thing, pos: Vector, norm: Vector, rd
                 lcolor = light.color.scale(illum);
             }
             if (specular > 0) {
-                scolor = light.color.scale(pow(specular, surface.roughness));
+                scolor = light.color.scale(std.math.pow(f64, specular, surface.roughness));
             }
 
-            lcolor.scale(colDiffuse);
-            scolor.scale(colSpecular);
+            lcolor = lcolor.mul(colDiffuse);
+            scolor = scolor.mul(colSpecular);
 
-            resultColor.add(lcolor).add(scolor);
+            resultColor = resultColor.add(lcolor).add(scolor);
         }
     }
 
@@ -453,11 +447,19 @@ pub fn Render(scene: Scene, image: Image) void {
 
 pub fn main() !void {
     const stdout = std.io.getStdOut().outStream();
+    var arena = std.heap.ArenaAllocator.init(std.heap.page_allocator);
+    defer arena.deinit();
+    const allocator = &arena.allocator;
 
-    var image = Image.init(500, 500);
-    var scene = Scene.init();
-    Render(scene, image);
-    image.save("zig-ray.bmp");
+    var data = allocator.alloc(RGBColor, 10);
+    data[0] = RGBColor.init(0,0,0);
+
+    try stdout.print("Data: {}!\n", .{ data });
+
+    // var image = Image.init(allocator, 500, 500);
+    // var scene = Scene.init();
+    // Render(scene, image);
+    // image.save("zig-ray.bmp");
 
     try stdout.print("Completed, {}!\n", .{"OK"});
 }
