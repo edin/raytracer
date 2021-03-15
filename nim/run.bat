@@ -1,1 +1,1 @@
-nim c -r RayTracer.nim
+nim c -d:danger -d:lto --gc:arc -r RayTracer.nim
