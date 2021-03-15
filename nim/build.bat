@@ -1,2 +1,2 @@
-nim c -d:release --opt:speed --passL:-s RayTracer.nim
+nim c -d:danger -d:lto --gc:arc RayTracer.nim
 RayTracer.exe
