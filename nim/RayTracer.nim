@@ -1,8 +1,6 @@
 import math
 import times
-
-let FarAway: float64 = 1000000.0
-
+import macros
 type
   SurfaceType = enum
     ShinySurface, CheckerBoardSurface
@@ -17,7 +15,9 @@ type
     x, y, z: float64
 
   Color = object
-    r, b, g: float64
+    r, g, b: float64
+
+  VC = Vector | Color
 
   Camera = object
     forward, right, up, pos: Vector
@@ -25,7 +25,7 @@ type
   Ray = object
     start, dir: Vector
 
-  Thing = ref object
+  Thing = object
     surfaceType: SurfaceType
     case objectType: ObjectType
     of Sphere:
@@ -36,7 +36,7 @@ type
       offset: float64
 
   Intersection = object
-    thing: Thing
+    thingidx: int
     ray: Ray
     dist: float64
 
@@ -44,311 +44,349 @@ type
     pos: Vector
     color: Color
 
-  Scene = ref object
+  Scene[T, L: static int] = object
     maxDepth: int
-    things: seq[Thing]
-    lights: seq[Light]
+    things: array[T, Thing]
+    lights: array[L, Light]
     camera: Camera
 
   SurfaceProperties = object
     diffuse, specular: Color
-    reflect, roughness: float64
+    reflect: float64
+    roughness: uint
 
-let white        = Color(r: 1.0, g: 1.0, b: 1.0)
-let grey         = Color(r: 0.5, g: 0.5, b: 0.5)
-let black        = Color(r: 0.0, g: 0.0, b: 0.0)
-let background   = Color(r: 0.0, g: 0.0, b: 0.0)
-let defaultColor = Color(r: 0.0, g: 0.0, b: 0.0)
+#fast pow
+#[func pow(x: float64, y: uint): float64 =
+  result = 1.0
+  var
+    base = x
+    exp = y
+  while exp != 0:
+    if (exp and 1) == 1:
+      result *= base
+    exp = exp div 2
+    base *= base
+  ]#
+func pow(x: float64, y: uint): float64 = pow(x, y.float64)
+#init procs
+func initVector(x, y, z: float64): Vector{.noinit, inline.} =
+  result.x = x
+  result.y = y
+  result.z = z
+func initColor(r, g, b: float64): Color{.noinit, inline.} =
+  result.r = r
+  result.g = g
+  result.b = b
+func initRay(s, d: Vector): Ray{.noinit, inline.} =
+  result.start = s
+  result.dir = d
 
-proc Cross(v1: var Vector, v2: var Vector): Vector =
-  return Vector(
-    x: v1.y * v2.z - v1.z * v2.y,
-    y: v1.z * v2.x - v1.x * v2.z,
-    z: v1.x * v2.y - v1.y * v2.x
+func toRgbColor(c: Color): RgbColor{.noinit, inline.} =
+  #as long as we never have a negative color
+  template legalize(c: float64): uint8 = (if c > 1.0: 255'u8 else: uint8(c*255.0))
+  result.r = legalize(c.r)
+  result.g = legalize(c.g)
+  result.b = legalize(c.b)
+  result.a = 255
+
+#wankery i cant help
+macro getfield(x: untyped, f: static string): untyped =
+  let id = ident(f)
+  result = quote do:
+    `x`.`id`
+template fieldop(res, obj1, obj2: typed, op: untyped): untyped =
+  for fld, val1, val2 in fieldpairs(obj1, obj2):
+    let
+      a{.inject.} = obj1.getfield(fld)
+      b{.inject.} = obj2.getfield(fld)
+    res.getfield(fld) = op
+
+###Vector Math
+template cross(v1, v2: Vector): Vector =
+  initVector(
+    x = v1.y * v2.z - v1.z * v2.y,
+    y = v1.z * v2.x - v1.x * v2.z,
+    z = v1.x * v2.y - v1.y * v2.x
   )
 
-proc Length(v: Vector): float64 =
-  return sqrt(v.x * v.x + v.y * v.y + v.z * v.z)
+template len(v: Vector): float64 =
+  sqrt(v.x * v.x + v.y * v.y + v.z * v.z)
 
-proc Scale(v: Vector, k: float64): Vector =
-  return Vector(
-    x: k * v.x,
-    y: k * v.y,
-    z: k * v.z
-  )
+func `*`[T: VC](v: T, k: float64): T =
+  for fld, val in v.fieldpairs:
+    result.getfield(fld) = v.getfield(fld) * k
 
-proc Norm(v: Vector): Vector =
-  let mag: float64 = v.Length
-  var s:   float64
-  if mag == 0:
-    s = FarAway
-  else:
-    s = 1.0 / mag
-  return v.Scale(s)
+func `*`[T: VC](v1, v2: T): T = fieldop(result, v1, v2, a*b)
+func `+`[T: VC](v1, v2: T): T = fieldop(result, v1, v2, a+b)
+func `-`[T: VC](v1, v2: T): T = fieldop(result, v1, v2, a - b)
+func `+=`[T: VC](v1: var T, v2: T) = fieldop(v1, v1, v2, a+b)
+template norm(v: Vector): Vector =
+  v * (1.0 / v.len)
 
-proc Dot(v1: Vector, v2: Vector): float64 =
-  return (v1.x * v2.x) + (v1.y * v2.y) + (v1.z * v2.z)
+func dot(v1, v2: Vector): float64{.inline.} =
+  (v1.x * v2.x) + (v1.y * v2.y) + (v1.z * v2.z)
 
-proc Add(v1: Vector, v2: Vector): Vector  =
-  return Vector(
-    x: v1.x + v2.x,
-    y: v1.y + v2.y,
-    z: v1.z + v2.z
-  )
+func getnormal(obj: Thing, pos: Vector): Vector{.inline.} =
+  case obj.objectType:
+    of Sphere:
+      (pos - (obj.center)).norm()
+    of Plane:
+      obj.normal
 
-proc Sub(v1: Vector, v2: Vector): Vector =
-  return Vector(
-    x: v1.x - v2.x,
-    y: v1.y - v2.y,
-    z: v1.z - v2.z
-  )
+#setup
+const
+  white = Color(r: 1.0, g: 1.0, b: 1.0)
+  grey = Color(r: 0.5, g: 0.5, b: 0.5)
+  black = Color(r: 0.0, g: 0.0, b: 0.0)
+  background = black
+  defaultColor = black
 
-proc Scale(color: Color, k: float64): Color  =
-  return Color(
-    r: k * color.r,
-    g: k * color.g,
-    b: k * color.b
-  )
 
-proc Multiply(a: Color, b: Color): Color =
-  return Color(
-    r: a.r * b.r,
-    g: a.g * b.g,
-    b: a.b * b.b
-  )
-
-proc Add(a: Color, b: Color): Color =
-  return Color(
-    r: a.r + b.r,
-    g: a.g + b.g,
-    b: a.b + b.b
-  )
-
-proc Legalize(c: float64): uint8 =
-  let x = (c * 255.0)
-  if x < 0.0:
-    return 0
-  if x > 255.0:
-    return 255
-  return uint8(x)
-
-proc ToDrawingColor(c: Color): RgbColor =
-  var color: RgbColor
-  color.r = Legalize(c.r)
-  color.g = Legalize(c.g)
-  color.b = Legalize(c.b)
-  color.a = 255
-  return color
-
-proc CreateCamera(pos: Vector, lookAt: Vector): Camera =
-  var down = Vector(x:0.0, y: -1.0, z: 0.0)
-  var forward = lookAt.Sub(pos)
+func initCamera(pos: Vector, lookAt: Vector): Camera =
+  let down = Vector(x: 0.0, y: -1.0, z: 0.0)
+  let forward = lookAt - pos
 
   var camera: Camera
-  camera.pos      = pos
-  camera.forward  = forward.Norm()
-  camera.right    = camera.forward.Cross(down)
-  camera.up       = camera.forward.Cross(camera.right)
+  camera.pos = pos
+  camera.forward = forward.norm()
+  camera.right = camera.forward.cross(down)
+  camera.up = camera.forward.cross(camera.right)
 
-  let rightNorm = camera.right.Norm()
-  let upNorm    = camera.up.Norm()
+  let rightNorm = camera.right.norm()
+  let upNorm = camera.up.norm()
 
-  camera.right = rightNorm.Scale(1.5)
-  camera.up    = upNorm.Scale(1.5)
+  camera.right = rightNorm * 1.5
+  camera.up = upNorm * 1.5
 
   return camera
 
-proc Normal(obj: Thing, pos: Vector): Vector =
-  case obj.objectType:
-    of Sphere:
-      return pos.Sub(obj.center).Norm()
-    of Plane:
-      return obj.normal
-  return Vector(x:0.0, y:0.0, z:0.0)
+proc initSphere(center: Vector, radius: float64,
+    surfaceType: SurfaceType): Thing =
+  var r2 = radius * radius
+  return Thing(surfaceType: surfaceType, objectType: Sphere, center: center, radius2: r2)
 
-proc ObjectIntersect(obj: Thing, ray: Ray): Intersection =
-  result = Intersection(thing: nil, ray: ray, dist: 0)
+proc initPlane(normal: Vector, offset: float64,
+    surfaceType: SurfaceType): Thing =
+  return Thing(surfaceType: surfaceType, objectType: Plane, normal: normal,
+      offset: offset)
+
+func initScene(): auto =
+  let
+    maxDepth = 5
+
+    things = [
+      initPlane(Vector(x: 0.0, y: 1.0, z: 0.0), 0.0, CheckerBoardSurface),
+      initSphere(Vector(x: -1.0, y: 0.5, z: 1.5), 0.5, ShinySurface),
+      initSphere(Vector(x: 0.0, y: 1.0, z: -0.25), 1.0, ShinySurface)
+      ]
+
+    lights = [
+      Light(pos: Vector(x: -2.0, y: 2.5, z: 0.0), color: Color(r: 0.49,
+        g: 0.07, b: 0.07)),
+      Light(pos: Vector(x: 1.5, y: 2.5, z: 1.5), color: Color(r: 0.07,
+        g: 0.07, b: 0.49)),
+      Light(pos: Vector(x: 1.5, y: 2.5, z: -1.5), color: Color(r: 0.07,
+        g: 0.49, b: 0.071)),
+      Light(pos: Vector(x: 0.0, y: 3.5, z: 0.0), color: Color(r: 0.21,
+        g: 0.21, b: 0.35))
+    ]
+
+    camera = initCamera(Vector(x: 3.0, y: 2.0, z: 4.0), Vector(x: -1.0,
+      y: 0.5, z: 0.0))
+  return Scene[things.len, lights.len](maxDepth: maxDepth, things: things,
+      lights: lights, camera: camera)
+
+
+
+##   the real meat of the program ##
+##
+const shiny = SurfaceProperties(diffuse: white, specular: grey, reflect: 0.7,
+    roughness: 250)
+func getSurfaceProperties(obj: Thing, pos: Vector): SurfaceProperties{.noinit.} =
+  case obj.surfaceType:
+  of ShinySurface: result = shiny
+  of CheckerBoardSurface:
+    let val = (int)(floor(pos.z) + floor(pos.x)) mod 2
+    if val == 0:
+      result.reflect = 0.7
+      result.diffuse = black
+    else:
+      result.reflect = 0.1
+      result.diffuse = white
+    result.specular = white
+    result.roughness = 150
+
+template intersections(obj: Thing, start, dir: Vector, test,
+    body: untyped): untyped =
+  var dist{.inject.}: float64
+  case obj.objectType:
+  of Sphere:
+    let
+      eo = obj.center - start
+      v = eo.dot(dir)
+    if v >= 0:
+      let disc = obj.radius2 - (eo.dot(eo) - (v * v))
+      if disc >= 0:
+        dist = v - sqrt(disc)
+        if test:
+          body
+  of Plane:
+    let denom = obj.normal.dot(dir)
+    if (denom <= 0) and test:
+      dist = (obj.normal.dot(start) + obj.offset) / (-denom)
+      body
+func getNaturalColor(scene: Scene, sp: SurfaceProperties,
+    pos, rd, norm: Vector): Color
+
+func getReflectionColor(scene: var Scene, sp: SurfaceProperties, pos,
+    rd: Vector, depth: int): Color
+
+func shade(scene: var Scene, thing: Thing, start, dir: Vector, dist: float64,
+    depth: int): Color =
+  let
+    scaled = dir * dist
+    pos = scaled + start
+    #thing = scene.things[thingidx]
+    normal = thing.getnormal(pos)
+    reflectDir = dir - (normal * (normal.dot(dir) * 2))
+    sp = thing.getSurfaceProperties(pos)
+  when background == black:
+    let naturalColor = getNaturalColor(scene, sp, pos, reflectDir, normal)
+  else:
+    let naturalColor = getNaturalColor(scene, sp, pos, reflectDir, normal) + background
+
+  let reflectedColor = if depth >= scene.maxDepth:
+      grey
+    else:
+      getReflectionColor(scene, sp, pos, reflectDir, depth)
+
+  return naturalColor+reflectedColor
+
+
+
+func testRay(scene: Scene, start, dir: Vector): float64 =
+  result = INF
+  for thing in scene.things:
+    intersections(thing, start, dir, dist < result):
+      result = dist
+func traceRay(scene: var Scene, start, dir: Vector, depth: int): Color =
+  var
+    closest = INF
+    closestThing: ptr Thing
+  for thng in scene.things.mitems:
+    intersections(thng, start, dir, dist < closest):
+      closest = dist
+      closestThing = thng.addr
+  result = if closestThing != nil:
+    scene.shade(closestThing[], start, dir, closest, depth)
+  else:
+    black
+#ray = Ray(start:pos,dir:rd)
+#props = getsurfaceprops(thing,pos)
+func getReflectionColor(scene: var Scene, sp: SurfaceProperties, pos,
+    rd: Vector, depth: int): Color =
+  scene.traceRay(pos, rd, depth + 1) * sp.reflect
+
+func getNaturalColor(scene: Scene, sp: SurfaceProperties,
+    pos, rd, norm: Vector): Color =
+  var rdNorm = rd.norm()
+
+  for light in scene.lights:
+    let
+      ldis = light.pos - pos
+      ldisLen = ldis.len()
+      livec = ldis.norm() #ldis / ldisLen) #ldis.norm
+                          #lray = Ray(start: pos, dir: livec)
+      neatIsect = scene.testRay(pos, livec)
+
+    if neatIsect > ldisLen:
+      let illum = livec.dot(norm)
+      let specular = livec.dot(rdNorm)
+
+      #[let lcolor = if illum > 0:
+        light.color * illum * sp.diffuse
+      else:
+        defaultColor]#
+      assert illum > 0.0
+      let lcolor = (light.color * illum) * sp.diffuse
+      let scolor = if specular > 0:
+                     light.color * pow(specular, sp.roughness) * sp.specular
+                   else:
+                     defaultColor
+
+      result += lcolor + scolor
+
+
+
+#[proc ObjectIntersect(obj: Thing, ray: Ray): Intersection =
   case obj.objectType:
     of Sphere:
       let eo = obj.center.Sub(ray.start)
-      let v  = eo.Dot(ray.dir)
+      let v = eo.Dot(ray.dir)
       var dist = 0.0
       if (v >= 0):
         let disc = obj.radius2 - (eo.Dot(eo) - (v * v))
         if (disc >= 0):
-            dist = v - sqrt(disc)
-      if (dist != 0.0):
-        result.thing = obj
-        result.ray   = ray
-        result.dist  = dist
-    of Plane:
-      let denom = obj.normal.Dot(ray.dir)
-      if (denom <= 0):
-        result.dist  = (obj.normal.Dot(ray.start) + obj.offset) / (-denom)
-        result.thing = obj
-        result.ray   = ray
+          dist = v - sqrt(disc)
+        if (dist != 0.0):
+          result.thing = obj
+          result.ray = ray
+          result.dist = dist
+        of Plane:
+          let denom = obj.normal.Dot(ray.dir)
+          if (denom <= 0):
+            result.dist = (obj.normal.Dot(ray.start) + obj.offset) / (-denom)
+            result.thing = obj
+            result.ray = ray
 
-proc CreateSphere(center: Vector, radius: float64, surfaceType: SurfaceType): Thing =
-  var r2 = radius * radius
-  return Thing(surfaceType: surfaceType, objectType: Sphere, center: center, radius2: r2)
+          proc Intersections(scene: Scene, ray: Ray): Intersection =
+            var closest: float64 = FarAway
+            result.thing = nil
 
-proc CreatePlane(normal: Vector, offset: float64, surfaceType: SurfaceType): Thing =
-  return Thing(surfaceType: surfaceType, objectType: Plane,  normal: normal, offset: offset)
+            for thing in scene.things:
+              let intersect = ObjectIntersect(thing, ray)
+              if (not isNil(intersect.thing)) and (intersect.dist < closest):
+            result = intersect
+            closest = intersect.dist
+              return result
+            ]#
 
-proc GetSurfaceProperties(obj: Thing, pos: Vector): SurfaceProperties =
-  var properties: SurfaceProperties
-  case obj.surfaceType:
-    of ShinySurface:
-      properties.diffuse   = white
-      properties.specular  = grey
-      properties.reflect   = 0.7
-      properties.roughness = 250.0
-    of CheckerBoardSurface:
-      let val = (int)(floor(pos.z) + floor(pos.x))
-      if (val mod 2 != 0):
-        properties.reflect   = 0.1
-        properties.diffuse   = white
-      else:
-        properties.reflect   = 0.7
-        properties.diffuse   = black
-      properties.specular  = white
-      properties.roughness = 150.0
-  return properties
 
-proc CreateScene(): Scene =
-  var scene: Scene = new Scene;
-  scene.maxDepth   = 5
+### Render Scene
+template getPoint(x, y: int, camera: Camera, sw, sh: float64): Vector =
+  let
+    recenterX = (x.float64 - (sw / 2.0)) / (2.0 * sw)
+    recenterY = -(y.float64 - (sh / 2.0)) / (2.0 * sh)
 
-  scene.things = @[
-    CreatePlane(Vector(x:0.0, y:1.0,  z: 0.0), 0.0, CheckerBoardSurface),
-    CreateSphere(Vector(x:0.0, y:1.0, z: -0.25), 1.0, ShinySurface),
-    CreateSphere(Vector(x: -1.0, y:0.5, z: 1.5), 0.5, ShinySurface)
-  ]
+    vx = camera.right * recenterX
+    vy = camera.up * recenterY
 
-  scene.lights =  @[
-    Light(pos: Vector(x: -2.0, y: 2.5, z: 0.0),  color: Color(r: 0.49, g: 0.07, b: 0.07)),
-    Light(pos: Vector(x: 1.5,  y: 2.5, z: 1.5),  color: Color(r: 0.07, g: 0.07, b: 0.49)),
-    Light(pos: Vector(x: 1.5,  y: 2.5, z: -1.5), color: Color(r: 0.07, g: 0.49, b: 0.071)),
-    Light(pos: Vector(x: 0.0,  y: 3.5, z: 0.0),  color: Color(r: 0.21, g: 0.21, b: 0.35))
-  ]
+    v = vx + vy
+    z = camera.forward + v
 
-  scene.camera = CreateCamera(Vector(x:3.0, y: 2.0,z: 4.0), Vector(x: -1.0, y: 0.5, z: 0.0))
-  return scene
+  z.norm()
 
-proc Intersections(scene: Scene, ray: Ray): Intersection =
-  var closest: float64 = FarAway
-  result.thing = nil
-
-  for thing in scene.things:
-    let intersect = ObjectIntersect(thing, ray)
-    if (not isNil(intersect.thing)) and (intersect.dist < closest):
-      result = intersect
-      closest = intersect.dist
-  return result
-
-proc TestRay(scene: Scene, ray: Ray): float64 =
-  let isect = scene.Intersections(ray)
-  if not isNil(isect.thing):
-    return isect.dist
-  return NAN
-
-proc GetNaturalColor(scene: Scene, thing: Thing, pos: Vector, norm: Vector, rd: Vector): Color
-proc GetReflectionColor(scene: Scene, thing: Thing, pos: Vector, normal: Vector, rd: Vector, depth: int): Color
-
-proc Shade(scene: Scene, isect: Intersection, depth: int): Color =
-  var d = isect.ray.dir
-  var scaled = d.Scale(isect.dist)
-
-  var pos = scaled.Add(isect.ray.start)
-  var normal = isect.thing.Normal(pos)
-  var reflectDir = d.Sub(normal.Scale(normal.Dot(d) * 2))
-
-  var naturalColor =  background.Add(GetNaturalColor(scene, isect.thing, pos, normal, reflectDir))
-  var reflectedColor: Color
-
-  if depth >= scene.maxDepth:
-    reflectedColor = grey
-  else:
-    reflectedColor = GetReflectionColor(scene, isect.thing, pos, normal, reflectDir, depth)
-
-  return naturalColor.Add(reflectedColor)
-
-proc TraceRay(scene: Scene, ray: Ray, depth: int): Color =
-  let isect = Intersections(scene, ray)
-  if not isNil(isect.thing):
-    return scene.Shade(isect, depth)
-  return background
-
-proc GetReflectionColor(scene: Scene, thing: Thing, pos: Vector, normal: Vector, rd: Vector, depth: int): Color =
-  var ray: Ray = Ray(start: pos, dir: rd)
-  var color = scene.TraceRay(ray, depth + 1)
-  var properties = GetSurfaceProperties(thing, pos)
-  return color.Scale(properties.reflect)
-
-proc GetNaturalColor(scene: Scene, thing: Thing, pos: Vector, norm: Vector, rd: Vector): Color =
-  result = black
-  var rdNorm = rd.Norm()
-
-  var sp =  GetSurfaceProperties(thing, pos);
-
-  for light in scene.lights:
-    var ldis  = light.pos.Sub(pos)
-    var livec = ldis.Norm()
-    var ldisLen = ldis.Length()
-    var ray = Ray(start: pos, dir: livec)
-    var neatIsect = scene.TestRay(ray)
-
-    let isInShadow = (neatIsect.classify != fcNan) and neatIsect <= ldisLen
-
-    if not isInShadow:
-      let illum   =  livec.Dot(norm)
-      let specular = livec.Dot(rdNorm)
-
-      var lcolor = if illum > 0:
-                    light.color.Scale(illum)
-                   else:
-                    defaultColor
-      var scolor = if specular > 0:
-                     light.color.Scale(pow(specular, sp.roughness))
-                   else:
-                     defaultColor
-
-      lcolor = lcolor.Multiply(sp.diffuse)
-      scolor = scolor.Multiply(sp.specular)
-
-      result = result.Add(lcolor.Add(scolor))
-
-proc GetPoint(x: int, y: int, camera: Camera, screenWidth: int, screenHeight: int): Vector =
-  var sw = float64(screenWidth)
-  var sh = float64(screenHeight)
-  var xf = float64(x)
-  var yf = float64(y)
-
-  var recenterX =  (xf - (sw / 2.0)) / 2.0 / sw
-  var recenterY = -(yf - (sh / 2.0)) / 2.0 / sh
-
-  var vx = camera.right.Scale(recenterX)
-  var vy = camera.up.Scale(recenterY)
-
-  var v = vx.Add(vy)
-  var z = camera.forward.Add(v)
-
-  return z.Norm()
-
-proc RenderScene(scene: Scene, bitmapData: var seq[RgbColor], stride: int, w: int, h: int) =
-  var ray: Ray
-  ray.start = scene.camera.pos
-  for y in 0 .. h-1:
+proc RenderScene(scene: var Scene, bitmapData: var seq[RgbColor], stride: int,
+    w: int, h: int) =
+  let start = scene.camera.pos
+  var dir: Vector
+  let
+    wf = w.float64
+    hf = h.float64
+  for y in 0 ..< h:
     var pos = y * w
-    for x in 0 .. w-1:
-      ray.dir = GetPoint(x, y, scene.camera, h, w)
-      bitmapData[pos] = scene.TraceRay(ray, 0).ToDrawingColor()
+    for x in 0 ..< w:
+      dir = getPoint(x, y, scene.camera, wf, hf)
+      bitmapData[pos] = scene.traceRay(start, dir, 0).toRgbColor()
       pos = pos + 1
 
-proc SaveRGBBitmap(bitmapData: seq[RgbColor], width: int, height: int, wBitsPerPixel: int, fileName: string) =
+
+#Bitmap
+proc SaveRGBBitmap(bitmapData: seq[RgbColor], width: int, height: int,
+    wBitsPerPixel: int, fileName: string) =
   type DWORD = uint32
-  type LONG  = int32
-  type WORD  = int16
+  type LONG = int32
+  type WORD = int16
   const BI_RGB = 0
 
   type BITMAPINFOHEADER {.packed.} = object
@@ -371,7 +409,7 @@ proc SaveRGBBitmap(bitmapData: seq[RgbColor], width: int, height: int, wBitsPerP
     bfReserved2: WORD
     bfOffBits: DWORD
 
-  var bmpInfoHeader : BITMAPINFOHEADER
+  var bmpInfoHeader: BITMAPINFOHEADER
   bmpInfoHeader.biSize = DWORD(sizeof(BITMAPINFOHEADER))
   bmpInfoHeader.biBitCount = WORD(wBitsPerPixel)
   bmpInfoHeader.biClrImportant = 0
@@ -382,12 +420,12 @@ proc SaveRGBBitmap(bitmapData: seq[RgbColor], width: int, height: int, wBitsPerP
   bmpInfoHeader.biPlanes = 1
   bmpInfoHeader.biSizeImage = DWORD(width * height * (wBitsPerPixel div 8))
 
-  var bfh : BITMAPFILEHEADER
+  var bfh: BITMAPFILEHEADER
   bfh.bfType = 0x4D42 #'B' + ('M'shl 8)
   bfh.bfOffBits = sizeof(BITMAPINFOHEADER) + sizeof(BITMAPFILEHEADER)
   bfh.bfSize = bfh.bfOffBits + bmpInfoHeader.biSizeImage
 
-  var file = open(fileName, fmWrite )
+  var file = open(fileName, fmWrite)
 
   discard file.writeBuffer(addr bfh, sizeof(BITMAPFILEHEADER))
   discard file.writeBuffer(addr bmpInfoHeader, sizeof(BITMAPINFOHEADER))
@@ -398,8 +436,8 @@ proc SaveRGBBitmap(bitmapData: seq[RgbColor], width: int, height: int, wBitsPerP
 
 
 var t1 = cpuTime()
-var scene  = CreateScene()
-var width  = 500
+var scene = initScene()
+var width = 500
 var height = 500
 var stride = width * 4
 var bitmapData = newSeq[RgbColor](width * height)
