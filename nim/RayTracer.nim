@@ -268,7 +268,7 @@ func testRay(scene: Scene, start, dir: Vector): float64 =
     intersections(thing, start, dir, dist < result):
       result = dist
 
-func traceRay(scene: var Scene, start, dir: Vector, depth: int): Color =
+func traceRay(scene: var Scene, start, dir: Vector, depth: int): Color{.noinit.} =
   ## ok, the ptr thing might look sketchy, and makes all of these procs
   ## need to take a var Scene when they don't mutate it, but it's
   ## a highly performance sensitive proc and other solutions are
