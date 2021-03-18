@@ -58,12 +58,6 @@ func pow(x: float64, y: uint): float64{.inline.} =
     exp = exp div 2
     base *= base
 
-#init procs
-func initVector(x, y, z: float64): Vector{.noinit, inline.} =
-  result.x = x
-  result.y = y
-  result.z = z
-
 func toRgbColor(c: Color): RgbColor{.noinit, inline.} =
   #as long as we never have a negative color
   template legalize(c: float64): uint8 = (if c > 1.0: 255'u8 else: uint8(c*255.0))
@@ -72,7 +66,7 @@ func toRgbColor(c: Color): RgbColor{.noinit, inline.} =
   result.b = legalize(c.b)
   result.a = 255
 
-#wankery i cant help it
+#wankery but i cant help it
 macro getfield(x: untyped, f: static string): untyped =
   let id = ident(f)
   result = quote do:
@@ -86,10 +80,10 @@ template fieldop(res, obj1, obj2: typed, op: untyped): untyped =
 
 ###Vector Math
 func cross(v1, v2: Vector): Vector =
-  initVector(
-    x = v1.y * v2.z - v1.z * v2.y,
-    y = v1.z * v2.x - v1.x * v2.z,
-    z = v1.x * v2.y - v1.y * v2.x
+  Vector(
+    x: v1.y * v2.z - v1.z * v2.y,
+    y: v1.z * v2.x - v1.x * v2.z,
+    z: v1.x * v2.y - v1.y * v2.x
   )
 func dot(v1, v2: Vector): float64 =
   ((v1.x * v2.x) + (v1.y * v2.y) + (v1.z * v2.z))
@@ -118,13 +112,6 @@ func norm(v: Vector): Vector =
     v * res.d
   else:
     v * (1.0 / v.len)
-
-func getnormal(obj: Thing, pos: Vector): Vector =
-  case obj.objectType:
-    of Sphere:
-      (pos - (obj.center)).norm()
-    of Plane:
-      obj.normal
 
 #setup
 const
@@ -187,23 +174,6 @@ func initScene(): auto =
 
 ##   the real meat of the program ##
 ##
-func getSurfaceProperties(obj: Thing, pos: Vector): SurfaceProperties{.noinit.} =
-  case obj.surfaceType:
-  of ShinySurface:
-    result.diffuse = white
-    result.specular = grey
-    result.reflect = 0.7
-    result.roughness = 250
-  of CheckerBoardSurface:
-    let val = (int)(floor(pos.z) + floor(pos.x)) and 1
-    if val == 0:
-      result.reflect = 0.7
-      result.diffuse = black
-    else:
-      result.reflect = 0.1
-      result.diffuse = white
-    result.specular = white
-    result.roughness = 150
 
 template intersections(obj: Thing, start, dir: Vector, test,
     body: untyped): untyped =
@@ -224,11 +194,12 @@ template intersections(obj: Thing, start, dir: Vector, test,
     if (denom <= 0) and test:
       dist = (obj.normal.dot(start) + obj.offset) / (-denom)
       body
+
 func getReflectionColor(scene: var Scene, sp: SurfaceProperties, pos,
     rd: Vector, depth: int): Color =
   scene.traceRay(pos, rd, depth + 1) * sp.reflect
 
-func getNaturalColor(scene: var Scene, sp: SurfaceProperties,
+func getNaturalColor(scene: Scene, sp: SurfaceProperties,
     pos, rd, norm: Vector): Color =
   var rdNorm = rd.norm()
   for light in scene.lights:
@@ -246,42 +217,69 @@ func getNaturalColor(scene: var Scene, sp: SurfaceProperties,
       if specular > 0:
         result += (light.color * pow(specular, sp.roughness) * sp.specular)
 
+#Shade
+func getnormal(obj: Thing, pos: Vector): Vector =
+  case obj.objectType:
+    of Sphere:
+      (pos - (obj.center)).norm()
+    of Plane:
+      obj.normal
 
+func getSurfaceProperties(obj: Thing, pos: Vector): SurfaceProperties =
+  case obj.surfaceType:
+  of ShinySurface:
+    result.diffuse = white
+    result.specular = grey
+    result.reflect = 0.7
+    result.roughness = 250
+  of CheckerBoardSurface:
+    let val = (int)(floor(pos.z) + floor(pos.x)) and 1
+    if val == 0:
+      result.reflect = 0.7
+      result.diffuse = black
+    else:
+      result.reflect = 0.1
+      result.diffuse = white
+    result.specular = white
+    result.roughness = 150
 
-func shade(scene: var Scene, thing: Thing, start, dir: Vector, dist: float64,
-    depth: int): Color =
+func shade(scene: var Scene, thing: Thing, start, dir: Vector,
+    dist: float64, depth: int): Color =
   let
-    scaled = dir * dist
-    pos = scaled + start
+    pos = (dir * dist) + start
     normal = thing.getnormal(pos)
     reflectDir = dir - (normal * (normal.dot(dir) * 2))
     sp = thing.getSurfaceProperties(pos)
-  when background == black:
-    let naturalColor = getNaturalColor(scene, sp, pos, reflectDir, normal)
+
+  result = getNaturalColor(scene, sp, pos, reflectDir, normal)
+
+  when background != black:
+    result += background
+
+  if depth >= scene.maxDepth:
+    result += grey
   else:
-    let naturalColor = getNaturalColor(scene, sp, pos, reflectDir, normal) + background
-
-  let reflectedColor = if depth >= scene.maxDepth:
-      grey
-    else:
-      getReflectionColor(scene, sp, pos, reflectDir, depth)
-
-  return naturalColor+reflectedColor
+    result += getReflectionColor(scene, sp, pos, reflectDir, depth)
 
 
-func testRay(scene: var Scene, start, dir: Vector): float64 =
+func testRay(scene: Scene, start, dir: Vector): float64 =
   result = INF
   for thing in scene.things:
     intersections(thing, start, dir, dist < result):
       result = dist
+
 func traceRay(scene: var Scene, start, dir: Vector, depth: int): Color =
+  ## ok, the ptr thing might look sketchy, and makes all of these procs
+  ## need to take a var Scene when they don't mutate it, but it's
+  ## a highly performance sensitive proc and other solutions are
+  ## slower or messier or both
   var
     closest = INF
     closestThing: ptr Thing
-  for thng in scene.things.mitems:
-    intersections(thng, start, dir, dist < closest):
+  for thing in scene.things.mitems:
+    intersections(thing, start, dir, dist < closest):
       closest = dist
-      closestThing = thng.addr
+      closestThing = thing.addr
   result = if closestThing != nil:
     scene.shade(closestThing[], start, dir, closest, depth)
   else:
@@ -292,28 +290,22 @@ func getPoint(x, y: int, camera: Camera, sw, sh: float64): Vector =
   let
     recenterX = (x.float64 - (sw / 2.0)) / (2.0 * sw)
     recenterY = -(y.float64 - (sh / 2.0)) / (2.0 * sh)
-
     vx = camera.right * recenterX
     vy = camera.up * recenterY
-
     v = vx + vy
     z = camera.forward + v
-
-  z.norm()
+  return z.norm()
 
 proc RenderScene(scene: var Scene, bitmapData: var seq[RgbColor], stride: int,
     w: int, h: int) =
-  let start = scene.camera.pos
-  var dir: Vector
   let
+    start = scene.camera.pos
     wf = w.float64
     hf = h.float64
   for y in 0 ..< h:
-    var pos = y * w
     for x in 0 ..< w:
-      dir = getPoint(x, y, scene.camera, wf, hf)
-      bitmapData[pos] = scene.traceRay(start, dir, 0).toRgbColor()
-      pos = pos + 1
+      let dir = getPoint(x, y, scene.camera, wf, hf)
+      bitmapData[y*w+x] = scene.traceRay(start, dir, 0).toRgbColor()
 
 
 #Bitmap
