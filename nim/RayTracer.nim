@@ -369,18 +369,18 @@ proc SaveRGBBitmap(bitmapData: seq[RgbColor], width: int, height: int,
     discard file.writeBuffer(addr x, sizeof(RgbColor))
   file.close()
 
+when isMainModule:
+  var t1 = cpuTime()
+  var scene = initScene()
+  var width = 500
+  var height = 500
+  var stride = width * 4
+  var bitmapData = newSeq[RgbColor](width * height)
 
-var t1 = cpuTime()
-var scene = initScene()
-var width = 500
-var height = 500
-var stride = width * 4
-var bitmapData = newSeq[RgbColor](width * height)
+  RenderScene(scene, bitmapData, stride, width, height)
+  var t2 = cpuTime()
+  var diff = (t2 - t1) * 1000
 
-RenderScene(scene, bitmapData, stride, width, height)
-var t2 = cpuTime()
-var diff = (t2 - t1) * 1000
+  echo "CPU time [ms] ", diff
 
-echo "CPU time [ms] ", diff
-
-SaveRGBBitmap(bitmapData, width, height, 32, "nim-raytracer.bmp")
+  SaveRGBBitmap(bitmapData, width, height, 32, "nim-raytracer.bmp")
