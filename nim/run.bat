@@ -1,1 +1,1 @@
-nim c d:release --opt:speed --passL:-s -r RayTracer.nim
+nim c -d:danger -d:lto -d:intpow -d:quake --passC:"-march=native" -r RayTracer.nim
