@@ -6,6 +6,7 @@ Raytracer benchmarks based on [Typescript](http://www.typescriptlang.org) sample
 
 | Language / Compiler  | Time [ms] |
 | -------------------- | --------- |
+| Nim                  | 150 ms    |
 | C++ (GCC)            | 160 ms    |
 | Fortran              | 160 ms    |
 | C (GCC)              | 160 ms    |
@@ -16,11 +17,11 @@ Raytracer benchmarks based on [Typescript](http://www.typescriptlang.org) sample
 | C#                   | 360 ms    |
 | Delphi XE6           | 390 ms    |
 | Go                   | 460 ms    |
+| Odin                 | 500 ms    |
 | D (DMD)              | 500 ms    |
 | Java 8-14            | 600 ms    |
 | Delphi 2010 (32 bit) | 720 ms    |
 | Julia                | 900 ms    |
-| Nim                  | 1500 ms   |
 | F#                   | 1800 ms   |
 | Node                 | 1800 ms   |
 | HHVM                 | 11000 ms  |
@@ -34,7 +35,6 @@ Raytracer benchmarks based on [Typescript](http://www.typescriptlang.org) sample
 | PHP (PHP 5.6)        | 83000 ms  |
 | Zig                  | ? ms      |
 | V                    | ? ms      |
-| Odin                 | ? ms      |
 | Swift                | ? ms      |
 | Haskel               | ? ms      |
 
@@ -46,8 +46,8 @@ Raytracer benchmarks based on [Typescript](http://www.typescriptlang.org) sample
 | F#         | 300 |
 | Ruby       | 351 |
 | Julia      | 360 |
+| Nim        | 379 |
 | Typescript | 412 |
-| Nim        | 418 |
 | C#         | 426 |
 | C++        | 461 |
 | VB.NET     | 481 |
@@ -65,7 +65,7 @@ Raytracer benchmarks based on [Typescript](http://www.typescriptlang.org) sample
 
 **C++** - Unlike C, C++ version does bounds checking, otherwise performaces are mostly the same
 
-**Nim** - Currently raytracer implementation is not optimized well
+**Nim** - Uses Quake square root algorithm
 
 **Delphi2010** - Uses old 32 bit compiler
 
