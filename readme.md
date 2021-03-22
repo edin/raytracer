@@ -6,7 +6,7 @@ Raytracer benchmarks based on [Typescript](http://www.typescriptlang.org) sample
 
 | Language / Compiler  | Time [ms] |
 | -------------------- | --------- |
-| Nim                  | 150 ms    |
+| Nim                  | 130 ms    |
 | C++ (GCC)            | 160 ms    |
 | Fortran              | 160 ms    |
 | C (GCC)              | 160 ms    |
