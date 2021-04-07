@@ -1,5 +1,5 @@
-# Following dependencies are required
-# npm i -g typescript
-# npm i -g ts-node
+@REM Following dependencies are required
+@REM npm i -g typescript
+@REM npm i -g ts-node
 
 ts-node RayTracer.ts
