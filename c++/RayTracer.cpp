@@ -190,6 +190,7 @@ struct Thing
     virtual Vector GetNormal(const Vector& pos) const = 0;
     virtual std::optional<Intersection> GetIntersection(const Ray& ray) const = 0;
     virtual Surface& GetSurface() const = 0;
+    virtual ~Thing() = default;
 };
 
 class Sphere : public Thing {
@@ -216,7 +217,7 @@ public:
         return std::nullopt;
     }
 
-    Surface& GetSurface() const { return surface; };
+    Surface& GetSurface() const override { return surface; };
 };
 
 class Plane : public Thing {
@@ -239,7 +240,7 @@ public:
         return Intersection(this, ray, dist);
     }
 
-    Surface& GetSurface() const { return surface; };
+    Surface& GetSurface() const override { return surface; };
 };
 
 struct ShinySurface : public Surface
