@@ -1,0 +1,111 @@
+with Colors; use Colors;
+with Vectors; use Vectors;
+with Cameras; use Cameras;
+with Rays; use Rays;
+limited with RayTracer;
+
+with RayTracing_Constants; use RayTracing_Constants;
+
+package Objects is
+
+   type Surface_Type is ( Shiny, Checkerboard );
+
+   type Surface_Properties is record
+      diffuse, specular: Color_Type;
+      reflect, roughness: Float15;
+   end record;
+
+   procedure Get_Surface_Properties(
+                                    surface: Surface_Type;
+                                    pos: Vector;
+                                    properties: out Surface_Properties
+                                   );
+   pragma Inline_Always(Get_Surface_Properties);
+
+   type Thing_Type is abstract tagged private;
+   type Thing_Access is access all Thing_Type'Class;
+
+   function Surface_Of(thing: Thing_Access) return Surface_Type;
+
+   type Intersection_Type is record
+      thing: Thing_Access;
+      ray: Ray_Type;
+      dist: Float15 := far_away;
+   end record;
+
+   No_Intersection: constant Intersection_Type;
+
+   function Create_Intersection(
+                                thing: Thing_Access;
+                                ray: Ray_Type;
+                                dist: Float15
+                               )
+                                return Intersection_Type;
+   pragma Inline_Always(Create_Intersection);
+
+   function Object_Normal(obj: Thing_Access; pos: Vector) return Vector;
+
+   function Thing_Intersection( Self: Thing_Type; Ray: Ray_Type )
+   return Float15
+   is abstract;
+
+   function Thing_Normal(Self: Thing_Type; Pos: Vector) return Vector
+   is abstract;
+
+   type Thing_Array is array( Positive range <> ) of Thing_Access;
+
+   function Intersections(ray: Ray_Type; things: Thing_Array)
+                          return Intersection_Type;
+   pragma Inline_Always(Intersections);
+
+   type Plane_Type is new Thing_Type with private;
+   type Plane_Access is access Plane_Type;
+   type Sphere_Type is new Thing_Type with private;
+   type Sphere_Access is access Sphere_Type;
+
+   procedure Create_Sphere(
+                           self: out Thing_Access;
+                           center: Vector; radius: Float15;
+                           surface: Surface_Type
+                          );
+
+   procedure Create_Plane(
+                          self: out Thing_Access;
+                          norm: Vector; offset: Float15;
+                          surface: Surface_Type
+                         );
+
+private
+
+   type Thing_Type is abstract tagged record
+      Surface: Surface_Type := Shiny;
+   end record;
+
+   No_Intersection: constant Intersection_Type := ( others => <> );
+
+   type Plane_Type is new Thing_Type with record
+      offset: Float15;
+      norm: Vector;
+   end record;
+
+   overriding function Thing_Intersection( Obj: Plane_Type; Ray: Ray_Type )
+   return Float15;
+
+   overriding function Thing_Normal(Obj: Plane_Type; Pos: Vector) return Vector
+   is
+     ( Obj.Norm );
+
+   type Sphere_Type is new Thing_Type with record
+      radius2: Float15;
+      center: Vector;
+   end record;
+
+   overriding
+   function Thing_Intersection( Obj: Sphere_Type; Ray: Ray_Type )
+   return Float15;
+
+   overriding function Thing_Normal(Obj: Sphere_Type; Pos: Vector)
+   return Vector is
+     ( abs( Pos - Obj.Center ) );
+
+end Objects;

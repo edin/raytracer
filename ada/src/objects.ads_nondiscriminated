@@ -1,0 +1,73 @@
+with Colors; use Colors;
+with Vectors; use Vectors;
+with Cameras; use Cameras;
+with Rays; use Rays;
+with Bitmap; use Bitmap;
+
+with RayTracing_Constants; use RayTracing_Constants;
+
+package Objects is
+
+   type Object_Type is ( Sphere, Plane );
+
+   type Surface_Type is ( Shiny, Checkerboard );
+
+   type Surface_Properties is record
+      Diffuse, Specular: Color_Type;
+      Reflect, Roughness: Float15;
+   end record;
+
+   procedure Get_Surface_Properties(
+                                    Surface: Surface_Type;
+                                    Pos: Vector;
+                                    Properties: out Surface_Properties
+                                   );
+   pragma Inline_Always(Get_Surface_Properties);
+
+   type Thing_Type is private;
+   type Thing_Array is array( Positive range <> ) of Thing_Type;
+
+   function Surface_Of(Thing: Thing_Type) return Surface_Type;
+   pragma Inline_Always(Surface_Of);
+
+   type Intersection_Type is record
+      Thing: Thing_Type;
+      Ray: Ray_Type;
+      Dist: Float15 := Far_Away;
+   end record;
+
+   No_Intersection: constant Intersection_Type;
+
+   procedure Create_Plane(
+                          Thing: out Thing_Type;
+                          Position: Vector;
+                          Offset: Float15;
+                          Surface: Surface_Type
+                         );
+
+   procedure Create_Sphere(
+                           Thing: out Thing_Type;
+                           Center: Vector;
+                           Radius: Float15;
+                           Surface: Surface_Type
+                          );
+
+   function Intersections(Ray: Ray_Type; Things: Thing_Array)
+                          return Intersection_Type;
+   pragma Inline_Always(Intersections);
+
+   function Object_Normal(Obj: Thing_Type; Pos: Vector) return Vector;
+   pragma Inline_Always(Object_Normal);
+
+private
+
+   type Thing_Type is record
+      Kind: Object_Type := Plane;
+      Surface: Surface_Type := Shiny;
+      Size: Float15 := 0.0;
+      Position: Vector;
+   end record;
+
+   No_Intersection: constant Intersection_Type := ( others => <> );
+
+end Objects;
