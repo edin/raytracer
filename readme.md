@@ -22,9 +22,11 @@ Raytracer benchmarks based on [Typescript](http://www.typescriptlang.org) sample
 | D (DMD)              | 500 ms    |
 | Java 8-14            | 600 ms    |
 | Delphi 2010 (32 bit) | 720 ms    |
+| Node 15 (JS)         | 734 ms    |
 | Julia                | 900 ms    |
+| Node 15 (TS)         | 1100 ms   |
 | F#                   | 1800 ms   |
-| Node                 | 1800 ms   |
+| Node 8               | 1800 ms   |
 | HHVM                 | 11000 ms  |
 | PHP (PHP 7.4)        | 24500 ms  |
 | PHP (PHP 7.3)        | 23500 ms  |
@@ -38,6 +40,10 @@ Raytracer benchmarks based on [Typescript](http://www.typescriptlang.org) sample
 | V                    | ? ms      |
 | Swift                | ? ms      |
 | Haskel               | ? ms      |
+| Rust                 | ? ms      |
+| Swift                | ? ms      |
+| Scala                | ? ms      |
+| Ada                  | ? ms      |
 
 ## Lines of code
 
@@ -63,20 +69,21 @@ Raytracer benchmarks based on [Typescript](http://www.typescriptlang.org) sample
 
 ## Comments:
 
-**C** - Simple, clean and fast
+**C** - Simple, clean, and fast
 
-**C++** - Unlike C, C++ version does bounds checking, otherwise performaces are mostly the same
+**C++** - Unlike C, C++ version does bounds checking, otherwise performances are mostly the same
 
 **Nim** - Uses Quake square root algorithm
 
 **Delphi2010** - Uses old 32 bit compiler
 
-**Node/V8** - It's blazing fast keeping in mind that it has to make sense out of javascript
+**Node/V8** - Node is fast
 
-**PHP7** - For interpreted language (without JIT) this is close to what is possible to get
+**Fortran** - Finally completed Fortran port, it was easier than expected
 
-**Fortran** - Finally completed fortran port, it was much easier then expected
+**F#** - This should be close to C# and VB.Net but I don't have much experience with F#
+
 
 ## Tested On
 
-All tests are done on AMD FX-8120 cpu.
+All tests are done on AMD FX-8120 CPU.
