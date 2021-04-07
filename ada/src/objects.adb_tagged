@@ -1,0 +1,146 @@
+pragma Ada_2020;
+
+with Ada.Numerics.Generic_Elementary_Functions;
+
+with RayTracing_Constants; use RayTracing_Constants;
+
+package body Objects is
+
+   package Float_Numerics is new Ada.Numerics.Generic_Elementary_Functions
+     (
+      Float_Type => Float15
+     );
+
+   function Sqrt(x: Float15) return Float15 renames Float_Numerics.Sqrt;
+
+   function Create_Intersection(
+                                thing: Thing_Access;
+                                ray: Ray_Type;
+                                dist: Float15
+                               )
+                                return Intersection_Type
+   is
+     ( thing => thing, ray => ray, dist => dist );
+
+   function surface(thing: Thing_Type) return Surface_Type is
+     ( thing.surface );
+
+   overriding
+   function Thing_Intersection(
+                                Obj: Sphere_Type;
+                                Ray: Ray_Type
+                               ) return Float15
+   is
+      eo: Vector := obj.center - ray.start;
+      v: Float15 := eo * ray.dir;
+   begin
+      if v > 0.0 then
+         declare
+            disc: Float15 := Obj.Radius2 - ( Eo * Eo - V * V );
+         begin
+            if Disc > 0.0 then
+               return V - Sqrt(Disc);
+            end if;
+         end;
+      end if;
+      return far_away;
+   end Thing_Intersection;
+
+   overriding function Thing_Intersection( Obj: Plane_Type; Ray: Ray_Type )
+   return Float15
+   is
+      Denom: Float15 := Obj.Norm * Ray.Dir;
+   begin
+      if Denom <= 0.0 then
+         return ( Obj.Norm * Ray.Start + Obj.Offset ) / (-Denom);
+      end if;
+      return far_away;
+   end Thing_Intersection;
+
+   function Surface_Of(thing: Thing_Access) return Surface_Type
+     is ( thing.Surface );
+
+   procedure Get_Surface_Properties(
+                                    surface: Surface_Type;
+                                    pos: Vector;
+                                    properties: out Surface_Properties
+                                   ) is
+   begin
+      case surface is
+         when Shiny =>
+            properties.diffuse := white;
+            properties.specular := grey;
+            properties.reflect := 0.7;
+            properties.roughness := 250.0;
+         when Checkerboard =>
+            declare val: Integer
+                 := Integer( Float15'Floor(pos.z) + Float15'Floor(pos.x) );
+            begin
+               if val mod 2 /= 0 then
+                  properties.reflect := 0.1;
+                  properties.diffuse := white;
+               else
+                  properties.reflect := 0.7;
+                  properties.diffuse := black;
+               end if;
+               properties.specular := white;
+               properties.roughness := 150.0;
+            end;
+      end case;
+   end Get_Surface_Properties;
+
+   function Intersections(ray: Ray_Type; things: Thing_Array)
+                          return Intersection_Type
+   is
+      closest: Float15 := far_away;
+      which: Natural := 0;
+      dist: array(things'range) of Float15;
+   begin
+      for i in things'range loop
+         dist(i) := things(i).Thing_Intersection(ray);
+         if dist(i) < closest then
+            which := i;
+         end if;
+      end loop;
+      return (
+              if which = 0 then No_Intersection
+              else (
+                    thing => things(which),
+                    ray => ray,
+                    dist => dist(which)
+                   )
+             );
+   end Intersections;
+
+   function Object_Normal(obj: Thing_Access; pos: Vector) return Vector is
+     ( obj.Thing_Normal(pos) );
+
+   procedure Create_Sphere(
+                           self: out Thing_Access;
+                           center: Vector; radius: Float15;
+                           surface: Surface_Type
+                          )
+   is
+      sphere: Sphere_Access := new Sphere_Type;
+   begin
+      sphere.surface := surface;
+      sphere.radius2 := radius * radius;
+      sphere.center := center;
+      self := Thing_Access(sphere);
+   end Create_Sphere;
+
+   procedure Create_Plane(
+                          self: out Thing_Access;
+                          norm: Vector; offset: Float15;
+                          surface: Surface_Type
+                         )
+   is
+      plane: Plane_Access := new Plane_Type;
+   begin
+      plane.surface := surface;
+      plane.offset := offset;
+      plane.norm := norm;
+      self := Thing_Access(plane);
+   end Create_Plane;
+
+end Objects;

@@ -1,0 +1,158 @@
+pragma Ada_2020;
+
+with Ada.Numerics.Generic_Elementary_Functions;
+
+with RayTracer;
+
+with RayTracing_Constants; use RayTracing_Constants;
+
+package body Objects is
+
+   package Float_Numerics is new Ada.Numerics.Generic_Elementary_Functions
+     (
+      Float_Type => Float15
+     );
+
+   function Sqrt(X: Float15) return Float15 renames Float_Numerics.Sqrt;
+
+   function "**" (Left, Right : Float15) return Float15
+                  renames Float_Numerics."**";
+
+   function Surface_Of(Thing: Thing_Type) return Surface_Type
+   is ( Thing.Surface );
+
+   procedure Get_Surface_Properties(
+                                    Surface: Surface_Type;
+                                    Pos: Vector;
+                                    Properties: out Surface_Properties
+                                   ) is
+   begin
+      case Surface is
+         when Shiny =>
+            Properties.Diffuse := White;
+            Properties.Specular := Grey;
+            Properties.Reflect := 0.7;
+            Properties.Roughness := 250.0;
+         when Checkerboard =>
+            declare Val: constant Integer
+                 := Integer( Float15'Floor(Pos.Z) + Float15'Floor(Pos.X) );
+            begin
+               if Val mod 2 /= 0 then
+                  Properties.Reflect := 0.1;
+                  Properties.Diffuse := White;
+               else
+                  Properties.Reflect := 0.7;
+                  Properties.Diffuse := Black;
+               end if;
+               Properties.Specular := White;
+               Properties.Roughness := 150.0;
+            end;
+      end case;
+   end Get_Surface_Properties;
+
+   function Object_Intersect( Obj: Thing_Type; Ray: Ray_Type ) return Float15
+   is
+   begin
+      case Obj.Kind is
+      when Sphere =>
+         declare
+            Eo: constant Vector := Obj.Position - Ray.Start;
+            V: constant Float15 := Eo * Ray.Dir;
+         begin
+            if V > 0.0 then
+               declare
+                  Disc: constant Float15 := Obj.Size - ( Eo * Eo - V * V );
+               begin
+                  if Disc > 0.0 then
+                     return V - Sqrt(Disc);
+                  end if;
+               end;
+            end if;
+         end;
+      when Plane =>
+         declare
+            Denom: constant Float15 := Obj.Position * Ray.Dir;
+         begin
+            if Denom <= 0.0 then
+               return ( Obj.Position * Ray.Start + Obj.Size ) / (-Denom);
+            end if;
+         end;
+      end case;
+      return Far_Away;
+   end Object_Intersect;
+   pragma Inline_Always(Object_Intersect);
+
+   function Intersections(Ray: Ray_Type; Things: Thing_Array)
+                          return Intersection_Type
+   is
+      Closest: Float15 := Far_Away;
+      Which: Natural := 0;
+      Dist: array(Things'Range) of Float15;
+   begin
+      for I in Things'Range loop
+         Dist(I) := Object_Intersect(Things(I), Ray);
+         if Dist(I) < Closest then
+            Which := I;
+         end if;
+      end loop;
+      return (
+              if Which = 0 then No_Intersection
+              else (
+                Thing => Things(Which),
+                Ray => Ray,
+                Dist => Dist(Which)
+               )
+             );
+   end Intersections;
+
+   function Object_Normal(Obj: Thing_Type; Pos: Vector) return Vector is
+     (
+        (
+         case Obj.Kind is
+            when Sphere => ( abs(Pos - Obj.Position) ),
+            when Plane => ( Obj.Position )
+        )
+     );
+
+   function Create_Intersection(
+                                Thing: Thing_Type;
+                                Ray: Ray_Type;
+                                Dist: Float15
+                               )
+                                return Intersection_Type is
+      ( ( Thing => Thing, Ray => Ray, Dist => Dist ) );
+   pragma Inline_Always(Create_Intersection);
+
+   procedure Create_Sphere(
+                           Thing: out Thing_Type;
+                           Center: Vector;
+                           Radius: Float15;
+                           Surface: Surface_Type
+                          )
+   is
+   begin
+      Thing := (
+                Kind => Sphere,
+                Surface => Surface,
+                Size => Radius * Radius,
+                Position => Center
+               );
+   end Create_Sphere;
+
+   procedure Create_Plane(
+                          Thing: out Thing_Type;
+                          Position: Vector;
+                          Offset: Float15;
+                          Surface: Surface_Type
+                         )
+   is
+   begin
+      Thing := (
+                Kind => Plane,
+                Surface => Surface,
+                Size => Offset,
+                Position => Position
+               );
+   end Create_Plane;
+
+end Objects;

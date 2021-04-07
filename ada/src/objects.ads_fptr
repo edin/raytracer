@@ -1,0 +1,81 @@
+with Colors; use Colors;
+with Vectors; use Vectors;
+with Cameras; use Cameras;
+with Rays; use Rays;
+with Bitmap; use Bitmap;
+
+with RayTracing_Constants; use RayTracing_Constants;
+
+package Objects is
+
+   type Object_Type is ( Sphere, Plane, None );
+
+   type Surface_Type is ( Shiny, Checkerboard );
+
+   type Surface_Properties is record
+      diffuse, specular: Color_Type;
+      reflect, roughness: Float15;
+   end record;
+
+   procedure Get_Surface_Properties(
+                                    surface: Surface_Type;
+                                    pos: Vector;
+                                    properties: out Surface_Properties
+                                   );
+   pragma Inline_Always(Get_Surface_Properties);
+
+   type Thing_Type is private;
+
+   function Surface_Of(thing: Thing_Type) return Surface_Type;
+   pragma Inline_Always(Surface_Of);
+
+   type Thing_Array is array( Positive range <> ) of Thing_Type;
+
+   procedure Create_Sphere(
+                           thing: out Thing_Type;
+                           center: Vector;
+                           radius: Float15;
+                           surface: Surface_Type
+                          );
+
+   procedure Create_Plane(
+                          thing: out Thing_Type;
+                          norm: Vector;
+                          offset: Float15;
+                          surface: Surface_Type
+                         );
+
+   type Intersection_Type is record
+      thing: Thing_Type;
+      ray: Ray_Type;
+      dist: Float15 := far_away;
+   end record;
+
+   No_Intersection: constant Intersection_Type;
+
+   function Intersections(ray: Ray_Type; things: Thing_Array)
+                          return Intersection_Type;
+   pragma Inline_Always(Intersections);
+
+   function Object_Normal(thing: Thing_Type; pos: Vector) return Vector;
+   pragma Inline_Always(Object_Normal);
+
+private
+
+   type Object_Norm
+   is access function(Obj: Thing_Type; Pos: Vector) return Vector;
+
+   type Object_Intersect
+   is access function( Obj: Thing_Type; Ray: Ray_Type ) return Float15;
+
+   type Thing_Type is record
+      Surface: Surface_Type;
+      Position: Vector;
+      Size: Float15 := 0.0;
+      Compute_Normal: Object_Norm := null;
+      Check_Intersection: Object_Intersect := null;
+   end record;
+
+   No_Intersection: constant Intersection_Type := ( others => <> );
+
+end Objects;
