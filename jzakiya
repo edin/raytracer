@@ -236,7 +236,6 @@ t1 = Time.monotonic
 rayTracer = RayTracer.new
 scene = DefaultScene.new
 rayTracer.render(scene, image, width, height)
-end
 t2 = (Time.monotonic - t1).total_milliseconds
 
 puts "Completed in #{t2} ms"
