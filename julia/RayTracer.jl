@@ -353,6 +353,8 @@ function Render(scene::Scene)
     return image
 end
 
+scene = Scene()
+image = Render(scene)
 @time begin
     scene = Scene()
     image = Render(scene)
