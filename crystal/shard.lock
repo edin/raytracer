@@ -6,5 +6,5 @@ shards:
 
   stumpy_png:
     git: https://github.com/stumpycr/stumpy_png.git
-    version: 4.5.2
+    version: 5.0.1
 

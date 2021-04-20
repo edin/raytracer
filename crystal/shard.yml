@@ -1,19 +1,8 @@
-name:
-version: 0.1.0
-
-# authors:
-#   - name <email@example.com>
-
-# description: |
-#   Short description of
+name: shards
+version: 1.2.3
+crystal: '>= 0.34.0'
 
 dependencies:
   stumpy_png:
     github: stumpycr/stumpy_png
-    version: "~> 4.5.2"
-
-# development_dependencies:
-#   webmock:
-#     github: manastech/webmock.cr
-
-# license: MIT
+    version: "~> 5.0.1"
