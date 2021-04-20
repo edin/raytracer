@@ -3,16 +3,18 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <time.h>
+#include <stdint.h>
 
 const double FarAway = 1000000.0;
 
-typedef unsigned char  UInt8;
-typedef unsigned long  DWORD;
-typedef unsigned short WORD;
-typedef long LONG;
+typedef uint8_t  UInt8;
+typedef uint32_t DWORD;
+typedef uint16_t WORD;
+typedef int32_t  LONG;
 
 const int BI_RGB = 0;
 
+#pragma pack(push, 1)
 typedef struct {
     DWORD biSize;
     LONG  biWidth;
@@ -26,6 +28,7 @@ typedef struct {
     DWORD biClrUsed;
     DWORD biClrImportant;
 } BITMAPINFOHEADER;
+#pragma pack(pop)
 
 #pragma pack(push, 1)
 typedef struct {
@@ -115,7 +118,11 @@ Color Shade(Intersection  *isect, Scene *scene, int depth);
 
 Vector CreateVector(double x, double y, double z)
 {
-    return Vector{.x = x, .y = y, .z = z};
+    Vector result;
+    result.x = x;
+    result.y = y;
+    result.z = z;
+    return result;
 }
 
 Vector VectorCross(Vector *v1, Vector *v2)
@@ -146,8 +153,8 @@ Vector VectorNorm(Vector v)
 
 double VectorDot(Vector *v1, Vector *v2)
 {
-    return (v1->x * v2->x) + 
-           (v1->y * v2->y) + 
+    return (v1->x * v2->x) +
+           (v1->y * v2->y) +
            (v1->z * v2->z);
 }
 
@@ -167,7 +174,11 @@ Vector VectorSub(Vector *v1, Vector *v2)
 
 Color CreateColor(double r, double g, double b)
 {
-    return Color {.b = b, .g = g, .r = r};
+    Color result;
+    result.b = b;
+    result.g = g;
+    result.r = r;
+    return result;
 }
 
 Color ScaleColor(Color *color, double k)
@@ -209,13 +220,13 @@ UInt8 Legalize(double c)
 
 RgbColor ToDrawingColor(Color *c)
 {
-    return RgbColor {
-        .b = Legalize(c->b),
-        .g = Legalize(c->g),
-        .r = Legalize(c->r),
-        .a = 255
-    };
-}
+    RgbColor result;
+    result.b = Legalize(c->b),
+    result.g = Legalize(c->g),
+    result.r = Legalize(c->r),
+    result.a = 255;
+    return result;
+};
 
 Camera CreateCamera(Vector pos, Vector lookAt)
 {
@@ -238,17 +249,27 @@ Camera CreateCamera(Vector pos, Vector lookAt)
 
 Ray CreateRay(Vector start, Vector dir)
 {
-    return Ray{.start = start, .dir = dir};
+    Ray ray;
+    ray.start = start;
+    ray.dir = dir;
+    return ray;
 }
 
 Intersection CreateIntersection(Thing* thing, Ray ray, double dist)
 {
-    return Intersection{.thing = thing, .ray = ray, .dist = dist};
+    Intersection result;
+    result.thing = thing;
+    result.ray = ray;
+    result.dist = dist;
+    return result;
 }
 
 Light CreateLight(Vector pos, Color color)
 {
-    return Light{.pos = pos, .color = color};
+    Light result;
+    result.pos = pos;
+    result.color = color;
+    return result;
 }
 
 Vector ObjectNormal(Thing *object, Vector *pos)
@@ -303,22 +324,22 @@ int ObjectIntersect(Thing *object, Ray *ray, Intersection *result)
 
 Thing CreateSphere(Vector center, double radius, SurfaceType surface)
 {
-    return Thing {
-        .type    = SPHERE,
-        .surface = surface,
-        .radius2 = radius * radius,
-        .center  = center
-    };
+    Thing result;
+    result.type    = SPHERE,
+    result.surface = surface,
+    result.radius2 = radius * radius,
+    result.center  = center;
+    return result;
 }
 
 Thing CreatePlane(Vector norm, double offset, SurfaceType surface)
 {
-    return Thing {
-        .type    = PLANE,
-        .surface = surface,
-        .offset  = offset,
-        .norm    = norm
-    };
+    Thing result;
+    result.type    = PLANE,
+    result.surface = surface,
+    result.offset  = offset,
+    result.norm    = norm;
+    return result;
 }
 
 void GetSurfaceProperties(SurfaceType surface, Vector *pos, SurfaceProperties *properties)
@@ -524,10 +545,15 @@ void SaveRGBBitmap(UInt8* bitmapBits, int width, int height, int bitsPerPixel, c
     bfh.bfOffBits = sizeof(BITMAPINFOHEADER) + sizeof(BITMAPFILEHEADER);
     bfh.bfSize    = bfh.bfOffBits + bmpInfoHeader.biSizeImage;
 
+    // printf("Size is: %d\n", (int)bfh.bfOffBits);
+    // printf("Size of LONG: %d\n", (int)sizeof(LONG) );
+
     FILE *hFile;
     hFile = fopen(fileName, "wb");
-    fwrite(&bfh, sizeof(char), sizeof(bfh), hFile);
-    fwrite(&bmpInfoHeader, sizeof(char), sizeof(bmpInfoHeader), hFile);
+
+    fwrite(&bfh, sizeof(char), sizeof(BITMAPFILEHEADER), hFile);
+    fwrite(&bmpInfoHeader, sizeof(char), sizeof(BITMAPINFOHEADER), hFile);
+    fseek(hFile, bfh.bfOffBits, SEEK_SET);
     fwrite(bitmapBits, sizeof(char), bmpInfoHeader.biSizeImage, hFile);
     fclose(hFile);
 }
