@@ -1,5 +1,17 @@
+using System;
+using System.IO;
+using System.Runtime.InteropServices;
+
 namespace Tools
 {
+    internal struct RGBColor
+    {
+        public byte B;
+        public byte G;
+        public byte R;
+        public byte A;
+    }
+
     internal class Image
     {
         private RGBColor[] data;
@@ -39,6 +51,38 @@ namespace Tools
             this.data = new RGBColor[(width * height)];
         }
 
+        public Image(string fileName)
+        {
+            using var reader = new BinaryReader(File.Open(fileName, FileMode.Open));
+
+            var fh = reader.ReadBytes(Marshal.SizeOf(typeof(BITMAPFILEHEADER)));
+            var bh = reader.ReadBytes(Marshal.SizeOf(typeof(BITMAPINFOHEADER)));
+
+            var bfh = GetStruct<BITMAPFILEHEADER>(fh);
+            var bih = GetStruct<BITMAPINFOHEADER>(bh);
+
+            byte[] byteData = reader.ReadBytes((int)bih.biSizeImage);
+
+            this.Width = Math.Abs(bih.biWidth);
+            this.Height = Math.Abs(bih.biHeight);
+            this.data = new RGBColor[(Width * Height)];
+
+            for (int y = 0; y < Height; y++)
+            {
+                for (int x = 0; x < Width; x++)
+                {
+                    var pos = (x + Width * y);
+                    this.data[pos] = new RGBColor
+                    {
+                        B = byteData[4 * pos + 0],
+                        G = byteData[4 * pos + 1],
+                        R = byteData[4 * pos + 2],
+                        A = byteData[4 * pos + 3]
+                    };
+                }
+            }
+        }
+
         public RGBColor this[int index]
         {
             get { return data[index]; }
@@ -71,21 +115,19 @@ namespace Tools
                 bfSize = (uint)(offBits + infoHeader.biSizeImage)
             };
 
-            using (var writer = new BinaryWriter(File.Open(fileName, FileMode.Create)))
+            using var writer = new BinaryWriter(File.Open(fileName, FileMode.Create));
+            writer.Write(GetBytes(fileHeader));
+            writer.Write(GetBytes(infoHeader));
+            foreach (var color in data)
             {
-                writer.Write(GetBytes(fileHeader));
-                writer.Write(GetBytes(infoHeader));
-                foreach (var color in data)
-                {
-                    writer.Write(color.B);
-                    writer.Write(color.G);
-                    writer.Write(color.R);
-                    writer.Write(color.A);
-                }
+                writer.Write(color.B);
+                writer.Write(color.G);
+                writer.Write(color.R);
+                writer.Write(color.A);
             }
         }
 
-        public byte[] GetBytes<T>(T data)
+        private static byte[] GetBytes<T>(T data)
         {
             var length = Marshal.SizeOf(data);
             var ptr = Marshal.AllocHGlobal(length);
@@ -94,6 +136,21 @@ namespace Tools
             Marshal.Copy(ptr, result, 0, length);
             Marshal.FreeHGlobal(ptr);
             return result;
+        }
+
+        private T GetStruct<T>(byte[] bytes) where T : struct
+        {
+            T stuff;
+            GCHandle handle = GCHandle.Alloc(bytes, GCHandleType.Pinned);
+            try
+            {
+                stuff = (T)Marshal.PtrToStructure(handle.AddrOfPinnedObject(), typeof(T));
+            }
+            finally
+            {
+                handle.Free();
+            }
+            return stuff;
         }
     }
 }

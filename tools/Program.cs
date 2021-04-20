@@ -1,12 +1,27 @@
 ﻿using System;
+using System.Linq;
 
 namespace Tools
 {
-    class Program
+    public class Program
     {
-        static void Main(string[] args)
+        private static void Main(string[] args)
         {
-            Console.WriteLine("Hello World!");
+            var argumentParser = new ArgumentParser(args);
+
+            var program = new ConsoleApplication();
+            var methods = program.GetType()
+                                 .GetMethods()
+                                 .Where(m => m.GetCustomAttributes(typeof(CommandAttribute), false).Length > 0)
+                                 .ToList();
+
+            //TODO: Find and invoke command using provided arguments
+            
+            Console.WriteLine("[Commands]");
+            foreach (var m in methods)
+            {
+                Console.WriteLine(" - {0}", m.Name);
+            }
         }
     }
 }
