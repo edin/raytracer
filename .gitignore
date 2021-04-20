@@ -26,3 +26,4 @@ node_modules
 *.bmp
 __history/
 *.dcu
+/crystal/lib
