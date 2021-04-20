@@ -244,7 +244,7 @@ impl Thing {
     fn normal(&self, pos: Vector) -> Vector
     {
         match self {
-            Thing::Sphere(ref sphere) => sphere.center.sub(pos).norm(),
+            Thing::Sphere(ref sphere) => pos.sub(sphere.center).norm(),
             Thing::Plane(ref plane) => plane.normal,
         }
     }
@@ -395,10 +395,10 @@ impl RayTracerEngine
             let livec = ldis.norm();
             let ray = Ray{start: pos, dir: livec };
 
-            let nearest_intersesct = self.test_ray(&ray);
+            let nearest_intersesct = self.intersections(&ray);
 
             let is_in_shadow = match nearest_intersesct {
-                 Some(value) => { value <= ldis.mag() }
+                 Some(value) => { value.dist <= ldis.mag() }
                  None        => false
             };
 
