@@ -10,11 +10,53 @@ namespace Tools
         public byte G;
         public byte R;
         public byte A;
+
+        public RGBColor Diff(RGBColor color)
+        {
+            RGBColor result;
+            result.A = 255;
+            result.R = (byte)Math.Abs((int)R - (int)color.R);
+            result.G = (byte)Math.Abs((int)G - (int)color.G);
+            result.B = (byte)Math.Abs((int)B - (int)color.B);
+            return result;
+        }
     }
+
+    internal class ImageDiffResult
+    {
+        public string Message { get; set; }
+        public Image Image { get; set; }
+    }
+
 
     internal class Image
     {
         private RGBColor[] data;
+
+        public ImageDiffResult Diff(Image image)
+        {
+            ImageDiffResult diffResult = new ImageDiffResult();
+
+            if (this.Width != image.Width || this.Height != image.Height)
+            {
+                diffResult.Message = "Image size does not match";
+                return diffResult;
+            }
+
+            diffResult.Image = new Image(Width, Height);
+
+            for (int pos = 0; pos < data.Length; pos ++)
+            {
+                RGBColor a = this[pos];
+                RGBColor b = image[pos];
+                diffResult.Image[pos] = a.Diff(b);
+            }
+
+            // TODO: Scale luminance
+
+            return diffResult;
+        }
+
         public int Width { get; private set; }
         public int Height { get; private set; }
 
