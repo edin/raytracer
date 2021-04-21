@@ -1,6 +1,4 @@
-﻿using System;
-
-namespace Tools
+﻿namespace Tools
 {
     public class ConsoleApplication
     {
@@ -11,8 +9,6 @@ namespace Tools
             var imgTarget = new Image(target);
 
             var result = imgTarget.Diff(imgSource);
-
-
         }
     }
 }

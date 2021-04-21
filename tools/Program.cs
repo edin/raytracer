@@ -16,7 +16,7 @@ namespace Tools
                                  .ToList();
 
             //TODO: Find and invoke command using provided arguments
-            
+
             Console.WriteLine("[Commands]");
             foreach (var m in methods)
             {

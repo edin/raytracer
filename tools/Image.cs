@@ -28,7 +28,6 @@ namespace Tools
         public Image Image { get; set; }
     }
 
-
     internal class Image
     {
         private RGBColor[] data;
@@ -45,7 +44,7 @@ namespace Tools
 
             diffResult.Image = new Image(Width, Height);
 
-            for (int pos = 0; pos < data.Length; pos ++)
+            for (int pos = 0; pos < data.Length; pos++)
             {
                 RGBColor a = this[pos];
                 RGBColor b = image[pos];
