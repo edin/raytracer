@@ -1,10 +1,11 @@
 [package]
-name = "RayTracer"
+name = "ray_tracer"
 version = "0.1.0"
 authors = ["Edin <edin.omeragic@gmail.com>"]
 
 [[bin]]
-name = "RayTracer"
+path = "./src/ray_tracer.rs"
+name = "ray_tracer"
 
 [dependencies]
 bmp = "*"

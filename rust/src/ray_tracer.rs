@@ -1,6 +1,7 @@
 extern crate bmp;
 use bmp::Image;
 use bmp::Pixel;
+use std::time::Instant;
 
 const FAR_AWAY: f32 = 1000000.0;
 
@@ -68,11 +69,11 @@ struct Color {
     r: f32, g: f32, b: f32,
 }
 
-const ColorWhite: Color = Color{r:1.0, g:1.0, b:1.0};
-const ColorGrey:  Color = Color{r:0.5, g:0.5, b:0.5};
-const ColorBlack: Color = Color{r:0.0, g:0.0, b:0.0};
-const ColorBackground:   Color = ColorBlack;
-const ColorDefaultColor: Color = ColorBlack;
+const COLOR_WHITE: Color = Color{r:1.0, g:1.0, b:1.0};
+const COLOR_GREY:  Color = Color{r:0.5, g:0.5, b:0.5};
+const COLOR_BLACK: Color = Color{r:0.0, g:0.0, b:0.0};
+const COLOR_BACKGROUND:   Color = COLOR_BLACK;
+const COLOR_DEFAULT_COLOR: Color = COLOR_BLACK;
 
 impl Color
 {
@@ -125,10 +126,10 @@ struct Camera
 }
 
 impl Camera  {
-    fn new(pos: Vector, lookAt: Vector) -> Camera
+    fn new(pos: Vector, look_at: Vector) -> Camera
     {
         let down = Vector::new(0.0, -1.0, 0.0);
-        let forward = lookAt.sub(pos).norm();
+        let forward = look_at.sub(pos).norm();
         let right = forward.cross(down).norm().scale(1.5);
 
         return Camera {
@@ -181,17 +182,17 @@ impl Surface{
     fn get_properties(&self, pos: Vector) -> SurfaceProperties {
         match *self {
             Surface::CheckerboardSurface => {
-                let mut diffuse = ColorBlack;
+                let mut diffuse = COLOR_BLACK;
                 let mut reflect = 0.7;
 
                 if (pos.z.floor() + pos.x.floor()) as i32 % 2 != 0 {
-                    diffuse  = ColorWhite;
+                    diffuse  = COLOR_WHITE;
                     reflect = 0.1;
                 }
-                return SurfaceProperties {diffuse: diffuse, specular: ColorWhite, reflect: reflect, roughness: 150.0}
+                return SurfaceProperties {diffuse: diffuse, specular: COLOR_WHITE, reflect: reflect, roughness: 150.0}
             },
             Surface::ShinySurface => {
-                return SurfaceProperties {diffuse: ColorWhite, specular: ColorGrey, reflect: 0.7, roughness: 250.0}
+                return SurfaceProperties {diffuse: COLOR_WHITE, specular: COLOR_GREY, reflect: 0.7, roughness: 250.0}
             }
         }
     }
@@ -357,7 +358,7 @@ impl RayTracerEngine
             Some(result) => {
                 self.shade(result, depth)
             },
-            None => { ColorBackground }
+            None => { COLOR_BACKGROUND }
         }
     }
 
@@ -370,8 +371,8 @@ impl RayTracerEngine
 
         let surface = isect.thing.surface().get_properties(pos);
 
-        let natural_color = ColorBackground.add(self.get_natural_color(&surface, pos, normal, reflect_dir));
-        let reflected_color = if depth >= self.max_depth { ColorGrey } else { self.get_reflection_color(&surface, pos, reflect_dir, depth) };
+        let natural_color = COLOR_BACKGROUND.add(self.get_natural_color(&surface, pos, normal, reflect_dir));
+        let reflected_color = if depth >= self.max_depth { COLOR_GREY } else { self.get_reflection_color(&surface, pos, reflect_dir, depth) };
 
         return natural_color.add(reflected_color);
     }
@@ -386,7 +387,7 @@ impl RayTracerEngine
 
     fn get_natural_color(&self, surface: &SurfaceProperties, pos: Vector, norm: Vector, rd: Vector) -> Color
     {
-        let mut result = ColorBlack;
+        let mut result = COLOR_BLACK;
         let rd_norm = rd.norm();
 
         for light in &self.scene.lights
@@ -395,10 +396,10 @@ impl RayTracerEngine
             let livec = ldis.norm();
             let ray = Ray{start: pos, dir: livec };
 
-            let nearest_intersesct = self.intersections(&ray);
+            let nearest_intersesct = self.test_ray(&ray);
 
             let is_in_shadow = match nearest_intersesct {
-                 Some(value) => { value.dist <= ldis.mag() }
+                 Some(value) => { value <= ldis.mag() }
                  None        => false
             };
 
@@ -406,8 +407,8 @@ impl RayTracerEngine
                 let illum    = livec.dot(norm);
                 let specular = livec.dot(rd_norm);
 
-                let lcolor = if illum > 0.0    {light.color.scale(illum)} else { ColorDefaultColor };
-                let scolor = if specular > 0.0 {light.color.scale(specular.powf(surface.roughness)) } else { ColorDefaultColor };
+                let lcolor = if illum > 0.0    {light.color.scale(illum)} else { COLOR_DEFAULT_COLOR };
+                let scolor = if specular > 0.0 {light.color.scale(specular.powf(surface.roughness)) } else { COLOR_DEFAULT_COLOR };
                 result = result.add(lcolor.times(surface.diffuse)).add(scolor.times(surface.specular));
             }
         }
@@ -443,8 +444,12 @@ fn main() {
 
     let mut image = Image::new(width, height);
 
+    let now = Instant::now();
+
     let engine = RayTracerEngine{max_depth: 5, scene: Scene::new() };
     engine.render(&mut image, width, height);
+
+    println!("Renderd in: {} ms", now.elapsed().as_millis());
 
     let _ = image.save("RayTracer.bmp");
 }

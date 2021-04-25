@@ -1,2 +1,2 @@
 cargo build --release
-.\target\release\RayTracer.exe
+.\target\release\ray_tracer.exe
