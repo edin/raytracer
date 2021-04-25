@@ -318,5 +318,5 @@ fn main() {
     let t = now.elapsed().as_millis();
     println!("total time for {:?} iterations = {:?} ms, avg time = {:?} ms", n, t, t/n); 
 
-    let _ = image.save("rust-raytracer-opt.bmp");
+    let _ = image.save("rust-raytracer.bmp");
 }
