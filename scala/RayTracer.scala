@@ -1,24 +1,12 @@
 import java.io.File
-
 import java.io.FileOutputStream
-
 import java.io.IOException
-
 import java.util.ArrayList
-
 import java.util.List
-
 import java.util.concurrent.TimeUnit
-
-import Color._
-
 import scala.beans.{BeanProperty, BooleanBeanProperty}
 
-//remove if not needed
-import scala.collection.JavaConversions._
-
 object RayTracer {
-
   def main(args: Array[String]): Unit = {
     val start: Long = System.nanoTime()
     val image: Image = new Image(500, 500)
@@ -26,58 +14,39 @@ object RayTracer {
     val tracer: RayTracerEngine = new RayTracerEngine()
     tracer.render(scene, image)
     val t: Long = System.nanoTime() - start
-    image.save("jRay.bmp")
+    image.save("ray-scala.bmp")
     println("Rendered in: " + TimeUnit.NANOSECONDS.toMillis(t) + " ms")
   }
-
 }
 
 class Vector(var x: Double, var y: Double, var z: Double) {
-
   def times(k: Double): Vector = new Vector(k * x, k * y, k * z)
-
   def minus(v: Vector): Vector = new Vector(x - v.x, y - v.y, z - v.z)
-
   def plus(v: Vector): Vector = new Vector(x + v.x, y + v.y, z + v.z)
-
   def dot(v: Vector): Double = x * v.x + y * v.y + z * v.z
-
   def mag(): Double = Math.sqrt(x * x + y * y + z * z)
-
   def norm(): Vector = {
     val mag: Double = this.mag()
     val div: Double =
       if ((mag == 0)) java.lang.Double.POSITIVE_INFINITY else 1.0 / mag
     this.times(div)
   }
-
   def cross(v: Vector): Vector =
     new Vector(y * v.z - z * v.y, z * v.x - x * v.z, x * v.y - y * v.x)
-
 }
 
 class RGBColor {
-
   var b: Byte = _
-
   var g: Byte = _
-
   var r: Byte = _
-
   var a: Byte = _
-
 }
 
 object Color {
-
   var white: Color = new Color(1.0, 1.0, 1.0)
-
   var grey: Color = new Color(0.5, 0.5, 0.5)
-
   var black: Color = new Color(0.0, 0.0, 0.0)
-
   var background: Color = Color.black
-
   var defaultColor: Color = Color.black
 
   private def legalize(c: Double): Byte = {
@@ -89,50 +58,37 @@ object Color {
     }
     x.toByte
   }
-
 }
 
 class Color(var r: Double, var g: Double, var b: Double) {
-
   def scale(k: Double): Color = new Color(k * r, k * g, k * b)
-
   def plus(v: Color): Color = new Color(r + v.r, g + v.g, b + v.b)
-
   def times(v: Color): Color = new Color(r * v.r, g * v.g, b * v.b)
-
   def toDrawingColor(): RGBColor = {
     val result: RGBColor = new RGBColor()
-    result.r = legalize(this.r)
-    result.g = legalize(this.g)
-    result.b = legalize(this.b)
-    result.a = -1
+    result.r = Color.legalize(this.r)
+    result.g = Color.legalize(this.g)
+    result.b = Color.legalize(this.b)
+    result.a = 255
     result
   }
-
 }
 
 class Camera(var pos: Vector, lookAt: Vector) {
-
   var forward: Vector = lookAt.minus(this.pos).norm()
-
-  var right: Vector = this.forward.cross(down).norm().times(1.5)
-
-  var up: Vector = this.forward.cross(right).norm().times(1.5)
-
   val down: Vector = new Vector(0.0, -1.0, 0.0)
+  var right: Vector = this.forward.cross(down).norm().times(1.5)
+  var up: Vector = this.forward.cross(right).norm().times(1.5)
 
   def getPoint(x: Int, y: Int, screenWidth: Int, screenHeight: Int): Vector = {
     val recenterX: Double = (x - (screenWidth / 2.0)) / 2.0 / screenWidth
     val recenterY: Double = -(y - (screenHeight / 2.0)) / 2.0 / screenHeight
     forward.plus(right.times(recenterX)).plus(up.times(recenterY)).norm()
   }
-
 }
 
 class Ray {
-
   var start: Vector = _
-
   var dir: Vector = _
 
   def this(start: Vector, dir: Vector) = {
@@ -140,37 +96,28 @@ class Ray {
     this.start = start
     this.dir = dir
   }
-
 }
 
 class Intersection(var thing: Thing, var ray: Ray, var dist: Double)
 
 trait Surface {
-
   def diffuse(pos: Vector): Color
-
   def specular(pos: Vector): Color
-
   def reflect(pos: Vector): Double
-
   def roughness(): Double
-
 }
 
 trait Thing {
-
   def intersect(ray: Ray): Intersection
-
   def normal(pos: Vector): Vector
-
   def surface(): Surface
-
 }
 
-class Light(var pos: Vector, var color: Color)
+class Light(var pos: Vector, var color: Color);
 
-class Sphere(var center: Vector, radius: Double, var surface: Surface)
-    extends Thing {
+class Sphere(private var center: Vector,
+             private var radius: Double,
+             private var _surface: Surface) extends Thing {
 
   var radius2: Double = radius * radius
 
@@ -190,17 +137,15 @@ class Sphere(var center: Vector, radius: Double, var surface: Surface)
     null
   }
 
-  override def surface(): Surface = this.surface
-
+  override def surface(): Surface = this._surface
 }
 
-class Plane(private var norm: Vector,
-            private var offset: Double,
-            var surface: Surface)
-    extends Thing {
+class Plane(
+     private var norm: Vector,
+     private var offset: Double,
+     private var _surface: Surface) extends Thing {
 
   def normal(pos: Vector): Vector = this.norm
-
   def intersect(ray: Ray): Intersection = {
     val denom: Double = norm.dot(ray.dir)
     if (denom > 0) {
@@ -209,20 +154,14 @@ class Plane(private var norm: Vector,
     val dist: Double = (norm.dot(ray.start) + offset) / (-denom)
     new Intersection(this, ray, dist)
   }
-
-  override def surface(): Surface = surface
-
+  override def surface(): Surface = this._surface
 }
 
 object Surfaces {
-
   var shiny: Surface = new Surface() {
     override def diffuse(pos: Vector): Color = Color.white
-
     override def specular(pos: Vector): Color = Color.grey
-
     override def reflect(pos: Vector): Double = 0.7
-
     override def roughness(): Double = 250
   }
 
@@ -233,56 +172,42 @@ object Surfaces {
       }
       Color.black
     }
-
     override def specular(pos: Vector): Color = Color.white
-
     override def reflect(pos: Vector): Double = {
       if ((Math.floor(pos.z) + Math.floor(pos.x)) % 2 != 0) {
         0.1
       }
       0.7
     }
-
     override def roughness(): Double = 150
   }
-
 }
 
 class Scene {
-
   var things: List[Thing] = new ArrayList[Thing]()
-
   var lights: List[Light] = new ArrayList[Light]()
-
   var camera: Camera =
     new Camera(new Vector(3.0, 2.0, 4.0), new Vector(-1.0, 0.5, 0.0))
 
   things.add(new Plane(new Vector(0.0, 1.0, 0.0), 0.0, Surfaces.checkerboard))
-
   things.add(new Sphere(new Vector(0.0, 1.0, -0.25), 1.0, Surfaces.shiny))
-
   things.add(new Sphere(new Vector(-1.0, 0.5, 1.5), 0.5, Surfaces.shiny))
-
-  lights.add(
-    new Light(new Vector(-2.0, 2.5, 0.0), new Color(0.49, 0.07, 0.07)))
-
+  lights.add(new Light(new Vector(-2.0, 2.5, 0.0), new Color(0.49, 0.07, 0.07)))
   lights.add(new Light(new Vector(1.5, 2.5, 1.5), new Color(0.07, 0.07, 0.49)))
-
   lights.add(
-    new Light(new Vector(1.5, 2.5, -1.5), new Color(0.07, 0.49, 0.071)))
-
+    new Light(new Vector(1.5, 2.5, -1.5), new Color(0.07, 0.49, 0.071))
+  )
   lights.add(new Light(new Vector(0.0, 3.5, 0.0), new Color(0.21, 0.21, 0.35)))
-
 }
 
 class RayTracerEngine {
-
   private var maxDepth: Int = 5
 
   private def intersections(ray: Ray, scene: Scene): Intersection = {
     var closest: Double = java.lang.Double.POSITIVE_INFINITY
     var closestInter: Intersection = null
-    for (thing <- scene.things) {
+
+    scene.things.forEach{ thing =>
       val inter: Intersection = thing.intersect(ray)
       if (inter != null && inter.dist < closest) {
         closestInter = inter
@@ -306,7 +231,8 @@ class RayTracerEngine {
     val normal: Vector = isect.thing.normal(pos)
     val reflectDir: Vector = d.minus(normal.times(normal.dot(d)).times(2))
     val naturalColor: Color = Color.background.plus(
-      getNaturalColor(isect.thing, pos, normal, reflectDir, scene))
+      getNaturalColor(isect.thing, pos, normal, reflectDir, scene)
+    )
     var reflectedColor: Color = Color.grey
     if (depth < this.maxDepth) {
       reflectedColor =
@@ -315,42 +241,50 @@ class RayTracerEngine {
     naturalColor.plus(reflectedColor)
   }
 
-  private def getReflectionColor(thing: Thing,
-                                 pos: Vector,
-                                 normal: Vector,
-                                 rd: Vector,
-                                 scene: Scene,
-                                 depth: Int): Color = {
+  private def getReflectionColor(
+                                  thing: Thing,
+                                  pos: Vector,
+                                  normal: Vector,
+                                  rd: Vector,
+                                  scene: Scene,
+                                  depth: Int
+                                ): Color = {
     val color: Color = traceRay(new Ray(pos, rd), scene, depth + 1)
     val reflect: Double = thing.surface().reflect(pos)
     color.scale(reflect)
   }
 
-  private def getNaturalColor(thing: Thing,
-                              pos: Vector,
-                              norm: Vector,
-                              rd: Vector,
-                              scene: Scene): Color = {
+  private def getNaturalColor(
+                               thing: Thing,
+                               pos: Vector,
+                               norm: Vector,
+                               rd: Vector,
+                               scene: Scene
+                             ): Color = {
     var color: Color = Color.black
-    for (light <- scene.lights) {
+    scene.lights.forEach { light =>
       val ldis: Vector = light.pos.minus(pos)
       val livec: Vector = ldis.norm()
       val ray: Ray = new Ray(pos, livec)
       val neatIsect: Intersection = intersections(ray, scene)
       val isInShadow: Boolean = (neatIsect != null) && (neatIsect.dist <= ldis
-          .mag())
+        .mag())
+
       if (!isInShadow) {
         val illum: Double = livec.dot(norm)
         val specular: Double = livec.dot(rd.norm())
         var lcolor: Color = Color.defaultColor
         var scolor: Color = Color.defaultColor
+
         if (illum > 0) {
           lcolor = light.color.scale(illum)
         }
+
         if (specular > 0) {
           scolor =
             light.color.scale(Math.pow(specular, thing.surface().roughness()))
         }
+
         val surfDiffuse: Color = thing.surface().diffuse(pos)
         val surfSpecular: Color = thing.surface().specular(pos)
         color = color
@@ -362,8 +296,8 @@ class RayTracerEngine {
   }
 
   def render(scene: Scene, img: Image): Unit = {
-    val h: Int = img.getHeight
-    val w: Int = img.getWidth
+    val h: Int = img.getHeight()
+    val w: Int = img.getWidth()
     for (y <- 0 until h; x <- 0 until w) {
       val point: Vector = scene.camera.getPoint(x, y, w, h)
       val ray: Ray = new Ray(scene.camera.pos, point)
@@ -371,31 +305,19 @@ class RayTracerEngine {
       img.setColor(x, y, color.toDrawingColor())
     }
   }
-
 }
 
 class BITMAPINFOHEADER {
-
   var biSize: Int = _
-
   var biWidth: Int = _
-
   var biHeight: Int = _
-
   var biPlanes: Short = _
-
   var biBitCount: Short = _
-
   var biCompression: Int = _
-
   var biSizeImage: Int = _
-
   var biXPelsPerMeter: Int = _
-
   var biYPelsPerMeter: Int = _
-
   var biClrUsed: Int = _
-
   var biClrImportant: Int = _
 
   def getBytes(): Array[Byte] =
@@ -412,45 +334,35 @@ class BITMAPINFOHEADER {
       Encoding.DWORD(this.biClrUsed),
       Encoding.DWORD(this.biClrImportant)
     )
-
 }
 
 class BITMAPFILEHEADER {
-
   var bfType: Short = _
-
   var bfSize: Int = _
-
   var bfReserved: Int = _
-
   var bfOffBits: Int = _
 
   def getBytes(): Array[Byte] =
-    Encoding.Join(Encoding.WORD(this.bfType),
-                  Encoding.DWORD(this.bfSize),
-                  Encoding.DWORD(this.bfReserved),
-                  Encoding.DWORD(this.bfOffBits))
-
+    Encoding.Join(
+      Encoding.WORD(this.bfType),
+      Encoding.DWORD(this.bfSize),
+      Encoding.DWORD(this.bfReserved),
+      Encoding.DWORD(this.bfOffBits)
+    )
 }
 
 object Encoding {
-
   def DWORD(n: Int): Array[Byte] = {
-// Unsigned 32 bit integer
-    val b0: Byte = ((n >> 0) & 0x000000FF).toByte
-    val b1: Byte = ((n >> 8) & 0x000000FF).toByte
-    val b2: Byte = ((n >> 16) & 0x000000FF).toByte
-    val b3: Byte = ((n >> 24) & 0x000000FF).toByte
+    val b0: Byte = ((n >> 0) & 0x000000ff).toByte
+    val b1: Byte = ((n >> 8) & 0x000000ff).toByte
+    val b2: Byte = ((n >> 16) & 0x000000ff).toByte
+    val b3: Byte = ((n >> 24) & 0x000000ff).toByte
     Array(b0, b1, b2, b3)
   }
-
-  def LONG(n: Int): Array[Byte] = // Signed 32 bit integer (since we use zeros this will work i hope)
-    Encoding.DWORD(n)
-
+  def LONG(n: Int): Array[Byte] = Encoding.DWORD(n)
   def WORD(n: Int): Array[Byte] = {
-// Unsigned 16 bit integer
-    val b0: Byte = (n & 0x000000FF).toByte
-    val b1: Byte = ((n >> 8) & 0x000000FF).toByte
+    val b0: Byte = (n & 0x000000ff).toByte
+    val b1: Byte = ((n >> 8) & 0x000000ff).toByte
     Array(b0, b1)
   }
 
@@ -461,12 +373,13 @@ object Encoding {
     }
     val result: Array[Byte] = Array.ofDim[Byte](size)
     var pos: Int = 0
+
     for (e <- elements; b <- e) {
-      result(pos) = b { pos += 1; pos - 1 }
+      result(pos) = b;
+      pos += 1;
     }
     result
   }
-
 }
 
 class Image(@BeanProperty val width: Int, @BeanProperty val height: Int) {
@@ -497,10 +410,12 @@ class Image(@BeanProperty val width: Int, @BeanProperty val height: Int) {
     fileHeader.bfSize = (offBits + infoHeader.biSizeImage)
     try {
       val os: FileOutputStream = new FileOutputStream(fileName)
-      val headerBytes: Int = fileHeader.getBytes
-      val infoBytes: Int = infoHeader.getBytes
-      os.write(headerBytes)
-      os.write(infoBytes)
+      val headerBytes: Array[Byte] = fileHeader.getBytes()
+      val infoBytes: Array[Byte] = infoHeader.getBytes()
+
+      headerBytes.foreach(os.write(_))
+      infoBytes.foreach(os.write(_))
+
       for (color <- this.data) {
         os.write(color.b)
         os.write(color.g)
@@ -510,8 +425,6 @@ class Image(@BeanProperty val width: Int, @BeanProperty val height: Int) {
       os.close()
     } catch {
       case ex: IOException => {}
-
     }
   }
-
 }
