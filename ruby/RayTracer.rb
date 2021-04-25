@@ -1,7 +1,3 @@
-# Following libs are required:
-# $ gem install imageruby imageruby-bmp
-
-#require "rubygems"
 require "imageruby"
 
 class Vector

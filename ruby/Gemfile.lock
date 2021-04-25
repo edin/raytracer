@@ -1,0 +1,15 @@
+GEM
+  remote: https://rubygems.org/
+  specs:
+    imageruby (0.2.5)
+    imageruby-bmp (0.1.0)
+
+PLATFORMS
+  x64-mingw32
+
+DEPENDENCIES
+  imageruby
+  imageruby-bmp
+
+BUNDLED WITH
+   2.1.4
