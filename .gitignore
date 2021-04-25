@@ -28,3 +28,4 @@ __history/
 *.dcu
 /crystal/lib
 /rust/target
+/crystal/.shards
