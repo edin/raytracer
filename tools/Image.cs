@@ -44,11 +44,18 @@ namespace Tools
 
             diffResult.Image = new Image(Width, Height);
 
+            RGBColor maxColor = new();
+
             for (int pos = 0; pos < data.Length; pos++)
             {
                 RGBColor a = this[pos];
                 RGBColor b = image[pos];
-                diffResult.Image[pos] = a.Diff(b);
+                var diff = a.Diff(b);
+                diffResult.Image[pos] = diff;
+
+                maxColor.R = Math.Max(diff.R, maxColor.R);
+                maxColor.G = Math.Max(diff.G, maxColor.G);
+                maxColor.B = Math.Max(diff.B, maxColor.B);
             }
 
             // TODO: Scale luminance
