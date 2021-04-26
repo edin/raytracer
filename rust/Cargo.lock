@@ -2,18 +2,18 @@
 # It is not intended for manual editing.
 [[package]]
 name = "bmp"
-version = "0.4.0"
+version = "0.5.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "ef8ceb6f83a7c5dde38e524a66b76a92cc02abb63880a2d9d067cdf8b50a76da"
+checksum = "69985ff4f58085ac696454692d0b646a66ad1f9cc9be294c91dc51bb5df511ae"
 dependencies = [
  "byteorder",
 ]
 
 [[package]]
 name = "byteorder"
-version = "1.3.1"
+version = "1.4.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "a019b10a2a7cdeb292db131fc8113e57ea2a908f6e7894b0c3c671893b65dbeb"
+checksum = "14c189c53d098945499cdfa7ecc63567cf3886b3332b312a5b4585d8d3a6a610"
 
 [[package]]
 name = "ray_tracer"
