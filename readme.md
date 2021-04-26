@@ -24,6 +24,7 @@ Raytracer benchmarks based on [Typescript](http://www.typescriptlang.org) sample
 | Java 8-14            | 600 ms    |
 | Delphi 2010 (32 bit) | 720 ms    |
 | Node 15 (JS)         | 734 ms    |
+| Scala                | 820 ms    |
 | Julia                | 900 ms    |
 | Node 15 (TS)         | 1100 ms   |
 | F#                   | 1800 ms   |
@@ -43,7 +44,6 @@ Raytracer benchmarks based on [Typescript](http://www.typescriptlang.org) sample
 | Swift                | ? ms      |
 | Haskel               | ? ms      |
 | Swift                | ? ms      |
-| Scala                | ? ms      |
 | Ada                  | ? ms      |
 
 ## Lines of code
