@@ -2,38 +2,13 @@
 
 namespace RayTracer;
 
+include "Bitmap.php";
+
 class RGBColor
 {
     public float $r = 0;
     public float $g = 0;
     public float $b = 0;
-}
-
-class Image
-{
-    private $img;
-
-    public function __construct(int $w, int $h)
-    {
-        $this->img = imagecreatetruecolor($w, $h);
-    }
-
-    public function __destruct()
-    {
-        imagedestroy($this->img);
-    }
-
-    public function setPixel(int $x, int $y, RGBColor $color): void
-    {
-        $gdColor = imagecolorallocate($this->img, $color->r, $color->g, $color->b);
-        imagesetpixel($this->img, $x, $y, $gdColor);
-        imagecolordeallocate($this->img, $gdColor);
-    }
-
-    public function saveAsPng(string $fileName): void
-    {
-        imagepng($this->img, $fileName);
-    }
 }
 
 class RayTracer
@@ -51,7 +26,7 @@ class RayTracer
         $rayTracer->render($scene, $image, $w, $h);
         $t2 = microtime(true);
 
-        $image->saveAsPng("php-ray-tracer.png");
+        $image->save("php-ray-tracer.bmp");
         $t = $t2 - $t1;
 
         echo "Rendered in $t seconds, image size is $w x $h \n";
@@ -167,7 +142,7 @@ class Color
     {
         if ($c < 0.0) {
             $c = 0;
-        } else if ($c > 1.0) {
+        } elseif ($c > 1.0) {
             $c = 1;
         }
         return (int) ($c * 255);
@@ -243,8 +218,8 @@ interface Surface
 abstract class Thing
 {
     public Surface $surface;
-    public abstract function intersect(Ray $ray): ?Intersection;
-    public abstract function normal(Vector $pos): Vector;
+    abstract public function intersect(Ray $ray): ?Intersection;
+    abstract public function normal(Vector $pos): Vector;
 }
 
 class Light
@@ -401,7 +376,7 @@ class RayTracerEngine
     private function intersections(Ray $ray)
     {
         // $intersections = array_map(fn ($thing) => $thing->intersect($ray), $this->scene->things);
-        // $intersections = array_filter($intersections, fn($isect) => $isect != null) 
+        // $intersections = array_filter($intersections, fn($isect) => $isect != null)
 
         $closest = INF;
         $closestInter = null;
@@ -481,7 +456,7 @@ class RayTracerEngine
             for ($x = 0; $x < $w; ++$x) {
                 $ray = new Ray($camPos, $camera->getPoint($x, $y, $w, $h));
                 $color = $this->traceRay($ray, 0)->toDrawingColor();
-                $image->setPixel($x, $y, $color);
+                $image->setColor($x, $y, $color);
             }
         }
     }
