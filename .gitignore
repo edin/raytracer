@@ -27,3 +27,8 @@ node_modules
 __history/
 *.dcu
 /crystal/lib
+/crystal/.shards
+/scala/.metals
+.idea
+.metals
+/scala/target
