@@ -28,7 +28,7 @@ class Vector(var x: Double, var y: Double, var z: Double) {
   def norm(): Vector = {
     val mag: Double = this.mag()
     val div: Double =
-      if ((mag == 0)) java.lang.Double.POSITIVE_INFINITY else 1.0 / mag
+      if (mag == 0) java.lang.Double.POSITIVE_INFINITY else 1.0 / mag
     this.times(div)
   }
   def cross(v: Vector): Vector =
@@ -50,13 +50,13 @@ object Color {
   var defaultColor: Color = Color.black
 
   private def legalize(c: Double): Byte = {
-    var x: Int = (c * 255).toInt
+    var x: Int = (c * 255.0).toInt
     if (x < 0) {
-      x = 0
+      x = 0;
     } else if (x > 255) {
-      x = 255
+      x = 255;
     }
-    x.toByte
+    return x.toByte
   }
 }
 
@@ -66,17 +66,19 @@ class Color(var r: Double, var g: Double, var b: Double) {
   def times(v: Color): Color = new Color(r * v.r, g * v.g, b * v.b)
   def toDrawingColor(): RGBColor = {
     val result: RGBColor = new RGBColor()
+
     result.r = Color.legalize(this.r)
     result.g = Color.legalize(this.g)
     result.b = Color.legalize(this.b)
-    result.a = 255
-    result
+    result.a = -1
+
+    return result
   }
 }
 
 class Camera(var pos: Vector, lookAt: Vector) {
-  var forward: Vector = lookAt.minus(this.pos).norm()
   val down: Vector = new Vector(0.0, -1.0, 0.0)
+  var forward: Vector = lookAt.minus(this.pos).norm()
   var right: Vector = this.forward.cross(down).norm().times(1.5)
   var up: Vector = this.forward.cross(right).norm().times(1.5)
 
@@ -115,11 +117,13 @@ trait Thing {
 
 class Light(var pos: Vector, var color: Color);
 
-class Sphere(private var center: Vector,
-             private var radius: Double,
-             private var _surface: Surface) extends Thing {
+class Sphere(
+    private var center: Vector,
+    private var radius: Double,
+    private var _surface: Surface
+) extends Thing {
 
-  var radius2: Double = radius * radius
+  var radius2: Double = this.radius * this.radius
 
   def normal(pos: Vector): Vector = pos.minus(this.center).norm()
 
@@ -131,28 +135,29 @@ class Sphere(private var center: Vector,
       val disc: Double = this.radius2 - (eo.dot(eo) - v * v)
       if (disc >= 0) {
         dist = v - Math.sqrt(disc)
-        new Intersection(this, ray, dist)
+        return new Intersection(this, ray, dist)
       }
     }
-    null
+    return null
   }
 
   override def surface(): Surface = this._surface
 }
 
 class Plane(
-     private var norm: Vector,
-     private var offset: Double,
-     private var _surface: Surface) extends Thing {
+    private var norm: Vector,
+    private var offset: Double,
+    private var _surface: Surface
+) extends Thing {
 
   def normal(pos: Vector): Vector = this.norm
   def intersect(ray: Ray): Intersection = {
     val denom: Double = norm.dot(ray.dir)
     if (denom > 0) {
-      null
+      return null
     }
     val dist: Double = (norm.dot(ray.start) + offset) / (-denom)
-    new Intersection(this, ray, dist)
+    return new Intersection(this, ray, dist)
   }
   override def surface(): Surface = this._surface
 }
@@ -168,16 +173,16 @@ object Surfaces {
   var checkerboard: Surface = new Surface() {
     override def diffuse(pos: Vector): Color = {
       if ((Math.floor(pos.z) + Math.floor(pos.x)) % 2 != 0) {
-        Color.white
+        return Color.white
       }
-      Color.black
+      return Color.black
     }
     override def specular(pos: Vector): Color = Color.white
     override def reflect(pos: Vector): Double = {
       if ((Math.floor(pos.z) + Math.floor(pos.x)) % 2 != 0) {
-        0.1
+        return 0.1
       }
-      0.7
+      return 0.7
     }
     override def roughness(): Double = 150
   }
@@ -207,7 +212,7 @@ class RayTracerEngine {
     var closest: Double = java.lang.Double.POSITIVE_INFINITY
     var closestInter: Intersection = null
 
-    scene.things.forEach{ thing =>
+    scene.things.forEach { thing =>
       val inter: Intersection = thing.intersect(ray)
       if (inter != null && inter.dist < closest) {
         closestInter = inter
@@ -220,7 +225,7 @@ class RayTracerEngine {
   private def traceRay(ray: Ray, scene: Scene, depth: Int): Color = {
     val isect: Intersection = intersections(ray, scene)
     if (isect == null) {
-      Color.background
+      return Color.background
     }
     shade(isect, scene, depth)
   }
@@ -242,25 +247,25 @@ class RayTracerEngine {
   }
 
   private def getReflectionColor(
-                                  thing: Thing,
-                                  pos: Vector,
-                                  normal: Vector,
-                                  rd: Vector,
-                                  scene: Scene,
-                                  depth: Int
-                                ): Color = {
+      thing: Thing,
+      pos: Vector,
+      normal: Vector,
+      rd: Vector,
+      scene: Scene,
+      depth: Int
+  ): Color = {
     val color: Color = traceRay(new Ray(pos, rd), scene, depth + 1)
     val reflect: Double = thing.surface().reflect(pos)
     color.scale(reflect)
   }
 
   private def getNaturalColor(
-                               thing: Thing,
-                               pos: Vector,
-                               norm: Vector,
-                               rd: Vector,
-                               scene: Scene
-                             ): Color = {
+      thing: Thing,
+      pos: Vector,
+      norm: Vector,
+      rd: Vector,
+      scene: Scene
+  ): Color = {
     var color: Color = Color.black
     scene.lights.forEach { light =>
       val ldis: Vector = light.pos.minus(pos)
@@ -408,20 +413,18 @@ class Image(@BeanProperty val width: Int, @BeanProperty val height: Int) {
     fileHeader.bfType = 'B' + ('M' << 8)
     fileHeader.bfOffBits = offBits
     fileHeader.bfSize = (offBits + infoHeader.biSizeImage)
+
     try {
       val os: FileOutputStream = new FileOutputStream(fileName)
-      val headerBytes: Array[Byte] = fileHeader.getBytes()
-      val infoBytes: Array[Byte] = infoHeader.getBytes()
 
-      headerBytes.foreach(os.write(_))
-      infoBytes.foreach(os.write(_))
+      os.write(fileHeader.getBytes());
+      os.write(infoHeader.getBytes());
 
       for (color <- this.data) {
-        os.write(color.b)
-        os.write(color.g)
-        os.write(color.r)
-        os.write(color.a)
+        val bgra = Array(color.b, color.g, color.r, color.a)
+        os.write(bgra);
       }
+
       os.close()
     } catch {
       case ex: IOException => {}

@@ -31,3 +31,4 @@ __history/
 /scala/.metals
 .idea
 .metals
+/scala/target
