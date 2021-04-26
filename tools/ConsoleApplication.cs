@@ -1,4 +1,6 @@
-﻿namespace Tools
+﻿using System;
+
+namespace Tools
 {
     public class ConsoleApplication
     {
@@ -9,6 +11,14 @@
             var imgTarget = new Image(target);
 
             var result = imgTarget.Diff(imgSource);
+            if (result.IsSame)
+            {
+                Console.WriteLine("Images are the same");
+            } 
+            else
+            {
+                result.Image.Save("diff.bmp");
+            }
         }
     }
 }
