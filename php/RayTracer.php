@@ -6,9 +6,9 @@ include "Bitmap.php";
 
 class RGBColor
 {
-    public float $r = 0;
-    public float $g = 0;
-    public float $b = 0;
+    public int $r = 0;
+    public int $g = 0;
+    public int $b = 0;
 }
 
 class RayTracer

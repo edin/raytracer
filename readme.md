@@ -27,6 +27,7 @@ Raytracer benchmarks based on [Typescript](http://www.typescriptlang.org) sample
 | Node 15 (TS)         | 1100 ms   |
 | F#                   | 1800 ms   |
 | Node 8               | 1800 ms   |
+| PHP (PHP 8.0 WSL)    | 7450 ms   |
 | HHVM                 | 11000 ms  |
 | PHP (PHP 7.4)        | 24500 ms  |
 | PHP (PHP 7.3)        | 23500 ms  |
