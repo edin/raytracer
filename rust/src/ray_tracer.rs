@@ -29,7 +29,7 @@ struct Vector {
 
 impl Vector {
     fn new(x: f32, y: f32, z: f32) -> Vector {
-        Vector { x: x, y: y, z: z }
+        Vector { x, y, z }
     }
 
     fn mag(&self) -> f32 {
@@ -95,7 +95,7 @@ const COLOR_DEFAULT_COLOR: Color = COLOR_BLACK;
 
 impl Color {
     fn new(r: f32, g: f32, b: f32) -> Color {
-        Color { r: r, g: g, b: b }
+        Color { r, g, b }
     }
 
     fn scale(&self, k: f32) -> Color {
@@ -112,10 +112,10 @@ impl Color {
 
     fn to_drawing_color(&self) -> RgbColor {
         RgbColor {
-            r: (self.r.clamp(0.0, 1.0)*255.0) as u8, 
-            g: (self.g.clamp(0.0, 1.0)*255.0) as u8,
-            b: (self.b.clamp(0.0, 1.0)*255.0) as u8,
-            a: 255
+            r: (self.r.clamp(0.0, 1.0) * 255.0) as u8,
+            g: (self.g.clamp(0.0, 1.0) * 255.0) as u8,
+            b: (self.b.clamp(0.0, 1.0) * 255.0) as u8,
+            a: 255,
         }
     }
 }
@@ -134,28 +134,31 @@ impl Camera {
         let forward = look_at.sub(pos).norm();
         let right = forward.cross(down).norm().scale(1.5);
 
-        return Camera {
-            pos: pos,
-            forward: forward,
-            right: right,
+        Camera {
+            pos,
+            forward,
+            right,
             up: forward.cross(right).norm().scale(1.5),
-        };
+        }
     }
 }
 
 #[derive(Debug, Copy, Clone)]
-struct Ray { start: Vector, dir: Vector }
+struct Ray {
+    start: Vector,
+    dir: Vector,
+}
 
 #[derive(Debug, Copy, Clone)]
-struct Intersection { thing: Thing, ray: Ray, dist: f32 }
+struct Intersection {
+    thing: Thing,
+    ray: Ray,
+    dist: f32,
+}
 
 impl Intersection {
     fn new(thing: Thing, ray: Ray, dist: f32) -> Intersection {
-        Intersection {
-            thing: thing,
-            ray: ray,
-            dist: dist,
-        }
+        Intersection { thing, ray, dist }
     }
 }
 
@@ -183,30 +186,36 @@ impl Surface {
                     diffuse = COLOR_WHITE;
                     reflect = 0.1;
                 }
-                return SurfaceProperties {
-                    diffuse: diffuse,
+                SurfaceProperties {
+                    diffuse,
                     specular: COLOR_WHITE,
-                    reflect: reflect,
+                    reflect,
                     roughness: 150.0,
-                };
-            }
-            Surface::ShinySurface => {
-                return SurfaceProperties {
-                    diffuse: COLOR_WHITE,
-                    specular: COLOR_GREY,
-                    reflect: 0.7,
-                    roughness: 250.0,
                 }
             }
+            Surface::ShinySurface => SurfaceProperties {
+                diffuse: COLOR_WHITE,
+                specular: COLOR_GREY,
+                reflect: 0.7,
+                roughness: 250.0,
+            },
         }
     }
 }
 
 #[derive(Debug, Copy, Clone)]
-struct SphereInfo { surface: Surface, radius2: f32, center: Vector }
+struct SphereInfo {
+    surface: Surface,
+    radius2: f32,
+    center: Vector,
+}
 
 #[derive(Debug, Copy, Clone)]
-struct PlaneInfo  { surface: Surface, offset: f32, normal: Vector }
+struct PlaneInfo {
+    surface: Surface,
+    offset: f32,
+    normal: Vector,
+}
 
 #[derive(Debug, Copy, Clone)]
 enum Thing {
@@ -222,17 +231,17 @@ struct Light {
 impl Thing {
     fn new_sphere(center: Vector, radius: f32, surface: Surface) -> Thing {
         Thing::Sphere(SphereInfo {
-            surface: surface,
+            surface,
             radius2: radius * radius,
-            center: center,
+            center,
         })
     }
 
     fn new_plane(normal: Vector, offset: f32, surface: Surface) -> Thing {
         Thing::Plane(PlaneInfo {
-            surface: surface,
-            offset: offset,
-            normal: normal,
+            surface,
+            offset,
+            normal,
         })
     }
 
@@ -240,19 +249,21 @@ impl Thing {
         match self {
             Thing::Sphere(ref sphere) => pos.sub(sphere.center).norm(),
             Thing::Plane(ref plane) => plane.normal,
-    }   }
+        }
+    }
 
     fn surface(&self) -> Surface {
         match self {
             Thing::Sphere(ref sphere) => sphere.surface,
             Thing::Plane(ref plane) => plane.surface,
-    }    }
+        }
+    }
 
     fn intersect(&self, ray: &Ray) -> Option<Intersection> {
         match self {
             Thing::Sphere(ref sphere) => {
                 let eo = sphere.center.sub(ray.start);
-                let v  = eo.dot(ray.dir);
+                let v = eo.dot(ray.dir);
 
                 if v >= 0.0 {
                     let disc = sphere.radius2 - ((eo.dot(eo)) - (v * v));
@@ -263,20 +274,28 @@ impl Thing {
                 }
                 None
             }
-          
+
             Thing::Plane(ref plane) => {
                 let denom = plane.normal.dot(ray.dir);
-                if denom > 0.0 { return None; }
+                if denom > 0.0 {
+                    return None;
+                }
                 let dist = (plane.normal.dot(ray.start) + plane.offset) / (-denom);
                 Some(Intersection::new(*self, *ray, dist))
-    }   }   }
+            }
+        }
+    }
 }
 
-struct Scene { things: Vec<Thing>, lights: Vec<Light>, camera: Camera }
+struct Scene {
+    things: Vec<Thing>,
+    lights: Vec<Light>,
+    camera: Camera,
+}
 
 impl Scene {
     fn new() -> Scene {
-        return Scene {
+        Scene {
             things: vec![
                 Thing::new_plane(
                     Vector::new(0.0, 1.0, 0.0),
@@ -305,7 +324,7 @@ impl Scene {
                 },
             ],
             camera: Camera::new(Vector::new(3.0, 2.0, 4.0), Vector::new(-1.0, 0.5, 0.0)),
-        };
+        }
     }
 }
 
@@ -314,7 +333,6 @@ struct RayTracerEngine {
     scene: Scene,
 }
 
-
 impl RayTracerEngine {
     fn intersections(&self, ray: &Ray) -> Option<Intersection> {
         let mut closest = FAR_AWAY;
@@ -322,33 +340,24 @@ impl RayTracerEngine {
 
         for thing in &self.scene.things {
             let inter = thing.intersect(ray);
-            match inter {
-                Some(result) => {
-                    if result.dist < closest {
-                        closest_intersection = inter;
-                        closest = result.dist;
-                    }
+
+            if let Some(result) = inter {
+                if result.dist < closest {
+                    closest_intersection = inter;
+                    closest = result.dist;
                 }
-                None => {}
             }
         }
-        return closest_intersection;
+        closest_intersection
     }
 
     fn test_ray(&self, ray: &Ray) -> Option<f32> {
-        let intersect = self.intersections(ray);
-        return match intersect {
-            Some(result) => Some(result.dist),
-            None => None,
-        };
+        self.intersections(ray).map(|r| r.dist)
     }
 
     fn trace_ray(&self, ray: &Ray, depth: i32) -> Color {
-        let intersect = self.intersections(ray);
-        return match intersect {
-            Some(result) => self.shade(result, depth),
-            None => COLOR_BACKGROUND,
-        };
+        self.intersections(ray)
+            .map_or(COLOR_BACKGROUND, |r| self.shade(r, depth))
     }
 
     fn shade(&self, isect: Intersection, depth: i32) -> Color {
@@ -381,9 +390,7 @@ impl RayTracerEngine {
             start: pos,
             dir: rd,
         };
-        let color = self.trace_ray(&ray, depth + 1);
-        let factor = surface.reflect;
-        color.scale(factor)
+        self.trace_ray(&ray, depth + 1).scale(surface.reflect)
     }
 
     fn get_natural_color(
@@ -404,33 +411,30 @@ impl RayTracerEngine {
                 dir: livec,
             };
 
-            let nearest_intersesct = self.test_ray(&ray);
+            if let Some(value) = self.test_ray(&ray) {
+                if value <= ldis.mag() {
+                    let illum = livec.dot(norm);
+                    let specular = livec.dot(rd_norm);
 
-            let is_in_shadow = match nearest_intersesct {
-                Some(value) => value <= ldis.mag(),
-                None => false,
-            };
+                    let lcolor = if illum > 0.0 {
+                        light.color.scale(illum)
+                    } else {
+                        COLOR_DEFAULT_COLOR
+                    };
 
-            if !is_in_shadow {
-                let illum = livec.dot(norm);
-                let specular = livec.dot(rd_norm);
+                    let scolor = if specular > 0.0 {
+                        light.color.scale(specular.powf(surface.roughness))
+                    } else {
+                        COLOR_DEFAULT_COLOR
+                    };
 
-                let lcolor = if illum > 0.0 {
-                    light.color.scale(illum)
-                } else {
-                    COLOR_DEFAULT_COLOR
-                };
-                let scolor = if specular > 0.0 {
-                    light.color.scale(specular.powf(surface.roughness))
-                } else {
-                    COLOR_DEFAULT_COLOR
-                };
-                result = result
-                    .add(lcolor.times(surface.diffuse))
-                    .add(scolor.times(surface.specular));
+                    result = result
+                        .add(lcolor.times(surface.diffuse))
+                        .add(scolor.times(surface.specular));
+                }
             }
         }
-        return result;
+        result
     }
 
     pub fn get_point(
@@ -443,11 +447,11 @@ impl RayTracerEngine {
     ) -> Vector {
         let rx = (x as f32 - (screen_width as f32 / 2.0)) / 2.0 / screen_width as f32;
         let ry = -(y as f32 - (screen_height as f32 / 2.0)) / 2.0 / screen_height as f32;
-        return (camera
+        (camera
             .forward
             .add(camera.right.scale(rx))
             .add(camera.up.scale(ry)))
-        .norm();
+        .norm()
     }
 
     pub fn render(&self, image: &mut Image, w: u32, h: u32) {
@@ -497,7 +501,7 @@ fn main() {
     let is_parallel = env::args_os()
         .nth(1)
         .and_then(|s| s.into_string().map(|s| s == "parallel").ok())
-        .unwrap_or_else(|| false);
+        .unwrap_or(false);
 
     let width: u32 = 500;
     let height: u32 = 500;
@@ -505,36 +509,35 @@ fn main() {
     let mut image = Image::new(width, height);
 
     let n = 100;
+    let engine = RayTracerEngine {
+        max_depth: 5,
+        scene: Scene::new(),
+    };
+
+    let now = Instant::now();
 
     if is_parallel {
         println!("Parallel!");
-        let now = Instant::now();
-      
-        for _ in 0 .. n {
-            let engine = RayTracerEngine {
-                max_depth: 5,
-                scene: Scene::new(),
-            };
+
+        for _ in 0..n {
             engine.parallel_render(&mut image, width, height);
         }
-        
-      
     } else {
         println!("Not parallel!");
-        let now = Instant::now();
-      
-        for _ in 0 .. n {
-            let engine = RayTracerEngine {
-                max_depth: 5,
-                scene: Scene::new(),
-            };
+
+        for _ in 0..n {
             engine.render(&mut image, width, height);
         }
     }
-  
+
     let t = now.elapsed().as_millis();
 
-    println!("total time for {:?} iterations = {:?} ms, avg time = {:?} ms", n, t, t/n); 
+    println!(
+        "total time for {:?} iterations = {:?} ms, avg time = {:?} ms",
+        n,
+        t,
+        t / n
+    );
 
     image.save("RayTracer.bmp");
 }
