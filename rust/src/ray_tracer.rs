@@ -6,7 +6,7 @@ use bmp::Image;
 use bmp::Pixel;
 use std::time::Instant;
 
-use std::env;
+use std::{env, ops};
 
 use rayon::prelude::*;
 
@@ -40,31 +40,47 @@ impl Vector {
     fn norm(&self) -> Vector {
         let mag = self.mag();
         let div = if mag == 0.0 { FAR_AWAY } else { 1.0 / mag };
-        self.scale(div)
-    }
-
-    fn cross(&self, v: Vector) -> Vector {
-        Vector::new(
-            self.y * v.z - self.z * v.y,
-            self.z * v.x - self.x * v.z,
-            self.x * v.y - self.y * v.x,
-        )
-    }
-
-    fn scale(&self, k: f32) -> Vector {
-        Vector::new(k * self.x, k * self.y, k * self.z)
+        *self * div
     }
 
     fn dot(&self, v: Vector) -> f32 {
         self.x * v.x + self.y * v.y + self.z * v.z
     }
+}
 
-    fn add(&self, v: Vector) -> Vector {
-        Vector::new(self.x + v.x, self.y + v.y, self.z + v.z)
+impl ops::Add<Vector> for Vector {
+    type Output = Self;
+
+    fn add(self, v: Vector) -> Self {
+        Self::new(self.x + v.x, self.y + v.y, self.z + v.z)
     }
+}
 
-    fn sub(&self, v: Vector) -> Vector {
-        Vector::new(self.x - v.x, self.y - v.y, self.z - v.z)
+impl ops::Sub<Vector> for Vector {
+    type Output = Self;
+
+    fn sub(self, v: Vector) -> Self {
+        Self::new(self.x - v.x, self.y - v.y, self.z - v.z)
+    }
+}
+
+impl ops::Mul<Vector> for Vector {
+    type Output = Self;
+
+    fn mul(self, v: Self) -> Self {
+        Self::new(
+            self.y * v.z - self.z * v.y,
+            self.z * v.x - self.x * v.z,
+            self.x * v.y - self.y * v.x,
+        )
+    }
+}
+
+impl ops::Mul<f32> for Vector {
+    type Output = Self;
+
+    fn mul(self, k: f32) -> Self {
+        Self::new(k * self.x, k * self.y, k * self.z)
     }
 }
 
@@ -98,18 +114,6 @@ impl Color {
         Color { r, g, b }
     }
 
-    fn scale(&self, k: f32) -> Color {
-        Color::new(k * self.r, k * self.g, k * self.b)
-    }
-
-    fn times(&self, c: Color) -> Color {
-        Color::new(self.r * c.r, self.g * c.g, self.b * c.b)
-    }
-
-    fn add(&self, c: Color) -> Color {
-        Color::new(self.r + c.r, self.g + c.g, self.b + c.b)
-    }
-
     fn to_drawing_color(&self) -> RgbColor {
         RgbColor {
             r: (self.r.clamp(0.0, 1.0) * 255.0) as u8,
@@ -117,6 +121,33 @@ impl Color {
             b: (self.b.clamp(0.0, 1.0) * 255.0) as u8,
             a: 255,
         }
+    }
+}
+
+impl ops::Mul<Color> for Color {
+    type Output = Self;
+    fn mul(self, c: Color) -> Self {
+        Self::new(self.r * c.r, self.g * c.g, self.b * c.b)
+    }
+}
+
+impl ops::Mul<f32> for Color {
+    type Output = Self;
+    fn mul(self, k: f32) -> Self {
+        Self::new(k * self.r, k * self.g, k * self.b)
+    }
+}
+
+impl ops::Add<Color> for Color {
+    type Output = Self;
+    fn add(self, c: Color) -> Self {
+        Self::new(self.r + c.r, self.g + c.g, self.b + c.b)
+    }
+}
+
+impl ops::AddAssign<Color> for Color {
+    fn add_assign(&mut self, other: Self) {
+        *self = *self + other;
     }
 }
 
@@ -131,14 +162,14 @@ struct Camera {
 impl Camera {
     fn new(pos: Vector, look_at: Vector) -> Camera {
         let down = Vector::new(0.0, -1.0, 0.0);
-        let forward = look_at.sub(pos).norm();
-        let right = forward.cross(down).norm().scale(1.5);
+        let forward = (look_at - pos).norm();
+        let right = (forward * down).norm() * 1.5;
 
         Camera {
             pos,
             forward,
             right,
-            up: forward.cross(right).norm().scale(1.5),
+            up: (forward * right).norm() * 1.5,
         }
     }
 }
@@ -177,15 +208,14 @@ struct SurfaceProperties {
 
 impl Surface {
     fn get_properties(&self, pos: Vector) -> SurfaceProperties {
-        match *self {
+        match self {
             Surface::CheckerboardSurface => {
-                let mut diffuse = COLOR_BLACK;
-                let mut reflect = 0.7;
+                let (diffuse, reflect) = if (pos.z.floor() + pos.x.floor()) as i32 % 2 != 0 {
+                    (COLOR_WHITE, 0.1)
+                } else {
+                    (COLOR_BLACK, 0.7)
+                };
 
-                if (pos.z.floor() + pos.x.floor()) as i32 % 2 != 0 {
-                    diffuse = COLOR_WHITE;
-                    reflect = 0.1;
-                }
                 SurfaceProperties {
                     diffuse,
                     specular: COLOR_WHITE,
@@ -247,7 +277,7 @@ impl Thing {
 
     fn normal(&self, pos: Vector) -> Vector {
         match self {
-            Thing::Sphere(ref sphere) => pos.sub(sphere.center).norm(),
+            Thing::Sphere(ref sphere) => (pos - sphere.center).norm(),
             Thing::Plane(ref plane) => plane.normal,
         }
     }
@@ -262,7 +292,7 @@ impl Thing {
     fn intersect(&self, ray: &Ray) -> Option<Intersection> {
         match self {
             Thing::Sphere(ref sphere) => {
-                let eo = sphere.center.sub(ray.start);
+                let eo = sphere.center - ray.start;
                 let v = eo.dot(ray.dir);
 
                 if v >= 0.0 {
@@ -362,21 +392,21 @@ impl RayTracerEngine {
 
     fn shade(&self, isect: Intersection, depth: i32) -> Color {
         let d: Vector = isect.ray.dir;
-        let pos: Vector = d.scale(isect.dist).add(isect.ray.start);
+        let pos: Vector = (d * isect.dist) + isect.ray.start;
         let normal: Vector = isect.thing.normal(pos);
-        let reflect_dir: Vector = d.sub(normal.scale(normal.dot(d)).scale(2.0));
+        let reflect_dir: Vector = d - (normal * normal.dot(d) * 2.0);
 
         let surface = isect.thing.surface().get_properties(pos);
 
         let natural_color =
-            COLOR_BACKGROUND.add(self.get_natural_color(&surface, pos, normal, reflect_dir));
+            COLOR_BACKGROUND + self.get_natural_color(&surface, pos, normal, reflect_dir);
         let reflected_color = if depth >= self.max_depth {
             COLOR_GREY
         } else {
             self.get_reflection_color(&surface, pos, reflect_dir, depth)
         };
 
-        natural_color.add(reflected_color)
+        natural_color + reflected_color
     }
 
     fn get_reflection_color(
@@ -390,7 +420,7 @@ impl RayTracerEngine {
             start: pos,
             dir: rd,
         };
-        self.trace_ray(&ray, depth + 1).scale(surface.reflect)
+        self.trace_ray(&ray, depth + 1) * surface.reflect
     }
 
     fn get_natural_color(
@@ -404,7 +434,7 @@ impl RayTracerEngine {
         let rd_norm = rd.norm();
 
         for light in &self.scene.lights {
-            let ldis = light.pos.sub(pos);
+            let ldis = light.pos - pos;
             let livec = ldis.norm();
             let ray = Ray {
                 start: pos,
@@ -417,20 +447,18 @@ impl RayTracerEngine {
                     let specular = livec.dot(rd_norm);
 
                     let lcolor = if illum > 0.0 {
-                        light.color.scale(illum)
+                        light.color * illum
                     } else {
                         COLOR_DEFAULT_COLOR
                     };
 
                     let scolor = if specular > 0.0 {
-                        light.color.scale(specular.powf(surface.roughness))
+                        light.color * specular.powf(surface.roughness)
                     } else {
                         COLOR_DEFAULT_COLOR
                     };
 
-                    result = result
-                        .add(lcolor.times(surface.diffuse))
-                        .add(scolor.times(surface.specular));
+                    result = result + (lcolor * surface.diffuse) + (scolor * surface.specular);
                 }
             }
         }
@@ -447,11 +475,7 @@ impl RayTracerEngine {
     ) -> Vector {
         let rx = (x as f32 - (screen_width as f32 / 2.0)) / 2.0 / screen_width as f32;
         let ry = -(y as f32 - (screen_height as f32 / 2.0)) / 2.0 / screen_height as f32;
-        (camera
-            .forward
-            .add(camera.right.scale(rx))
-            .add(camera.up.scale(ry)))
-        .norm()
+        (camera.forward + (camera.right * rx) + (camera.up * ry)).norm()
     }
 
     pub fn render(&self, image: &mut Image, w: u32, h: u32) {
