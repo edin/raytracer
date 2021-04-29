@@ -13,18 +13,40 @@ namespace Tools
 
         public RGBColor Diff(RGBColor color)
         {
-            RGBColor result;
+            RGBColor result = new RGBColor();
             result.A = 255;
             result.R = (byte)Math.Abs((int)R - (int)color.R);
             result.G = (byte)Math.Abs((int)G - (int)color.G);
             result.B = (byte)Math.Abs((int)B - (int)color.B);
             return result;
         }
+
+        public RGBColor Scale(RGBColor color)
+        {
+            RGBColor result = new RGBColor();
+            result.R = Scale(this.R, color.R);
+            result.G = Scale(this.R, color.R);
+            result.B = Scale(this.R, color.R);
+            result.A = this.A;
+            return result;
+        }
+
+        private static byte Scale(byte value, byte max)
+        {
+            if (max > 0)
+            {
+                float v = (float)value;
+                float m = (float)max;
+                return (byte)( v / m * 255);
+            }
+            return value;
+        }
     }
 
     internal class ImageDiffResult
     {
         public string Message { get; set; }
+        public bool IsSame { get; set; }
         public Image Image { get; set; }
     }
 
@@ -43,6 +65,7 @@ namespace Tools
             }
 
             diffResult.Image = new Image(Width, Height);
+            diffResult.IsSame = true;
 
             RGBColor maxColor = new();
 
@@ -53,12 +76,20 @@ namespace Tools
                 var diff = a.Diff(b);
                 diffResult.Image[pos] = diff;
 
+                if ((diff.R + diff.G + diff.B) > 0)
+                {
+                    diffResult.IsSame = false;
+                }
+
                 maxColor.R = Math.Max(diff.R, maxColor.R);
                 maxColor.G = Math.Max(diff.G, maxColor.G);
                 maxColor.B = Math.Max(diff.B, maxColor.B);
             }
 
-            // TODO: Scale luminance
+            for (int pos = 0; pos < data.Length; pos++)
+            {
+                data[pos] = data[pos].Scale(maxColor);
+            }
 
             return diffResult;
         }
@@ -109,10 +140,11 @@ namespace Tools
             var bfh = GetStruct<BITMAPFILEHEADER>(fh);
             var bih = GetStruct<BITMAPINFOHEADER>(bh);
 
-            byte[] byteData = reader.ReadBytes((int)bih.biSizeImage);
-
             this.Width = Math.Abs(bih.biWidth);
             this.Height = Math.Abs(bih.biHeight);
+
+            byte[] byteData = reader.ReadBytes(Width * Height * 4);
+
             this.data = new RGBColor[(Width * Height)];
 
             for (int y = 0; y < Height; y++)

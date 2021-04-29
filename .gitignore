@@ -29,3 +29,7 @@ __history/
 /crystal/lib
 /rust/target
 /crystal/.shards
+/scala/.metals
+.idea
+.metals
+/scala/target

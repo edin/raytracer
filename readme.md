@@ -10,7 +10,9 @@ Raytracer benchmarks based on [Typescript](http://www.typescriptlang.org) sample
 | C++ (GCC)            | 160 ms    |
 | Fortran              | 160 ms    |
 | C (GCC)              | 160 ms    |
+| Crystal              | 190 ms    |
 | D (LDC)              | 210 ms    |
+| Rust                 | 220 ms    |
 | C (MSVC)             | 250 ms    |
 | C++ (MSVC)           | 250 ms    |
 | VB.NET               | 360 ms    |
@@ -18,15 +20,16 @@ Raytracer benchmarks based on [Typescript](http://www.typescriptlang.org) sample
 | Delphi XE6           | 390 ms    |
 | Odin                 | 450 ms    |
 | Go                   | 460 ms    |
-| Odin                 | 500 ms    |
 | D (DMD)              | 500 ms    |
 | Java 8-14            | 600 ms    |
 | Delphi 2010 (32 bit) | 720 ms    |
 | Node 15 (JS)         | 734 ms    |
+| Scala                | 820 ms    |
 | Julia                | 900 ms    |
 | Node 15 (TS)         | 1100 ms   |
 | F#                   | 1800 ms   |
 | Node 8               | 1800 ms   |
+| PHP (PHP 8.0)        | 7450 ms   |
 | HHVM                 | 11000 ms  |
 | PHP (PHP 7.4)        | 24500 ms  |
 | PHP (PHP 7.3)        | 23500 ms  |
@@ -40,9 +43,7 @@ Raytracer benchmarks based on [Typescript](http://www.typescriptlang.org) sample
 | V                    | ? ms      |
 | Swift                | ? ms      |
 | Haskel               | ? ms      |
-| Rust                 | ? ms      |
 | Swift                | ? ms      |
-| Scala                | ? ms      |
 | Ada                  | ? ms      |
 
 ## Lines of code

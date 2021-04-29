@@ -108,9 +108,9 @@ class Color {
 
     private static byte legalize(double c) {
         int x = (int) (c * 255);
-        if (x < 0){
+        if (x < 0) {
             x = 0;
-        } else if (x > 255){
+        } else if (x > 255) {
             x = 255;
         }
         return (byte) x;
@@ -433,19 +433,11 @@ class BITMAPINFOHEADER {
     public int biClrImportant;
 
     public byte[] getBytes() {
-        return Encoding.Join(
-            Encoding.DWORD(this.biSize),
-            Encoding.LONG(this.biWidth),
-            Encoding.LONG(this.biHeight),
-            Encoding.WORD(this.biPlanes),
-            Encoding.WORD(this.biBitCount),
-            Encoding.DWORD(this.biCompression),
-            Encoding.DWORD(this.biSizeImage),
-            Encoding.LONG(this.biXPelsPerMeter),
-            Encoding.LONG(this.biYPelsPerMeter),
-            Encoding.DWORD(this.biClrUsed),
-            Encoding.DWORD(this.biClrImportant)
-        );
+        return Encoding.Join(Encoding.DWORD(this.biSize), Encoding.LONG(this.biWidth), Encoding.LONG(this.biHeight),
+                Encoding.WORD(this.biPlanes), Encoding.WORD(this.biBitCount), Encoding.DWORD(this.biCompression),
+                Encoding.DWORD(this.biSizeImage), Encoding.LONG(this.biXPelsPerMeter),
+                Encoding.LONG(this.biYPelsPerMeter), Encoding.DWORD(this.biClrUsed),
+                Encoding.DWORD(this.biClrImportant));
     }
 }
 
@@ -456,12 +448,8 @@ class BITMAPFILEHEADER {
     public int bfOffBits;
 
     public byte[] getBytes() {
-        return Encoding.Join(
-            Encoding.WORD(this.bfType),
-            Encoding.DWORD(this.bfSize),
-            Encoding.DWORD(this.bfReserved),
-            Encoding.DWORD(this.bfOffBits)
-        );
+        return Encoding.Join(Encoding.WORD(this.bfType), Encoding.DWORD(this.bfSize), Encoding.DWORD(this.bfReserved),
+                Encoding.DWORD(this.bfOffBits));
     }
 }
 

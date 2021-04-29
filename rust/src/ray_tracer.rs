@@ -34,13 +34,13 @@ impl Vector {
 
     fn mag(&self) -> f32 {
         let value = self.x * self.x + self.y * self.y + self.z * self.z;
-        return value.sqrt();
+        value.sqrt()
     }
 
     fn norm(&self) -> Vector {
         let mag = self.mag();
-        let div = if mag == 0.0 { 1000000.0 } else { 1.0 / mag };
-        return self.scale(div);
+        let div = if mag == 0.0 { FAR_AWAY } else { 1.0 / mag };
+        self.scale(div)
     }
 
     fn cross(&self, v: Vector) -> Vector {
@@ -112,22 +112,11 @@ impl Color {
 
     fn to_drawing_color(&self) -> RgbColor {
         RgbColor {
-            r: Color::clamp(self.r),
-            g: Color::clamp(self.g),
-            b: Color::clamp(self.b),
-            a: 255,
+            r: (self.r.clamp(0.0, 1.0)*255.0) as u8, 
+            g: (self.g.clamp(0.0, 1.0)*255.0) as u8,
+            b: (self.b.clamp(0.0, 1.0)*255.0) as u8,
+            a: 255
         }
-    }
-
-    fn clamp(c: f32) -> u8 {
-        let mut x = (c * 255.0) as i32;
-        if x < 0 {
-            x = 0
-        }
-        if x > 255 {
-            x = 255
-        }
-        return x as u8;
     }
 }
 
@@ -155,17 +144,10 @@ impl Camera {
 }
 
 #[derive(Debug, Copy, Clone)]
-struct Ray {
-    start: Vector,
-    dir: Vector,
-}
+struct Ray { start: Vector, dir: Vector }
 
 #[derive(Debug, Copy, Clone)]
-struct Intersection {
-    thing: Thing,
-    ray: Ray,
-    dist: f32,
-}
+struct Intersection { thing: Thing, ray: Ray, dist: f32 }
 
 impl Intersection {
     fn new(thing: Thing, ray: Ray, dist: f32) -> Intersection {
@@ -221,18 +203,10 @@ impl Surface {
 }
 
 #[derive(Debug, Copy, Clone)]
-struct SphereInfo {
-    surface: Surface,
-    radius2: f32,
-    center: Vector,
-}
+struct SphereInfo { surface: Surface, radius2: f32, center: Vector }
 
 #[derive(Debug, Copy, Clone)]
-struct PlaneInfo {
-    surface: Surface,
-    offset: f32,
-    normal: Vector,
-}
+struct PlaneInfo  { surface: Surface, offset: f32, normal: Vector }
 
 #[derive(Debug, Copy, Clone)]
 enum Thing {
@@ -266,21 +240,19 @@ impl Thing {
         match self {
             Thing::Sphere(ref sphere) => pos.sub(sphere.center).norm(),
             Thing::Plane(ref plane) => plane.normal,
-        }
-    }
+    }   }
 
     fn surface(&self) -> Surface {
         match self {
             Thing::Sphere(ref sphere) => sphere.surface,
             Thing::Plane(ref plane) => plane.surface,
-        }
-    }
+    }    }
 
     fn intersect(&self, ray: &Ray) -> Option<Intersection> {
         match self {
             Thing::Sphere(ref sphere) => {
                 let eo = sphere.center.sub(ray.start);
-                let v = eo.dot(ray.dir);
+                let v  = eo.dot(ray.dir);
 
                 if v >= 0.0 {
                     let disc = sphere.radius2 - ((eo.dot(eo)) - (v * v));
@@ -289,25 +261,18 @@ impl Thing {
                         return Some(Intersection::new(*self, *ray, dist));
                     }
                 }
-                return None;
+                None
             }
+          
             Thing::Plane(ref plane) => {
                 let denom = plane.normal.dot(ray.dir);
-                if denom > 0.0 {
-                    return None;
-                }
+                if denom > 0.0 { return None; }
                 let dist = (plane.normal.dot(ray.start) + plane.offset) / (-denom);
-                return Some(Intersection::new(*self, *ray, dist));
-            }
-        }
-    }
+                Some(Intersection::new(*self, *ray, dist))
+    }   }   }
 }
 
-struct Scene {
-    things: Vec<Thing>,
-    lights: Vec<Light>,
-    camera: Camera,
-}
+struct Scene { things: Vec<Thing>, lights: Vec<Light>, camera: Camera }
 
 impl Scene {
     fn new() -> Scene {
@@ -348,6 +313,7 @@ struct RayTracerEngine {
     max_depth: i32,
     scene: Scene,
 }
+
 
 impl RayTracerEngine {
     fn intersections(&self, ray: &Ray) -> Option<Intersection> {
@@ -401,7 +367,7 @@ impl RayTracerEngine {
             self.get_reflection_color(&surface, pos, reflect_dir, depth)
         };
 
-        return natural_color.add(reflected_color);
+        natural_color.add(reflected_color)
     }
 
     fn get_reflection_color(
@@ -417,7 +383,7 @@ impl RayTracerEngine {
         };
         let color = self.trace_ray(&ray, depth + 1);
         let factor = surface.reflect;
-        return color.scale(factor);
+        color.scale(factor)
     }
 
     fn get_natural_color(
@@ -536,24 +502,39 @@ fn main() {
     let width: u32 = 500;
     let height: u32 = 500;
 
-    let engine = RayTracerEngine {
-        max_depth: 5,
-        scene: Scene::new(),
-    };
-
     let mut image = Image::new(width, height);
 
-    let now = Instant::now();
+    let n = 100;
 
     if is_parallel {
         println!("Parallel!");
-        engine.parallel_render(&mut image, width, height);
+        let now = Instant::now();
+      
+        for _ in 0 .. n {
+            let engine = RayTracerEngine {
+                max_depth: 5,
+                scene: Scene::new(),
+            };
+            engine.parallel_render(&mut image, width, height);
+        }
+        
+      
     } else {
         println!("Not parallel!");
-        engine.render(&mut image, width, height);
+        let now = Instant::now();
+      
+        for _ in 0 .. n {
+            let engine = RayTracerEngine {
+                max_depth: 5,
+                scene: Scene::new(),
+            };
+            engine.render(&mut image, width, height);
+        }
     }
+  
+    let t = now.elapsed().as_millis();
 
-    println!("Renderd in: {} ms", now.elapsed().as_millis());
+    println!("total time for {:?} iterations = {:?} ms, avg time = {:?} ms", n, t, t/n); 
 
     image.save("RayTracer.bmp");
 }
