@@ -228,8 +228,7 @@ function GetSurfaceProperties(s::Surface, pos::Vector)::SurfaceProperties
     if s == Shiny
         return SurfaceProperties(White, Grey, 0.7, 250.0)
     else
-        xz = floor(pos.x) + floor(pos.z)
-        condition = mod(xz, 2) != 0
+        condition = Int32(floor(pos.x) + floor(pos.z)) & 1 != 0
         color = condition ? White : Black
         reflect = condition ? 0.1 : 0.7
         SurfaceProperties(color, White, reflect, 250.0)

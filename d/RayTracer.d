@@ -249,13 +249,10 @@ class CheckerboardSurface : Surface
 {
     public override SurfaceProperties getSurfaceProperties(ref Vector pos)
     {
-        Color diffuse = Color.black;
-        double reflect = 0.7;
-        if (to!int(floor(pos.z) + floor(pos.x)) % 2 != 0)
-        {
-            diffuse = Color.white;
-            reflect = 0.1;
-        }
+        bool condition = (to!int(floor(pos.z) + floor(pos.x)) & 1) != 0;
+        Color diffuse  = condition ? Color.white : Color.black;
+        double reflect = condition ? 0.1 : 0.7;
+
         return SurfaceProperties(diffuse, Color.white, reflect, 150.0);
     }
 }
