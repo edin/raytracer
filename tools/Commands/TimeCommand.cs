@@ -1,9 +1,9 @@
-﻿using Tools.Application;
-using Tools.Models;
+﻿using System;
 using System.Diagnostics;
 using System.IO;
-using System;
 using System.Linq;
+using Tools.Application;
+using Tools.Models;
 
 namespace Tools.Commands
 {
@@ -17,49 +17,67 @@ namespace Tools.Commands
             this.baseDirectory = Directory.GetCurrentDirectory();
             var document = ProjectDocument.Load();
 
-            foreach (var project in document.Projects)
-            {
-                Console.WriteLine(" {0}", project.Path);
-            }
+            //foreach (var project in document.Projects)
+            //{
+            //    Console.WriteLine(" {0}", project.Path);
+            //}
 
-            var selectedProject = document.Projects.Where(p => string.Compare(p.Path, name, true) == 0).FirstOrDefault();
+            Project selectedProject = document.Projects.FirstOrDefault(p => string.Compare(p.Path, name, true) == 0);
 
             if (selectedProject != null)
             {
-                Run(selectedProject);
+                var command = selectedProject.Commands.FirstOrDefault(x => string.Compare(x.Name, "default", true) == 0);
+
+                if (command != null)
+                {
+                    BuildAndRun(selectedProject, command);
+                }
             }
         }
 
-        private void Run(string path)
+        private void BuildAndRun(Project project, Command command)
         {
-            Directory.SetCurrentDirectory(path);
+            Directory.SetCurrentDirectory(Path.Join(baseDirectory, project.Path));
 
-            var watch = Stopwatch.StartNew();
-            var process = Process.Start("php", "RayTracer.php");
+            Build(command.Build);
+            Run(command.Run);
+        }
 
-            long peakPagedMem = 0;
-            long peakVirtualMem = 0;
-            long peakWorkingSet = 0;
-
-            do
+        private void Build(Build command)
+        {
+            if (command != null && !string.IsNullOrWhiteSpace(command.Process))
             {
-                if (!process.HasExited)
-                {
-                    process.Refresh();
-
-                    peakPagedMem = Math.Max(peakPagedMem, process.PeakPagedMemorySize64);
-                    peakVirtualMem = Math.Max(peakVirtualMem, process.PeakVirtualMemorySize64);
-                    peakWorkingSet = Math.Max(peakWorkingSet, process.PeakWorkingSet64);
-                }
+                var process = Process.Start(command.Process, command.Arguments);
+                process.WaitForExit();
             }
-            while (!process.WaitForExit(1000));
+        }
 
-            watch.Stop();
-            var elapsedMs = watch.ElapsedMilliseconds;
-            var peekMemory = Math.Round(peakWorkingSet / 1000.0 / 1000.0, 2);
+        private void Run(Run command)
+        {
+            var watch = Stopwatch.StartNew();
+            long peakPagedMem = 0;
+            int n = 5;
 
+            for (int i = 0; i < n; i++)
+            {
+                watch.Start();
+                var process = Process.Start(command.Process, command.Arguments);
+                do
+                {
+                    if (!process.HasExited)
+                    {
+                        process.Refresh();
+                        peakPagedMem = Math.Max(peakPagedMem, process.PeakPagedMemorySize64);
+                    }
+                }
+                while (!process.WaitForExit(1000));
+                watch.Stop();
+            }
+
+            var elapsedMs = (int)(watch.ElapsedMilliseconds / n);
+            var peekMemory = Math.Round(peakPagedMem / 1000.0 / 1000.0, 2);
             Console.WriteLine("---");
-            Console.WriteLine($"Elapsed time: {elapsedMs} ms, Max memory used: {peekMemory} MB");
+            Console.WriteLine($"Completed in: {elapsedMs} ms, Max memory used: {peekMemory} MB");
         }
     }
 }
