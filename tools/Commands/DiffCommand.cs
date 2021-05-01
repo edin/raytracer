@@ -65,7 +65,9 @@ namespace Tools.Commands
                 imageDiff.SaveAsBmp("diff.bmp");
                 long totalPixels = a.Width * b.Width;
                 Console.WriteLine($"Changes detected: {changeCount} out of {totalPixels} does not match");
-            } else
+                Console.WriteLine("Diff stored to 'diff.bmp' file");
+            } 
+            else
             {
                 Console.WriteLine("Images are the same");
             }
