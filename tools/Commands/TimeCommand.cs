@@ -64,11 +64,13 @@ namespace Tools.Commands
                 var process = Process.Start(command.Process, command.Arguments);
                 do
                 {
+                    watch.Stop();
                     if (!process.HasExited)
                     {
                         process.Refresh();
                         peakPagedMem = Math.Max(peakPagedMem, process.PeakPagedMemorySize64);
                     }
+                    watch.Start();
                 }
                 while (!process.WaitForExit(1000));
                 watch.Stop();
