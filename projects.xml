@@ -1,11 +1,10 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <Projects>
     <!--
-        Defaualt command should be single-threaded
+        Defaualt command should be single-threaded - it's only option for now
     -->
     <Project Path="php" Language="PHP">
         <Command Name="Default">
-            <Build Process=""  Arguments="" />
             <Run Process="php" Arguments="RayTracer.php" />
         </Command>
     </Project>
