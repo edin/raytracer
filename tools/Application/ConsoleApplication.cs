@@ -39,6 +39,7 @@ namespace Tools.Application
                 }
 
                 var allCommands = new List<MethodInfo>();
+
                 foreach (var commandSet in commands)
                 {
                     var commands = GetCommands(commandSet);
@@ -49,14 +50,19 @@ namespace Tools.Application
             }
             catch (Exception ex)
             {
+                
                 Console.WriteLine("Error:");
-                if (ex.InnerException != null)
+                var exception = ex;
+                while (exception != null)
                 {
-                    Console.WriteLine(ex.InnerException.Message);
-                }
-                else
-                {
-                    Console.WriteLine(ex.Message);
+                    Console.WriteLine("Exception: {0}", exception.Message);
+                    if (ex.StackTrace != null)
+                    {
+                        Console.WriteLine(exception.StackTrace);
+                    }
+
+                    exception = exception.InnerException;
+                    Console.WriteLine("---");
                 }
             }
         }

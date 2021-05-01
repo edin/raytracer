@@ -9,6 +9,7 @@ namespace Tools
         {
             var application = new ConsoleApplication(args);
             application.AddCommand(new DiffCommand());
+            application.AddCommand(new TimeCommand());
             application.Run();
         }
     }

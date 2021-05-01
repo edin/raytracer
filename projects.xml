@@ -1,0 +1,41 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<Projects>
+    <!--
+        Defaualt command should be single-threaded
+    -->
+    <Project Path="php" Language="PHP">
+        <Command Name="Default">
+            <Build Process=""  Arguments="" />
+            <Run Process="php" Arguments="RayTracer.php" />
+        </Command>
+    </Project>
+
+    <Project Path="c" Language="C">
+        <Command Name="Default">
+            <Build Process="g++"  Arguments="RayTracer.c -x c -O3 -o RayTracer.exe" />
+            <Run   Process="RayTracer.exe"/>
+        </Command>
+    </Project>
+
+    <Project Path="c++" Language="C++">
+        <Command Name="Default">
+            <Build Process="g++"  Arguments="RayTracer.cpp -O2 -std=c++17 -s -o RayTracer.exe" />
+            <Run   Process="RayTracer.exe"/>
+        </Command>
+    </Project>
+
+    <Project Path="crystal" Language="Crystal">
+        <Command Name="Default">
+            <Build Process="crystal"  Arguments="build RayTracer.cr -o RayTracer.exe --release" />
+            <Run   Process="RayTracer.exe"/>
+        </Command>
+    </Project>    
+
+    <Project Path="csharp" Language="C#">
+        <Command Name="Default">
+            <Build Process="dotnet"  Arguments="build" />
+            <Run   Process="RayTracer.exe"/>
+        </Command>
+    </Project>     
+</Projects>
+
