@@ -1,6 +1,6 @@
 ﻿using System;
 
-namespace Tools
+namespace Tools.Application
 {
     internal class CommandAttribute : Attribute
     {
