@@ -55,11 +55,12 @@ namespace Tools.Commands
         private void Run(Run command)
         {
             var watch = Stopwatch.StartNew();
-            long peakPagedMem = 0;
+            long totalMemory = 0;
             int n = 5;
 
             for (int i = 0; i < n; i++)
             {
+                long peakPagedMem = 0;
                 watch.Start();
                 var process = Process.Start(command.Process, command.Arguments);
                 do
@@ -74,12 +75,21 @@ namespace Tools.Commands
                 }
                 while (!process.WaitForExit(1000));
                 watch.Stop();
+
+                totalMemory += peakPagedMem;
             }
 
             var elapsedMs = (int)(watch.ElapsedMilliseconds / n);
-            var peekMemory = Math.Round(peakPagedMem / 1000.0 / 1000.0, 2);
+            var peekMemory = Math.Round(totalMemory / n / 1000.0 / 1000.0, 2);
+
+            
+            Console.ForegroundColor = ConsoleColor.Gray;
             Console.WriteLine("---");
+            Console.ResetColor();
+
+            Console.ForegroundColor = ConsoleColor.DarkGreen;
             Console.WriteLine($"Completed in: {elapsedMs} ms, Max memory used: {peekMemory} MB");
+            Console.ResetColor();
         }
     }
 }

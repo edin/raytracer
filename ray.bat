@@ -1,1 +1,1 @@
-".\tools\bin\Debug\net5.0\Tools.exe" %*
+@".\tools\bin\Debug\net5.0\Tools.exe" %*
