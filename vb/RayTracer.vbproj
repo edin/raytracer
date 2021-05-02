@@ -2,8 +2,8 @@
 
   <PropertyGroup>
     <OutputType>Exe</OutputType>
-    <RootNamespace>VBRayTracer</RootNamespace>
-    <TargetFramework>netcoreapp3.1</TargetFramework>
+    <RootNamespace>RayTracer</RootNamespace>
+    <TargetFramework>net5.0</TargetFramework>
     <OptionStrict>On</OptionStrict>
   </PropertyGroup>
 

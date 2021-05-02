@@ -5,15 +5,14 @@ Module RayTracer
 
     Sub Main()
         Dim sw As New Stopwatch()
-        Console.WriteLine("VB.Net RayTracer Test")
         sw.Start()
         Dim image As New Image(500, 500)
         Dim scene As New Scene()
         Dim rayTracer As New RayTracerEngine()
         rayTracer.Render(scene, image)
         sw.Stop()
-        image.Save("vb-ray.png")
-        Console.WriteLine("Total time: " + sw.ElapsedMilliseconds.ToString() + " ms")
+        image.Save("vb-ray.bmp")
+        Console.WriteLine("Completed in: " + sw.ElapsedMilliseconds.ToString() + " ms")
     End Sub
 
 End Module

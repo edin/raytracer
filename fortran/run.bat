@@ -1,2 +1,2 @@
-gfortran.exe main.f95 -O3 -o FRay.exe
-FRay.exe
+gfortran.exe main.f95 -O3 -o RayTracer.exe
+RayTracer.exe

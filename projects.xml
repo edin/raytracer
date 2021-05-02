@@ -9,6 +9,70 @@
         </Command>
     </Project>
 
+    <Project Path="ruby" Language="Ruby">
+        <Command Name="Default">
+            <Run Process="ruby" Arguments="RayTracer.rb" />
+        </Command>
+    </Project>
+
+    <Project Path="python" Language="Python">
+        <Command Name="Default">
+            <Run Process="python" Arguments="RayTracer.py" />
+        </Command>
+    </Project>
+
+    <Project Path="java" Language="Java">
+        <Command Name="Default">
+            <Build Process="javac"  Arguments="-d bin   RayTracer.java" />
+            <Run Process="java" Arguments="-cp .\bin RayTracer" />
+        </Command>
+    </Project>
+
+    <Project Path="julia" Language="Julia">
+        <Command Name="Default">
+            <Run Process="julia" Arguments="RayTracer.jl" />
+        </Command>
+    </Project>
+
+    <Project Path="javascript" Language="JavaScript">
+        <Command Name="Default">
+            <Run Process="node" Arguments="RayTracer.js" />
+        </Command>
+    </Project>
+
+    <Project Path="typescript" Language="TypeScript">
+        <Command Name="Default">
+            <Run Process="ts-node" Arguments="RayTracer.ts" />
+        </Command>
+    </Project>
+
+    <Project Path="scala" Language="Scala">
+        <Command Name="Default">
+            <Build   Process="go" Arguments="build -o RayTracer.exe"/>
+            <Run Process="RayTracer.exe"/>
+        </Command>
+    </Project>
+
+    <Project Path="scala" Language="Scala">
+        <Command Name="Default">
+            <Run Process="scala" Arguments=".\RayTracer.scala" />
+        </Command>
+    </Project>
+
+    <Project Path="vb" Language="Visual Basic">
+        <Command Name="Default">
+            <Build   Process="dotnet build" Arguments="--configuration Release"/>
+            <Run   Process=".\bin\Release\net5.0\RayTracer.exe"/>
+        </Command>
+    </Project>
+
+    <Project Path="fsharp" Language="F#">
+        <Command Name="Default">
+            <Build   Process="dotnet build" Arguments="--configuration Release"/>
+            <Run   Process=".\bin\Release\net5.0\RayTracer.exe"/>
+        </Command>
+    </Project>
+
     <Project Path="c" Language="C">
         <Command Name="Default">
             <Build Process="g++"  Arguments="RayTracer.c -x c -O3 -o RayTracer.exe" />
@@ -35,6 +99,19 @@
             <Build Process="dotnet"  Arguments="build" />
             <Run   Process="RayTracer.exe"/>
         </Command>
-    </Project>     
-</Projects>
+    </Project>  
 
+    <Project Path="fortran" Language="Fortran">
+        <Command Name="Default">
+            <Build Process="gfortran"  Arguments="main.f95 -O3 -o RayTracer.exe" />
+            <Run   Process="RayTracer.exe"/>
+        </Command>
+    </Project>        
+
+    <Project Path="rust" Language="Rust">
+        <Command Name="Default">
+            <Build Process="cargo"  Arguments="build --release" />
+            <Run   Process=".\target\release\ray_tracer.exe"/>
+        </Command>
+    </Project>  
+</Projects>
