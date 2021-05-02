@@ -441,25 +441,29 @@ impl RayTracerEngine {
                 dir: livec,
             };
 
-            if let Some(value) = self.test_ray(&ray) {
-                if value <= ldis.mag() {
-                    let illum = livec.dot(norm);
-                    let specular = livec.dot(rd_norm);
+            let is_in_shadow = if let Some(value) = self.test_ray(&ray) {
+                value <= ldis.mag()
+            } else {
+                false
+            };
 
-                    let lcolor = if illum > 0.0 {
-                        light.color * illum
-                    } else {
-                        COLOR_DEFAULT_COLOR
-                    };
+            if !is_in_shadow {
+                let illum = livec.dot(norm);
+                let specular = livec.dot(rd_norm);
 
-                    let scolor = if specular > 0.0 {
-                        light.color * specular.powf(surface.roughness)
-                    } else {
-                        COLOR_DEFAULT_COLOR
-                    };
+                let lcolor = if illum > 0.0 {
+                    light.color * illum
+                } else {
+                    COLOR_DEFAULT_COLOR
+                };
 
-                    result = result + (lcolor * surface.diffuse) + (scolor * surface.specular);
-                }
+                let scolor = if specular > 0.0 {
+                    light.color * specular.powf(surface.roughness)
+                } else {
+                    COLOR_DEFAULT_COLOR
+                };
+
+                result += (lcolor * surface.diffuse) + (scolor * surface.specular);
             }
         }
         result
@@ -494,24 +498,17 @@ impl RayTracerEngine {
     }
 
     pub fn parallel_render(&self, image: &mut Image, w: u32, h: u32) {
-        let mut vec: Vec<(u32, u32)> = Vec::with_capacity((w * h) as usize);
-        for i in 0..h {
-            for j in 0..w {
-                vec.push((i, j));
-            }
-        }
-
-        let data: Vec<(u32, u32, Pixel)> = vec
-            .par_iter()
+        let data: Vec<(u32, u32, Pixel)> = (0..(h * w))
+            .into_par_iter()
+            .map(|v| (v / w, v % w))
             .map(|(y, x)| {
-                let dir = self.get_point(*x, *y, self.scene.camera, h, w);
                 let ray = Ray {
                     start: self.scene.camera.pos,
-                    dir,
+                    dir: self.get_point(x, y, self.scene.camera, h, w),
                 };
                 let color = self.trace_ray(&ray, 0).to_drawing_color();
 
-                (*y, *x, Pixel::new(color.r, color.g, color.b))
+                (y, x, Pixel::new(color.r, color.g, color.b))
             })
             .collect();
 

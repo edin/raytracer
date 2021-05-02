@@ -33,3 +33,4 @@ __history/
 .idea
 .metals
 /scala/target
+__pycache__/
