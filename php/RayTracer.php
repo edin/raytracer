@@ -26,7 +26,7 @@ class RayTracer
         $rayTracer->render($scene, $image, $w, $h);
         $t2 = microtime(true);
 
-        $image->save("php-ray-tracer.bmp");
+        $image->save("php-raytracer.bmp");
         $t = (int)(($t2 - $t1) * 1000);
 
         echo "Completed in $t ms\n";
