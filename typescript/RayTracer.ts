@@ -410,6 +410,6 @@ class BitmapImage {
     let rayTracer = new RayTracer();
     rayTracer.render(defaultScene(), image);
     image.saveSync("typescript-ray.bmp")
-    const time = performance.now() - start;      
+    const time = Math.round(performance.now() - start);      
     console.log(`Completed in ${time} ms`)
 })();

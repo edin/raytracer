@@ -529,7 +529,6 @@ fn main() {
 
     let mut image = Image::new(width, height);
 
-    let n = 100;
     let engine = RayTracerEngine {
         max_depth: 5,
         scene: Scene::new(),
@@ -538,26 +537,16 @@ fn main() {
     let now = Instant::now();
 
     if is_parallel {
-        println!("Parallel!");
-
-        for _ in 0..n {
-            engine.parallel_render(&mut image, width, height);
-        }
+        engine.parallel_render(&mut image, width, height);
     } else {
-        println!("Not parallel!");
-
-        for _ in 0..n {
-            engine.render(&mut image, width, height);
-        }
+        engine.render(&mut image, width, height);
     }
 
     let t = now.elapsed().as_millis();
+    let version = if is_parallel { "[Paralel]" } else { "" };
 
     println!(
-        "total time for {:?} iterations = {:?} ms, avg time = {:?} ms",
-        n,
-        t,
-        t / n
+        "Completed in {:?} ms {}", t, version
     );
 
     image.save("RayTracer.bmp");

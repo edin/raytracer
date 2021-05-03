@@ -42,7 +42,7 @@
 
     <Project Path="typescript" Language="TypeScript">
         <Command Name="Default">
-            <Run Process="ts-node" Arguments="RayTracer.ts" />
+            <Run Process="cmd" Arguments="/c ts-node RayTracer.ts" />
         </Command>
     </Project>
 
