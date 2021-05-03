@@ -293,4 +293,4 @@ rayTracer.render(scene, image, width, height)
 t2 = (Time.now - t1) * 1000
 
 puts "Completed in #{t2} ms"
-image.save("ruby-raytracer-opt.bmp", :bmp)
+image.save("ruby-raytracer.bmp", :bmp)

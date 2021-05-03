@@ -6,6 +6,7 @@ import std.math;
 import std.conv;
 import std.algorithm.comparison;
 import std.algorithm;
+import std.datetime.stopwatch : StopWatch;
 
 struct RGBColor
 {
@@ -473,7 +474,6 @@ class Image
 
 void main(string[] argv)
 {
-    writeln("Starting");
     StopWatch sw;
     sw.start();
     Image image = new Image(500, 500);
@@ -481,6 +481,6 @@ void main(string[] argv)
     RayTracerEngine rayTracer = new RayTracerEngine();
     rayTracer.render(scene, image);
     sw.stop();
-    writeln("Completed in: ", sw.peek.msecs, " [ms]");
+    writeln("Completed in: ", sw.peek.total!"msecs", " ms");
     image.save("d-raytracer.bmp");
 }

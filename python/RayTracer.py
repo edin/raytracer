@@ -290,4 +290,4 @@ if __name__ == "__main__":
     t = (t2 -t1)*1000
 
     image.save("py-ray-tracer.png","png")
-    print ("Completed in {:.4f} msec".format(t))
+    print ("Completed in {:.4f} ms".format(t))

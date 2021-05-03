@@ -48,20 +48,14 @@
 
     <Project Path="scala" Language="Scala">
         <Command Name="Default">
-            <Build   Process="go" Arguments="build -o RayTracer.exe"/>
-            <Run Process="RayTracer.exe"/>
-        </Command>
-    </Project>
-
-    <Project Path="scala" Language="Scala">
-        <Command Name="Default">
-            <Run Process="scala" Arguments=".\RayTracer.scala" />
+            <!-- TODO: Update to be cross platform, separate compile and run steps -->
+            <Run Process="cmd" Arguments="/c scala .\RayTracer.scala" />
         </Command>
     </Project>
 
     <Project Path="vb" Language="Visual Basic">
         <Command Name="Default">
-            <Build   Process="dotnet" Arguments="build --configuration Release"/>
+            <Build Process="dotnet" Arguments="build --configuration Release"/>
             <Run   Process=".\bin\Release\net5.0\RayTracer.exe"/>
         </Command>
     </Project>
@@ -76,6 +70,13 @@
     <Project Path="c" Language="C">
         <Command Name="Default">
             <Build Process="g++"  Arguments="RayTracer.c -x c -O3 -o RayTracer.exe" />
+            <Run   Process="RayTracer.exe"/>
+        </Command>
+    </Project>
+
+    <Project Path="d" Language="D">
+        <Command Name="Default">
+            <Build Process="dmd"  Arguments="RayTracer.d -m64 -O -inline -release -noboundscheck" />
             <Run   Process="RayTracer.exe"/>
         </Command>
     </Project>
@@ -120,5 +121,12 @@
             <Build Process="cargo"  Arguments="build --release" />
             <Run   Process=".\target\release\ray_tracer.exe"/>
         </Command>
-    </Project>  
+    </Project> 
+
+    <Project Path="go" Language="Go">
+        <Command Name="Default">
+            <Build Process="go"  Arguments="build -ldflags &quot;-s -w&quot; -o RayTracer.exe" />
+            <Run   Process="RayTracer.exe"/>
+        </Command>
+    </Project>   
 </Projects>
