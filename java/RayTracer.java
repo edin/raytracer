@@ -14,7 +14,7 @@ public class RayTracer {
         tracer.render(scene, image);
         long t = System.nanoTime() - start;
 
-        image.save("jRay.bmp");
+        image.save("java-ray.bmp");
         System.out.println("Rendered in: " + TimeUnit.NANOSECONDS.toMillis(t) + " ms");
     }
 }

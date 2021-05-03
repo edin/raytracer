@@ -297,5 +297,5 @@ let main argv =
     renderr.Render(image)
     sw.Stop()
     let _ = SaveImage("fs-raytracer.bmp", image)
-    printfn "Total time %d ms" sw.ElapsedMilliseconds
+    printfn "Completed in %d ms" sw.ElapsedMilliseconds
     0

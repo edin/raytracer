@@ -61,14 +61,14 @@
 
     <Project Path="vb" Language="Visual Basic">
         <Command Name="Default">
-            <Build   Process="dotnet build" Arguments="--configuration Release"/>
+            <Build   Process="dotnet" Arguments="build --configuration Release"/>
             <Run   Process=".\bin\Release\net5.0\RayTracer.exe"/>
         </Command>
     </Project>
 
     <Project Path="fsharp" Language="F#">
         <Command Name="Default">
-            <Build   Process="dotnet build" Arguments="--configuration Release"/>
+            <Build Process="dotnet"  Arguments="build --configuration Release" />
             <Run   Process=".\bin\Release\net5.0\RayTracer.exe"/>
         </Command>
     </Project>
@@ -76,6 +76,13 @@
     <Project Path="c" Language="C">
         <Command Name="Default">
             <Build Process="g++"  Arguments="RayTracer.c -x c -O3 -o RayTracer.exe" />
+            <Run   Process="RayTracer.exe"/>
+        </Command>
+    </Project>
+
+    <Project Path="nim" Language="Nim">
+        <Command Name="Default">
+            <Build Process="nim"  Arguments="c -d:danger -d:lto -d:intpow --passC:&quot;-march=native&quot; -r RayTracer.nim" />
             <Run   Process="RayTracer.exe"/>
         </Command>
     </Project>
@@ -96,8 +103,8 @@
 
     <Project Path="csharp" Language="C#">
         <Command Name="Default">
-            <Build Process="dotnet"  Arguments="build" />
-            <Run   Process="RayTracer.exe"/>
+            <Build Process="dotnet"  Arguments="build --configuration Release" />
+            <Run   Process=".\bin\Release\net5.0\RayTracer.exe"/>
         </Command>
     </Project>  
 
