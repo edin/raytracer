@@ -3,14 +3,50 @@ using Tools.Application;
 using SixLabors.ImageSharp;
 using SixLabors.ImageSharp.PixelFormats;
 using Tools.Extensions;
+using System.IO;
+using System.Linq;
 
 namespace Tools.Commands
 {
     public class DiffCommand
     {
+        private string FindImage(string path)
+        {
+            if (File.Exists(path))
+            {
+                return path;
+            }
+            if (Directory.Exists(path))
+            {
+                var patterns = new string[] { "*.bmp", "*.png" };
+                return patterns.SelectMany(p => Directory.GetFiles(path, p, SearchOption.AllDirectories)).FirstOrDefault();
+            }
+            return "";
+        }
+
+
         [Command]
         public void ImageDiff(string source, string target)
         {
+            source = FindImage(source);
+            target = FindImage(target);
+
+            if (!File.Exists(source))
+            {
+                Console.WriteLine("Source image is missing");
+                return;
+            }
+
+            if (!File.Exists(target))
+            {
+                Console.WriteLine("Target image is missing");
+                return;
+            }
+
+            Console.WriteLine($"Source: {source}");
+            Console.WriteLine($"Target: {target}");
+            Console.WriteLine("");
+
             var a = Image.Load<Rgba32>(source);
             var b = Image.Load<Rgba32>(target);
 
@@ -64,8 +100,11 @@ namespace Tools.Commands
             {
                 imageDiff.SaveAsBmp("diff.bmp");
                 long totalPixels = a.Width * b.Width;
-                Console.WriteLine($"Changes detected: {changeCount} out of {totalPixels} does not match");
+                Console.WriteLine($"Changes detected: {changeCount} out of {totalPixels} does not match\n");
+
+                Console.ForegroundColor = ConsoleColor.DarkBlue;
                 Console.WriteLine("Diff stored to 'diff.bmp' file");
+                Console.ResetColor();
             } 
             else
             {

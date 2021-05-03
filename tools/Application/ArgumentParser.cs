@@ -1,15 +1,13 @@
 ﻿using System.Collections.Generic;
-using System.Linq;
-using System.Reflection;
 
 namespace Tools.Application
 {
-
     internal class ArgumentParser
     {
         private string[] args;
         private string action = "";
         private Dictionary<string, object> arguments = new Dictionary<string, object>();
+        private List<string> positionalArguments = new List<string>();
 
         private string GetArgument(int pos)
         {
@@ -42,10 +40,15 @@ namespace Tools.Application
                         arguments.Add(key.ToLower(), true);
                     }
                 }
+                else
+                {
+                    positionalArguments.Add(name);
+                }
             }
         }
 
         public Dictionary<string, object> Arguments => arguments;
+        public List<string> PositionalArguments => positionalArguments;
         public string Action => action;
     }
 }

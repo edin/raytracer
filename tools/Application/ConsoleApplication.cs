@@ -102,6 +102,16 @@ namespace Tools.Application
             if (method != null)
             {
                 var methodArguments = new List<object>();
+                var position = -1;
+
+                foreach (var p in method.GetParameters())
+                {
+                    position++;
+                    if (!arguments.ContainsKey(p.Name) && position < argumentParser.PositionalArguments.Count)
+                    {
+                        arguments[p.Name.ToLower()] = argumentParser.PositionalArguments[position]; 
+                    }
+                }
 
                 foreach (var p in method.GetParameters())
                 {
@@ -116,6 +126,7 @@ namespace Tools.Application
                     {
                         value = p.DefaultValue;
                     }
+
                     if (arguments.ContainsKey(key))
                     {
                         value = Convert.ChangeType(arguments[key], p.ParameterType);
