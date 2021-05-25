@@ -91,7 +91,7 @@ struct Color
     }
 }
 
-class Camera
+final class Camera
 {
     public Vector forward;
     public Vector right;
@@ -125,7 +125,7 @@ struct Ray
     Vector dir;
 }
 
-class Intersection
+final class Intersection
 {
     Thing thing;
     Ray ray;
@@ -165,7 +165,7 @@ struct Light
     public Color color;
 }
 
-class Sphere : Thing
+final class Sphere : Thing
 {
     public double radius2;
     public Vector center;
@@ -202,7 +202,7 @@ class Sphere : Thing
     }
 }
 
-class Plane : Thing
+final class Plane : Thing
 {
     private Vector norm;
     private double offset;
@@ -237,7 +237,7 @@ class Plane : Thing
     }
 }
 
-class ShinySurface : Surface
+final class ShinySurface : Surface
 {
     public override SurfaceProperties getSurfaceProperties(ref Vector pos)
     {
@@ -245,7 +245,7 @@ class ShinySurface : Surface
     }
 }
 
-class CheckerboardSurface : Surface
+final class CheckerboardSurface : Surface
 {
     public override SurfaceProperties getSurfaceProperties(ref Vector pos)
     {
@@ -260,7 +260,7 @@ class CheckerboardSurface : Surface
     }
 }
 
-class Scene
+final class Scene
 {
     public Thing[] things;
     public Light[] lights;
@@ -288,7 +288,7 @@ class Scene
     }
 }
 
-class RayTracerEngine
+final class RayTracerEngine
 {
     private static const int maxDepth = 5;
     private Scene scene;
@@ -391,7 +391,7 @@ class RayTracerEngine
     }
 }
 
-class Image
+final class Image
 {
     private int _width;
     private int _height;
