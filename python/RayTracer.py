@@ -1,11 +1,13 @@
 import math
 import time
+
 from PIL import Image
-# pip install Pillow
 
 FarAway = 1000000
 
 class Vector:
+    __slots__ = ("x", "y", "z")
+
     def __init__(self, x,y,z):
         self.x = x
         self.y = y
@@ -35,6 +37,8 @@ class Vector:
         return Vector(self.y * v.z - self.z * v.y, self.z * v.x - self.x * v.z, self.x * v.y - self.y * v.x)
 
 class Color:
+    __slots__ = ("r", "g", "b")
+
     def __init__(self,r: float, g: float, b: float):
         self.r = r
         self.g = g
@@ -50,10 +54,9 @@ class Color:
         return Color(self.r * v.r, self.g * v.g, self.b * v.b)
 
     def toDrawingColor(self):
-        legalize = lambda  d: 1 if(d > 1) else d
-        r = math.floor(legalize(self.r)*255)
-        g = math.floor(legalize(self.g)*255)
-        b = math.floor(legalize(self.b)*255)
+        r = math.floor(min(self.r,1)*255)
+        g = math.floor(min(self.g,1)*255)
+        b = math.floor(min(self.b,1)*255)
         return (r, g ,b)
 
 ColorWhite = Color(1.0, 1.0, 1.0)
@@ -63,6 +66,8 @@ ColorBackground   = ColorBlack
 ColorDefaultColor = ColorBlack
 
 class Camera:
+    __slots__ = ("pos", "forward", "right", "up")
+
     def __init__(self, pos: Vector, lookAt: Vector):
         down         = Vector(0.0, -1.0, 0.0)
         self.pos     = pos
@@ -71,22 +76,30 @@ class Camera:
         self.up      = self.forward.cross(self.right).norm().times(1.5)
 
 class Ray:
+    __slots__ = ("start", "dir")
+
     def __init__(self, start: Vector, dir: Vector):
         self.start = start
         self.dir = dir
 
 class Intersection:
+    __slots__ = ("thing", "ray", "dist")
+
     def __init__(self, thing, ray: Ray, dist: float):
         self.thing = thing
         self.ray =  ray
         self.dist = dist
 
 class Light:
+    __slots__ = ("pos", "color")
+
     def __init__(self, pos: Vector, color: Color):
         self.pos = pos
         self.color = color
 
 class Sphere:
+    __slots__ = ("radius2", "_surface", "center")
+
     def __init__(self, center: Vector, radius: float, surface):
         self.radius2 = radius*radius
         self._surface = surface
@@ -111,6 +124,8 @@ class Sphere:
         return Intersection(self, ray, dist)
 
 class Plane:
+    __slots__ = ("_norm", "_surface", "offset")
+
     def __init__(self, norm: Vector, offset: float, surface):
         self._norm    = norm
         self._surface = surface
@@ -163,7 +178,11 @@ SurfaceShiny        = ShinySurface()
 SurfaceCheckerboard = CheckerboardSurface()
 
 class RayTracer:
-    maxDepth = 5
+    __slots__ = ("scene", "maxDepth")
+
+    def __init__(self,scene):
+        self.scene = scene
+        self.maxDepth = 5
 
     def intersections(self, ray: Ray):
         closest = FarAway
@@ -235,13 +254,13 @@ class RayTracer:
         cy = -(y - (screenHeight / 2.0)) / 2.0 / screenHeight
         return camera.right.times(cx).plus(camera.up.times(cy)).plus(camera.forward).norm()
 
-    def render(self, scene, image, screenWidth, screenHeight):
-        self.scene = scene
+    def render(self, image, screenWidth, screenHeight):
         for y in range(0,screenHeight):
             for x in range(0,screenWidth):
                 ray = Ray(self.scene.camera.pos, self.getPoint(x, y, self.scene.camera, screenWidth, screenHeight))
                 color = self.traceRay(ray, 0)
                 image.putpixel((x,y), color.toDrawingColor())
+
 class Scene:
     def __init__(self):
         self.things = [
@@ -257,19 +276,18 @@ class Scene:
         ]
         self.camera = Camera(Vector(3.0, 2.0, 4.0), Vector(-1.0, 0.5, 0.0))
 
-def run():
+if __name__ == "__main__":
     width  = 500
     height = 500
     image =  Image.new("RGB", (width, height), "white")
 
+    rayTracer = RayTracer(Scene())
     t1 = time.time()
-    rayTracer = RayTracer()
-    scene     = Scene()
-    rayTracer.render(scene, image, width, height)
+
+    rayTracer.render(image, width, height)
+
     t2 = time.time()
-    t = t2 -t1
+    t = (t2 -t1)*1000
 
     image.save("py-ray-tracer.png","png")
-    print ("Completed in %d sec" % t)
-
-run()
+    print ("Completed in {:.4f} ms".format(t))

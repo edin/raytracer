@@ -9,27 +9,13 @@ internal class Program
     {
         var image = new Image(500, 500);
         Stopwatch sw = new Stopwatch();
-        Console.WriteLine("C# RayTracer Test");
-
-        long t = 0;
-        long n = 1;
-
-        for (var i = 0; i < n; i++)
-        {
-            sw.Reset();
-            sw.Start();
-            var rayTracer = new RayTracerEngine();
-            var scene = new Scene();
-            rayTracer.Render(scene, image);
-            sw.Stop();
-            t += sw.ElapsedMilliseconds;
-        }
-
-        image.Save("csharp-ray-tracer.png");
-
-        Console.WriteLine("");
-        Console.WriteLine("Total time: " + (t / n).ToString() + " ms");
-        Console.ReadLine();
+        sw.Start();
+        var rayTracer = new RayTracerEngine();
+        var scene = new Scene();
+        rayTracer.Render(scene, image);
+        sw.Stop();
+        image.Save("csharp-ray.bmp");
+        Console.WriteLine("Completed in " + sw.ElapsedMilliseconds.ToString() + " ms");
     }
 }
 

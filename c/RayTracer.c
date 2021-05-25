@@ -560,7 +560,6 @@ void SaveRGBBitmap(UInt8* bitmapBits, int width, int height, int bitsPerPixel, c
 
 int main()
 {
-    printf("Started\n");
     clock_t t1 = clock();
     Scene scene  = CreateScene();
 

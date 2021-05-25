@@ -119,7 +119,6 @@ func init() {
 }
 
 func main() {
-	fmt.Println("Starting")
 	start := time.Now()
 
 	width := 500
@@ -140,7 +139,7 @@ func main() {
 
 	writer.Flush()
 
-	fmt.Printf("Completed in %s", elapsed)
+	fmt.Printf("Completed in %s\n", elapsed)
 }
 
 type Camera struct {

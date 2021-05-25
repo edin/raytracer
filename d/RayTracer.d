@@ -6,6 +6,7 @@ import std.math;
 import std.conv;
 import std.algorithm.comparison;
 import std.algorithm;
+import std.datetime.stopwatch : StopWatch;
 
 struct RGBColor
 {
@@ -249,13 +250,10 @@ final class CheckerboardSurface : Surface
 {
     public override SurfaceProperties getSurfaceProperties(ref Vector pos)
     {
-        Color diffuse = Color.black;
-        double reflect = 0.7;
-        if (to!int(floor(pos.z) + floor(pos.x)) % 2 != 0)
-        {
-            diffuse = Color.white;
-            reflect = 0.1;
-        }
+        bool condition = (to!int(floor(pos.z) + floor(pos.x)) & 1) != 0;
+        Color diffuse  = condition ? Color.white : Color.black;
+        double reflect = condition ? 0.1 : 0.7;
+
         return SurfaceProperties(diffuse, Color.white, reflect, 150.0);
     }
 }
@@ -476,7 +474,6 @@ final class Image
 
 void main(string[] argv)
 {
-    writeln("Starting");
     StopWatch sw;
     sw.start();
     Image image = new Image(500, 500);
@@ -484,6 +481,6 @@ void main(string[] argv)
     RayTracerEngine rayTracer = new RayTracerEngine();
     rayTracer.render(scene, image);
     sw.stop();
-    writeln("Completed in: ", sw.peek.msecs, " [ms]");
+    writeln("Completed in: ", sw.peek.total!"msecs", " ms");
     image.save("d-raytracer.bmp");
 }

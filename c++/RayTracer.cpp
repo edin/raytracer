@@ -440,7 +440,6 @@ void SaveImage(RgbColor* bitmapBits, int width, int height, const char* fileName
 
 int main()
 {
-    std::cout << "Started " << std::endl;
     auto t1 = std::chrono::high_resolution_clock::now();
 
     Scene scene;

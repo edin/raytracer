@@ -373,6 +373,6 @@ when isMainModule:
   var t2 = cpuTime()
   var diff = (t2 - t1) * 1000
 
-  echo "CPU time [ms] ", diff
+  echo "Completed in ", diff, " ms"
 
   SaveRGBBitmap(bitmapData, width, height, 32, "nim-raytracer.bmp")

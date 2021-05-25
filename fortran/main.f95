@@ -342,19 +342,19 @@ contains
         integer val, surface
 
         if (surface .eq. SHINY_SURFACE) then
-            properties = TSurfaceProperties(0.7, 150, white, grey)
+            properties = TSurfaceProperties(0.7, 250, white, grey)
         else
             val = (floor(pos%z) + floor(pos%x))
 
             if (mod(val,2) /= 0) then
-                properties%reflect   = 0.5
+                properties%reflect   = 0.1
                 properties%diffuse   = white
             else
                 properties%reflect   = 0.7
                 properties%diffuse   = black
             end if
             properties%specular  = white
-            properties%roughness = 250.0
+            properties%roughness = 150.0
         end if
     end function
 
@@ -466,12 +466,12 @@ contains
 
         ray = TRay(scene%camera%pos, TVector(0.0, 0.0, 0.0))
 
-        do y = 0 , h -1
+        do y = 0 , h - 1
             index = y * stride
-            do  x = 1 , w
+            do  x = 0 , w - 1
                 ray%dir = GetPoint(x, y, scene%camera, h, w)
                 color = TraceRay(ray, scene, 0)
-                bitmapData(index + x) = ColorToRGB(color)
+                bitmapData(index + x + 1) = ColorToRGB(color)
             end do
         end do
     end subroutine

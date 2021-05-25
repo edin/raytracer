@@ -1,11 +1,16 @@
 [package]
 name = "ray_tracer"
 version = "0.1.0"
-authors = ["Edin <edin.omeragic@gmail.com>"]
+authors = ["Edin <edin.omeragic@gmail.com>", "Darley <darleybarreto@gmail.com>"]
 
 [[bin]]
 path = "./src/ray_tracer.rs"
 name = "ray_tracer"
 
 [dependencies]
-bmp = "*"
+bmp = "0.5.0"
+rayon = "1.5.0"
+
+[profile.release]
+lto = "fat"
+codegen-units = 1
