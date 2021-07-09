@@ -24,8 +24,8 @@ Raytracer benchmarks based on [Typescript](http://www.typescriptlang.org) sample
 | Java 8-14            | 600 ms    |
 | Delphi 2010 (32 bit) | 720 ms    |
 | Node 15 (JS)         | 734 ms    |
+| Julia                | 783 ms    |
 | Scala                | 820 ms    |
-| Julia                | 900 ms    |
 | Node 15 (TS)         | 1100 ms   |
 | F#                   | 1800 ms   |
 | Node 8               | 1800 ms   |
@@ -43,7 +43,6 @@ Raytracer benchmarks based on [Typescript](http://www.typescriptlang.org) sample
 | V                    | ? ms      |
 | Swift                | ? ms      |
 | Haskel               | ? ms      |
-| Swift                | ? ms      |
 | Ada                  | ? ms      |
 
 ## Lines of code
@@ -72,7 +71,7 @@ Raytracer benchmarks based on [Typescript](http://www.typescriptlang.org) sample
 
 **C** - Simple, clean, and fast
 
-**C++** - Unlike C, C++ version does bounds checking, otherwise performances are mostly the same
+**C++** - Unlike C, C++ version does bounds checking, otherwise, performances are mostly the same
 
 **Nim** - Uses Quake square root algorithm
 
@@ -80,11 +79,9 @@ Raytracer benchmarks based on [Typescript](http://www.typescriptlang.org) sample
 
 **Node/V8** - Node is fast
 
-**Fortran** - Finally completed Fortran port, it was easier than expected
-
-**F#** - This should be close to C# and VB.Net but I don't have much experience with F#
+**F#** - This should be close to C# and VB.Net, but I don't have much experience with F#
 
 
 ## Tested On
 
-All tests are done on AMD FX-8120 CPU.
+Tested on AMD FX-8120 Cpu.
