@@ -4,6 +4,9 @@
 #include <stdlib.h>
 #include <time.h>
 #include <stdint.h>
+#if __EMSCRIPTEN__
+#include <emscripten.h>
+#endif
 
 const double FarAway = 1000000.0;
 
@@ -577,6 +580,18 @@ int main()
 
     printf("Completed in %d ms\n", time_ms);
     SaveRGBBitmap(&bitmapData[0], width, height, 32, "c-raytracer.bmp");
+#if __EMSCRIPTEN__
+    EM_ASM(
+        const stream = FS.open("c-raytracer.bmp", "r");
+        const blob = new Blob([stream.node.contents], { type: "image/bmp" });
+        const a = document.createElement("a");
+        a.href = URL.createObjectURL(blob);
+        a.download = "webassembly-raytracer.bmp";
+        a.click();
+        URL.revokeObjectURL(a.href);
+        a.remove();
+    );
+#endif
 
     ReleaseScene(&scene);
     free(bitmapData);
