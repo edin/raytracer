@@ -40,7 +40,7 @@ package Colors is
 
    procedure Scale_Self( Color: in out Color_Type; K: Float15 );
    -- scales Color by a factor of K, modifies self
-   pragma Inline_Always(Scale);
+   pragma Inline_Always(Scale_Self);
 
    function "*"(First, Second: Color_Type) return Color_Type;
    -- componentwise product of First and Second, returns result

@@ -6,7 +6,7 @@
 -- implementation of Scene type and the ray tracer
 --
 
-pragma Ada_2020;
+pragma Ada_2022;
 
 -- Ada packages
 
