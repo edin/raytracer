@@ -6,7 +6,7 @@
 -- implementation for 3d Vectors, which describe positions, directions, etc.
 --
 
-pragma Ada_2020;
+pragma Ada_2022;
 
 -- Ada packages
 

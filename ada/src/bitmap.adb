@@ -7,7 +7,7 @@
 -- along with a procedure to save the Bitmap to a BMP file
 --
 
-pragma Ada_2020; -- use Ada_202x features
+pragma Ada_2022; -- use Ada_2022 features
 
 -- Ada packages
 

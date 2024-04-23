@@ -6,7 +6,7 @@
 -- implementation for Objects that may appear in the scene
 --
 
-pragma Ada_2020;
+pragma Ada_2022;
 
 -- Ada packages
 
