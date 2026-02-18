@@ -425,6 +425,7 @@ final class Image
 
         struct BITMAPINFOHEADER
         {
+        align(1):
             DWORD biSize;
             LONG biWidth;
             LONG biHeight;
@@ -440,6 +441,7 @@ final class Image
 
         struct BITMAPFILEHEADER
         {
+        align(1):
             WORD bfType;
             DWORD bfSize;
             WORD bfReserved1;
@@ -460,13 +462,12 @@ final class Image
 
         BITMAPFILEHEADER bfh = {};
         bfh.bfType = 'B' + ('M' << 8);
-        bfh.bfOffBits = BITMAPINFOHEADER.sizeof + 14;
+        bfh.bfOffBits = BITMAPINFOHEADER.sizeof + BITMAPFILEHEADER.sizeof;
         bfh.bfSize = bfh.bfOffBits + bmpInfoHeader.biSizeImage;
 
         auto file = File(fileName, "wb");
-        file.rawWrite((cast(ubyte*)&bfh)[0 .. 2]); // Skip padded bytes - could not get struct align to work
-        file.rawWrite((cast(ubyte*)&bfh)[4 .. 16]);
-        file.rawWrite((cast(ubyte*)&bmpInfoHeader)[0 .. 40]);
+        file.rawWrite([bfh]);
+        file.rawWrite([bmpInfoHeader]);
         file.rawWrite(_data);
         file.close();
     }
